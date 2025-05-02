@@ -31,10 +31,10 @@ local function textContent(text)
         }
     }
 end
-local function imageContent(resource, half)
+local function imageContent(resource, half, customOpacity)
     local size = getIconSize()
-    local opacity = 1
-    if half then
+    local opacity = customOpacity or 1
+    if half and customOpacity == nil then
         opacity = 0.5
     end
 
@@ -100,6 +100,9 @@ local function getItemIcon(item, half, selected, slotNumber)
     local selectionResource
     local drawFavoriteStar = true
     selectionResource = getTexture("icons\\quickselect\\selected.tga")
+
+    -- Get magic icon with reduced opacity (0.7)
+    local magicIconOpacity = 0.3
     local magicIcon = FindEnchant(item) and FindEnchant(item) ~= "" and getTexture("textures\\menu_icon_magic_mini.dds")
     local text = ""
     if item and item.type then
@@ -124,27 +127,9 @@ local function getItemIcon(item, half, selected, slotNumber)
     -- Save item count text for the upper left
     local itemCountText = textContent(tostring(text))
 
-    -- Format the slot number based on which bar it's on
-    local formattedSlotNumber = ""
-    if slotNumber then
-        local slotNum = slotNumber % 10
-        if slotNum == 0 then slotNum = 10 end
-
-        if slotNumber <= 10 then
-            -- Main bar (1-10)
-            formattedSlotNumber = tostring(slotNum)
-        elseif slotNumber <= 20 then
-            -- Second bar (s1-s10)
-            formattedSlotNumber = "s" .. tostring(slotNum)
-        else
-            -- Third bar (c1-c10)
-            formattedSlotNumber = "c" .. tostring(slotNum)
-        end
-    end
-
     local context = ui.content {
-        -- selectedContent,
-        imageContent(magicIcon, half),
+        selectedContent,
+        imageContent(magicIcon, half, magicIconOpacity),
         imageContent(itemIcon, half),
         itemCountText,
         -- Add slot number to bottom right if we have it
@@ -152,13 +137,12 @@ local function getItemIcon(item, half, selected, slotNumber)
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = formattedSlotNumber,
-                textSize = 14,                              -- Smaller size for the slot number
-                relativePosition = util.vector2(0.85, 0.9), -- Bottom right position with margin
-                anchor = util.vector2(0.85, 0.9),
+                text = tostring(slotNumber),
+                textSize = 14,                             -- Smaller size for the slot number
+                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
+                anchor = util.vector2(0.9, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
-                padding = util.vector4(0, 0, 5, 0), -- Add right padding/margin (left, top, right, bottom)
             }
         }
     }
@@ -179,39 +163,20 @@ local function getSpellIcon(iconPath, half, selected, slotNumber)
     end
     itemIcon = getTexture(iconPath)
 
-    -- Format the slot number based on which bar it's on
-    local formattedSlotNumber = ""
-    if slotNumber then
-        local slotNum = slotNumber % 10
-        if slotNum == 0 then slotNum = 10 end
-
-        if slotNumber <= 10 then
-            -- Main bar (1-10)
-            formattedSlotNumber = tostring(slotNum)
-        elseif slotNumber <= 20 then
-            -- Second bar (s1-s10)
-            formattedSlotNumber = "s" .. tostring(slotNum)
-        else
-            -- Third bar (c1-c10)
-            formattedSlotNumber = "c" .. tostring(slotNum)
-        end
-    end
-
     local context = ui.content {
         imageContent(itemIcon, half),
-        -- selectedContent,
+        selectedContent,
         -- Add slot number to bottom right if we have it
         slotNumber and {
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = formattedSlotNumber,
-                textSize = 14,                              -- Smaller size for the slot number
-                relativePosition = util.vector2(0.85, 0.9), -- Bottom right position with margin
-                anchor = util.vector2(0.85, 0.9),
+                text = tostring(slotNumber),
+                textSize = 14,                             -- Smaller size for the slot number
+                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
+                anchor = util.vector2(0.9, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
-                padding = util.vector4(0, 0, 5, 0), -- Add right padding/margin (left, top, right, bottom)
             }
         }
     }
@@ -229,23 +194,8 @@ local function getEmptyIcon(half, num, selected, useNumber)
         selectedContent = imageContent(selectionResource)
     end
 
-    -- Format the slot number based on which bar it's on
-    local formattedSlotNumber = ""
-    if num then
-        local slotNum = num % 10
-        if slotNum == 0 then slotNum = 10 end
-
-        if num <= 10 then
-            -- Main bar (1-10)
-            formattedSlotNumber = tostring(slotNum)
-        elseif num <= 20 then
-            -- Second bar (s1-s10)
-            formattedSlotNumber = "s" .. tostring(slotNum)
-        else
-            -- Third bar (c1-c10)
-            formattedSlotNumber = "c" .. tostring(slotNum)
-        end
-    end
+    -- Always show the number regardless of useNumber parameter
+    local text = tostring(num)
 
     -- Calculate proper size for the text, matching the icon size
     local textSize = 14 -- Smaller size for slot numbers
@@ -254,18 +204,17 @@ local function getEmptyIcon(half, num, selected, useNumber)
     end
 
     return ui.content {
-        -- selectedContent,
+        selectedContent,
         {
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = formattedSlotNumber,
+                text = text,
                 textSize = textSize,
-                relativePosition = util.vector2(0.85, 0.9), -- Bottom right position with margin
-                anchor = util.vector2(0.85, 0.9),
+                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
+                anchor = util.vector2(0.9, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
-                padding = util.vector4(0, 0, 5, 0), -- Add right padding/margin (left, top, right, bottom)
             },
             num = num,
             events = {

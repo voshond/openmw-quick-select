@@ -164,13 +164,13 @@ local function createHotbarItem(item, xicon, num, data, half)
                         type = ui.TYPE.Image,
                         props = {
                             resource = borderTexture,
-                            size = util.vector2(sizeX + iconPadding * 2, 4),
-                            position = util.vector2(0, (sizeY - 4) + iconPadding * 2),
+                            size = util.vector2(sizeX + iconPadding * 2, 2),
+                            position = util.vector2(0, (sizeY - 2) + iconPadding * 2),
                             arrange = ui.ALIGNMENT.End,
                             align = ui.ALIGNMENT.End,
                             border = 1,
                             alpha = 1,
-                            color = util.color.rgb(1, 1, 0), -- Yellow highlight for equipped items
+                            color = util.color.rgb(0, 1, 0), -- Green highlight for equipped items
                         }
                     }
                 }

@@ -111,6 +111,17 @@ I.Settings.registerGroup {
             },
         },
         {
+            key = "hotbarVerticalSpacing",
+            renderer = "number",
+            name = "Hotbar Vertical Spacing",
+            description = "Controls the vertical spacing between stacked hotbars when multiple bars are shown. Lower values create tighter spacing.",
+            default = 60,
+            argument = {
+                min = 0,
+                max = 100,
+            },
+        },
+        {
             key = "iconSize",
             renderer = "number",
             name = "Icon Size",

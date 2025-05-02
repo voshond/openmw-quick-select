@@ -89,17 +89,31 @@ local function drawHotbar()
 end
 
 local function onInputAction(action)
-    if action >= input.ACTION.QuickKey1 and action <= input.ACTION.QuickKey9 then
+    if action >= input.ACTION.QuickKey1 and action <= input.ACTION.QuickKey10 then
         local slot = action - input.ACTION.QuickKey1 + 1
-        if slot then
-            if slot > 0 and slot < 4 and input.isShiftPressed() then
-                selectedPage = slot - 1
-                I.QuickSelect_Hotbar.drawHotbar()
-                return
-            end
-            I.QuickSelect_Storage.equipSlot(slot + (selectedPage * 10))
+
+        -- Alt cycles through hotbars
+        if input.isAltPressed() then
+            selectedPage = (selectedPage + 1) % 3
             I.QuickSelect_Hotbar.drawHotbar()
+            return
         end
+
+        -- Direct hotbar selection:
+        -- Default: Keys 1-0 select slots from the first hotbar (page 0)
+        -- Shift: Shift+1-0 select slots from the second hotbar (page 1)
+        -- Ctrl: Ctrl+1-0 select slots from the third hotbar (page 2)
+        local targetPage = 0
+
+        if input.isShiftPressed() then
+            targetPage = 1
+        elseif input.isCtrlPressed() then
+            targetPage = 2
+        end
+
+        -- Use the determined page instead of the selected page
+        I.QuickSelect_Storage.equipSlot(slot + (targetPage * 10))
+        I.QuickSelect_Hotbar.drawHotbar()
     end
 end
 return {

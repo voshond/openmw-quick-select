@@ -255,15 +255,18 @@ local function drawHotbar()
 
     -- Configuration for the hotbar
     local iconSize = utility.getIconSize()
-    local iconPadding = 2                                    -- Same padding as in createHotbarItem
-    local paddedIconSize = iconSize + (iconPadding * 2)      -- Account for padding
-    local boxSize = paddedIconSize                           -- Use padded icon size
-    local gutterSize = settings:get("hotbarGutterSize") or 5 -- Get the gutter size from settings
+    local iconPadding = 2                                               -- Same padding as in createHotbarItem
+    local paddedIconSize = iconSize + (iconPadding * 2)                 -- Account for padding
+    local boxSize = paddedIconSize                                      -- Use padded icon size
+    local gutterSize = settings:get("hotbarGutterSize") or 5            -- Get the gutter size from settings
+    local verticalSpacing = settings:get("hotbarVerticalSpacing") or 60 -- Get vertical spacing from settings
     local itemsPerRow = HOTBAR_ITEMS_PER_ROW
 
     log("Config - iconSize: " ..
         iconSize ..
-        ", paddedIconSize: " .. paddedIconSize .. ", gutterSize: " .. gutterSize .. ", itemsPerRow: " .. itemsPerRow)
+        ", paddedIconSize: " .. paddedIconSize .. ", gutterSize: " .. gutterSize ..
+        ", verticalSpacing: " .. verticalSpacing ..
+        ", itemsPerRow: " .. itemsPerRow)
 
     -- Calculate the width - account for items and spacers
     local itemWidth = boxSize
@@ -283,55 +286,89 @@ local function drawHotbar()
 
     local xContent = {}
     local content = {}
-    num = 1 + (itemsPerRow * I.QuickSelect.getSelectedPage())
-    log("Starting num: " .. num .. ", page: " .. I.QuickSelect.getSelectedPage())
+    log("Starting page: " .. I.QuickSelect.getSelectedPage())
 
     local showExtraHotbars = settings:get("previewOtherHotbars")
     log("Show extra hotbars: " .. tostring(showExtraHotbars))
 
     if showExtraHotbars then
-        if I.QuickSelect.getSelectedPage() > 0 then
-            log("Adding previous hotbar")
-            num = 1 + (itemsPerRow * (I.QuickSelect.getSelectedPage() - 1))
-            -- Previous hotbar (half height if it's not the current one)
-            local prevItems = getHotbarItems(true)
-            log("Previous hotbar items count: " .. #prevItems)
+        -- Render all bars stacked in reverse order when previewOtherHotbars is enabled
+        -- Scale bar height based on vertical spacing setting
+        local heightScale = math.max(0.1, verticalSpacing / 100) -- Convert to percentage, min 10%
 
-            table.insert(content,
-                utility.renderItemBoxed(
-                    utility.flexedItems(prevItems, true, util.vector2(0.5, 0.5)),
-                    util.vector2(hotbarWidth, hotbarHeight * 0.8),
-                    I.MWUI.templates.padding,
-                    util.vector2(0.5, 0.5)))
+        -- Calculate margin height based on vertical spacing (lower = less margin)
+        local marginHeight = math.max(1, math.floor(verticalSpacing / 10))
+
+        -- Bar 3 (top)
+        num = 1 + (itemsPerRow * 2) -- Page 2 (third bar)
+        log("Adding bar 3 (top)")
+        local bar3Items = getHotbarItems()
+        log("Bar 3 items count: " .. #bar3Items)
+
+        table.insert(content,
+            utility.renderItemBoxed(
+                utility.flexedItems(bar3Items, true, util.vector2(0.5, 0.5)),
+                util.vector2(hotbarWidth, hotbarHeight * heightScale),
+                I.MWUI.templates.padding,
+                util.vector2(0.5, 0.5)))
+
+        -- Add a margin element between bar 3 and bar 2
+        if marginHeight > 1 then
+            table.insert(content, {
+                type = ui.TYPE.Container,
+                props = {
+                    size = util.vector2(hotbarWidth, marginHeight),
+                    minSize = util.vector2(hotbarWidth, marginHeight),
+                    fixedSize = util.vector2(hotbarWidth, marginHeight)
+                }
+            })
+        end
+
+        -- Bar 2 (middle)
+        num = 1 + (itemsPerRow * 1) -- Page 1 (second bar)
+        log("Adding bar 2 (middle)")
+        local bar2Items = getHotbarItems()
+        log("Bar 2 items count: " .. #bar2Items)
+
+        table.insert(content,
+            utility.renderItemBoxed(
+                utility.flexedItems(bar2Items, true, util.vector2(0.5, 0.5)),
+                util.vector2(hotbarWidth, hotbarHeight * heightScale),
+                I.MWUI.templates.padding,
+                util.vector2(0.5, 0.5)))
+
+        -- Add a margin element between bar 2 and bar 1
+        if marginHeight > 1 then
+            table.insert(content, {
+                type = ui.TYPE.Container,
+                props = {
+                    size = util.vector2(hotbarWidth, marginHeight),
+                    minSize = util.vector2(hotbarWidth, marginHeight),
+                    fixedSize = util.vector2(hotbarWidth, marginHeight)
+                }
+            })
         end
     end
 
-    -- Current hotbar (full height)
-    log("Adding current hotbar")
-    local currentItems = getHotbarItems()
-    log("Current hotbar items count: " .. #currentItems)
+    -- Bar 1 (bottom) - Always show current bar
+    num = 1 + (itemsPerRow * 0) -- Page 0 (first bar)
+    log("Adding bar 1 (bottom)")
+    local bar1Items = getHotbarItems()
+    log("Bar 1 items count: " .. #bar1Items)
+
+    -- Apply the same height scaling to the main bar when vertical spacing is low
+    local mainBarHeight = hotbarHeight
+    if showExtraHotbars and verticalSpacing < 70 then
+        local heightScale = math.max(0.1, verticalSpacing / 100) -- Use the same scale as other bars
+        mainBarHeight = hotbarHeight * heightScale
+    end
 
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(currentItems, true, util.vector2(0.5, 0.5)),
-            util.vector2(hotbarWidth, hotbarHeight),
+        utility.renderItemBoxed(
+            utility.flexedItems(bar1Items, true, util.vector2(0.5, 0.5)),
+            util.vector2(hotbarWidth, mainBarHeight),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
-
-    if showExtraHotbars then
-        if I.QuickSelect.getSelectedPage() < 2 then
-            log("Adding next hotbar")
-            -- Next hotbar (half height if it's not the current one)
-            local nextItems = getHotbarItems(true)
-            log("Next hotbar items count: " .. #nextItems)
-
-            table.insert(content,
-                utility.renderItemBoxed(
-                    utility.flexedItems(nextItems, true, util.vector2(0.5, 0.5)),
-                    util.vector2(hotbarWidth, hotbarHeight * 0.8),
-                    I.MWUI.templates.padding,
-                    util.vector2(0.5, 0.5)))
-        end
-    end
 
     content = ui.content(content)
     log("Content elements count: " .. #content)
@@ -348,6 +385,29 @@ local function drawHotbar()
     end
 
     log("Creating hotbar UI")
+
+    -- Calculate total height based on how many bars are showing
+    local totalHeight = hotbarHeight
+    if showExtraHotbars then
+        -- Calculate height based on vertical spacing setting
+        local heightScale = math.max(0.1, verticalSpacing / 100) -- Convert to percentage, min 10%
+
+        -- Calculate margin height based on vertical spacing
+        local marginHeight = math.max(1, math.floor(verticalSpacing / 10))
+
+        -- Use scaled height for all bars when vertical spacing is low
+        if verticalSpacing < 70 then
+            totalHeight = (hotbarHeight * heightScale * 3) + (marginHeight * 2)
+        else
+            totalHeight = hotbarHeight + (hotbarHeight * heightScale * 2) + (marginHeight * 2)
+        end
+
+        -- Create a smaller container when vertical spacing is very low
+        if verticalSpacing < 30 then
+            totalHeight = totalHeight * 0.9
+        end
+    end
+
     hotBarElement = ui.create {
         layer = "HUD",
         template = I.MWUI.templates.padding,
@@ -365,9 +425,9 @@ local function drawHotbar()
                     horizontal = false,
                     align = ui.ALIGNMENT.Center,
                     arrange = ui.ALIGNMENT.Center,
-                    size = util.vector2(hotbarWidth, hotbarHeight),
-                    minSize = util.vector2(hotbarWidth, hotbarHeight),   -- Enforce minimum size
-                    fixedSize = util.vector2(hotbarWidth, hotbarHeight), -- Try to enforce fixed size
+                    size = util.vector2(hotbarWidth, totalHeight),
+                    minSize = util.vector2(hotbarWidth, totalHeight),   -- Enforce minimum size
+                    fixedSize = util.vector2(hotbarWidth, totalHeight), -- Try to enforce fixed size
                 }
             }
         }
@@ -476,7 +536,7 @@ local function getPrevKey()
     end
 end
 local function onSettingChanged(key, value)
-    if key == "iconSize" or key == "hotbarGutterSize" or key == "showNumbersForEmptySlots" or key == "hotBarOnTop" then
+    if key == "iconSize" or key == "hotbarGutterSize" or key == "showNumbersForEmptySlots" or key == "hotBarOnTop" or key == "hotbarVerticalSpacing" then
         I.QuickSelect_Hotbar.drawHotbar()
     end
 end

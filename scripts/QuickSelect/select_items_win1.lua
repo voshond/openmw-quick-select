@@ -161,7 +161,7 @@ local function createItemIcon(item, spell, num)
     end
 
     -- Use consistent icon sizes
-    local iconSize = utility.iconSize
+    local iconSize = utility.getIconSize()
 
     local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
         util.vector2(0.5, 0.5),
@@ -216,7 +216,7 @@ local function createHotbarItem(item, xicon, num, data)
     end
 
     -- Use consistent icon sizes
-    local iconSize = utility.iconSize
+    local iconSize = utility.getIconSize()
 
     local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
         util.vector2(0.5, 0.5),

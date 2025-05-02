@@ -97,8 +97,8 @@ end
 local function createHotbarItem(item, xicon, num, data, half)
     local icon
     local isEquipped = I.QuickSelect_Storage.isSlotEquipped(num)
-    local sizeX = utility.iconSize
-    local sizeY = utility.iconSize
+    local sizeX = utility.getIconSize()
+    local sizeY = utility.getIconSize()
     local drawNumber = settings:get("showNumbersForEmptySlots")
     local offset = I.QuickSelect.getSelectedPage() * 10
     local selected = (num) == (selectedNum + offset)
@@ -141,7 +141,7 @@ end
 local function createSpacerElement(width, half)
     log("Creating spacer: width=" .. width .. ", half=" .. tostring(half))
     local iconPadding = 2 -- Same padding as in createHotbarItem
-    local height = half and (utility.iconSize / 2) or utility.iconSize
+    local height = half and (utility.getIconSize() / 2) or utility.getIconSize()
 
     -- Add padding to height to match the padded icons
     height = height + (iconPadding * 2)
@@ -254,7 +254,7 @@ local function drawHotbar()
     end
 
     -- Configuration for the hotbar
-    local iconSize = utility.iconSize
+    local iconSize = utility.getIconSize()
     local iconPadding = 2                                    -- Same padding as in createHotbarItem
     local paddedIconSize = iconSize + (iconPadding * 2)      -- Account for padding
     local boxSize = paddedIconSize                           -- Use padded icon size
@@ -475,6 +475,11 @@ local function getPrevKey()
         return "]"
     end
 end
+local function onSettingChanged(key, value)
+    if key == "iconSize" or key == "hotbarGutterSize" or key == "showNumbersForEmptySlots" or key == "hotBarOnTop" then
+        I.QuickSelect_Hotbar.drawHotbar()
+    end
+end
 return {
     --I.QuickSelect_Hotbar.drawHotbar()
     interfaceName = "QuickSelect_Hotbar",
@@ -570,6 +575,7 @@ return {
                     endPickingMode()
                 end
             end
-        end
+        end,
+        onSettingChanged = onSettingChanged
     }
 }

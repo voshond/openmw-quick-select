@@ -8,14 +8,16 @@ local util = require('openmw.util')
 local ui = require('openmw.ui')
 local input = require('openmw.input')
 local I = require('openmw.interfaces')
+local storage = require('openmw.storage')
 local settings = require("scripts.QuickSelect.qs_settings")
 local function getIconSize()
-    return 40
+    local settingsStorage = storage.playerSection("SettingsQuickSelect")
+    return settingsStorage:get("iconSize") or 40
 end
 local selectedPage = 0
 local function getIconSizeGrow()
     local ret = 20
-    return (40) + ret * 0.25
+    return getIconSize() + ret * 0.25
 end
 local function createHotbarItem(item, spell)
     local icon = I.Controller_Icon_QS.getItemIcon(item)
@@ -109,7 +111,7 @@ return {
             return selectedPage
         end,
         setSelectedPage = function(num)
-             selectedPage = num
+            selectedPage = num
         end,
     },
     engineHandlers = {

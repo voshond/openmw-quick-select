@@ -14,7 +14,8 @@ local input = require("openmw.input")
 local async = require("openmw.async")
 local storage = require("openmw.storage")
 local function getIconSize()
-    return 40
+    local settings = storage.playerSection("SettingsQuickSelect")
+    return settings:get("iconSize") or 40
 end
 
 local savedTextures = {}

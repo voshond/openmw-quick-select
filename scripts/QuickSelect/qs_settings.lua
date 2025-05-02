@@ -110,6 +110,17 @@ I.Settings.registerGroup {
                 max = 20,
             },
         },
+        {
+            key = "iconSize",
+            renderer = "number",
+            name = "Icon Size",
+            description = "Controls the size of icons in the hotbar. Higher values create larger icons.",
+            default = 40,
+            argument = {
+                min = 20,
+                max = 100,
+            },
+        },
     },
 
 }

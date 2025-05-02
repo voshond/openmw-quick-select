@@ -44,9 +44,14 @@ end
 local scale = 0.8
 local iconSize = 40
 
+local function getIconSize()
+    local settings = storage.playerSection("SettingsQuickSelect")
+    return settings:get("iconSize") or 40
+end
+
 local function imageContent(resource, size)
     if (size == nil) then
-        size = iconSize
+        size = getIconSize()
     end
 
     return {
@@ -258,7 +263,6 @@ local function renderItemBoxed(content, size, itemTemplate, relativePosition, da
         itemTemplate = I.MWUI.templates.borders
     end
 
-
     return {
         id = "itemBoxed",
         type = ui.TYPE.Container,
@@ -294,7 +298,7 @@ return {
     FindEnchantment = FindEnchantment,
     calculateTextScale = calculateTextScale,
     scale = scale,
-    iconSize = iconSize,
+    iconSize = getIconSize,
     flexedItems = flexedItems,
     itemWindowLocs = itemWindowLocs,
     findSlot = function(item)
@@ -360,5 +364,6 @@ return {
         end
         -- --print("Couldn't find slot for " .. item.recordId)
         return nil
-    end
+    end,
+    getIconSize = getIconSize
 }

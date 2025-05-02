@@ -8,7 +8,7 @@ local self = require("openmw.self")
 local playerSettings = storage.playerSection("MessageBoxData")
 local winCreated
 
-local winName 
+local winName
 local function padString(str, length)
     if true == true then
         return str
@@ -57,11 +57,10 @@ local function mouseClick(mouseEvent, data)
     if not data.props.selected then return end
     winCreated:destroy()
     --I.UI.setMode(nil)
-    self:sendEvent("ButtonClicked",{name = winName,text = data.props.text})
+    self:sendEvent("ButtonClicked", { name = winName, text = data.props.text })
 end
-local function mouseMove(mouseEvent,data)
---make the button lit up when moused over
-
+local function mouseMove(mouseEvent, data)
+    --make the button lit up when moused over
 end
 local function renderListItem(text, font, selected)
     local resources = ui.content {
@@ -85,7 +84,7 @@ local function renderListItem(text, font, selected)
         events = {
             mousePress = async:callback(mouseClick),
             mouseMove = async:callback(mouseMove),
-            focusLoss =  async:callback(focusLoss),
+            focusLoss = async:callback(focusLoss),
         },
         content = ui.content {
             {
@@ -103,7 +102,7 @@ local function showMessageBox(winName, textLines, buttons)
     local contents = {}
     local table_contents = {} -- Table to hold the generated items
     for index, text in ipairs(textLines) do
-        local content = {} -- Create a new table for each value of x
+        local content = {}    -- Create a new table for each value of x
 
         table.insert(content, renderListItem(text, nil, false))
         table.insert(contents, content)
@@ -116,7 +115,7 @@ local function showMessageBox(winName, textLines, buttons)
         error("No content items")
     end
 
-    for index, contentx in ipairs(contents) do----print the actual text lines
+    for index, contentx in ipairs(contents) do ----print the actual text lines
         local item = {
             type = ui.TYPE.Flex,
             content = ui.content(contentx),
@@ -130,7 +129,7 @@ local function showMessageBox(winName, textLines, buttons)
         table.insert(table_contents, item)
     end
 
-    local itemx = {--This contains the buttons, so that they can be arranged horizontally at the bottom
+    local itemx = { --This contains the buttons, so that they can be arranged horizontally at the bottom
         type = ui.TYPE.Flex,
         content = ui.content(buttonContent),
         props = {
@@ -143,11 +142,11 @@ local function showMessageBox(winName, textLines, buttons)
     }
     table.insert(table_contents, itemx)
 
-    local itemK = {--This includes the top text, and the botton buttons.
+    local itemK = { --This includes the top text, and the botton buttons.
         type = ui.TYPE.Flex,
         content = ui.content(table_contents),
         props = {
-           -- size = util.vector2(450, 300),
+            -- size = util.vector2(450, 300),
             horizontal = false,
             vertical = true,
             arrange = ui.ALIGNMENT.Center,
@@ -156,7 +155,7 @@ local function showMessageBox(winName, textLines, buttons)
         },
     }
     I.UI.setMode('Interface', { windows = {} })
-    local xui = ui.create {--This is the window itself.
+    local xui = ui.create { --This is the window itself.
         layer = "Windows",
         template = I.MWUI.templates.boxTransparent,
         events = {
@@ -171,7 +170,7 @@ local function showMessageBox(winName, textLines, buttons)
             autoSize = true,
             vertical = true,
         },
-        content = ui.content({itemK})
+        content = ui.content({ itemK })
     }
     xui.layout.props.xui = xui
     winCreated = xui

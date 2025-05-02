@@ -32,12 +32,15 @@ I.Settings.registerGroup {
     ]],
     settings = {
         {
-            key = "previewOtherHotbars",
-            renderer = "checkbox",
-            name = "Show Next and Previous Hotbars",
-            description =
-            "If enabled, a preview of the next and previous hotbars will be shown above and below the current hotbar.",
-            default = false
+            key = "visibleHotbars",
+            renderer = "number",
+            name = "Number of Visible Hotbars",
+            description = "Set how many hotbars should be visible at once (1-3). Value of 1 shows only the current hotbar, 2 shows current and one additional, 3 shows all hotbars.",
+            default = 1,
+            argument = {
+                min = 1,
+                max = 3,
+            },
         },
         {
             key = "persistMode",
@@ -53,14 +56,6 @@ I.Settings.registerGroup {
             name = "Unequip when selecting equipped items",
             description =
             "If enabled, selecting an item that is already equipped will unequip it. If disabled, selecting an item that is already equipped will do nothing.",
-            default = true
-        },
-        {
-            key = "showNumbersForEmptySlots",
-            renderer = "checkbox",
-            name = "Show numbers for empty slots",
-            description =
-            "If enabled, empty slots will show a number indicating the slot number. If disabled, empty slots will be blank.",
             default = true
         },
         {
@@ -108,6 +103,17 @@ I.Settings.registerGroup {
             argument = {
                 min = 0,
                 max = 20,
+            },
+        },
+        {
+            key = "hotbarVerticalSpacing",
+            renderer = "number",
+            name = "Hotbar Vertical Spacing",
+            description = "Controls the vertical spacing between stacked hotbars when multiple bars are shown. Lower values create tighter spacing.",
+            default = 60,
+            argument = {
+                min = 0,
+                max = 100,
             },
         },
         {

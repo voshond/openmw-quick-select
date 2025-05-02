@@ -23,7 +23,7 @@ I.Settings.registerGroup {
     l10n = "SettingsQuickSelect",
     name = "Main Settings",
     permanentStorage = true,
-description = [[
+    description = [[
     These settings allow you to modify the behavior of the Quickselect bar.
 
     It allows for up to 3 separate hotbars, and you can select an item with 1-10, or use the arrow keys(when enabled), or the DPad on a controller to pick a slot.
@@ -97,6 +97,17 @@ description = [[
                 disabled = false,
                 l10n = "AshlanderArchitectButtons",
                 items = { "Shift Modifier", "-/= Keys", "[/] Keys" },
+            },
+        },
+        {
+            key = "hotbarGutterSize",
+            renderer = "number",
+            name = "Hotbar Item Spacing",
+            description = "Controls the spacing between items in the hotbar. Higher values create more space between items.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 20,
             },
         },
     },

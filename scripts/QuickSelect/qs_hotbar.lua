@@ -23,6 +23,8 @@ local pickSlotMode = false       --True if we are picking a slot for saving
 local controllerPickMode = false --True if we are picking a slot for equipping OR saving
 
 local selectedNum = 1
+local HOTBAR_ITEMS_PER_ROW = 10
+
 local function startPickingMode()
     enableHotbar = true
     controllerPickMode = true
@@ -49,7 +51,7 @@ local function getToolTipPos()
 end
 local function drawToolTip()
     if true then
-     --   return
+        --   return
     end
     local inv = types.Actor.inventory(self):getAll()
     local offset = I.QuickSelect.getSelectedPage() * 10
@@ -63,7 +65,7 @@ local function drawToolTip()
         item = types.Actor.inventory(self):find(data.item)
     elseif data.itemId then
         item = types.Actor.inventory(self):find(data.itemId)
-    elseif data.spell  then
+    elseif data.spell then
         if data.spellType:lower() == "spell" then
             spell = types.Actor.spells(self)[data.spell]
             if spell then
@@ -79,13 +81,13 @@ local function drawToolTip()
 
     if item then
         tooltipElement = utility.drawListMenu(tooltipData.genToolTips(item),
-        getToolTipPos(), nil, "HUD")
+            getToolTipPos(), nil, "HUD")
         -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
     elseif spell then
         local spellRecord = core.magic.spells.records[spell]
 
         tooltipElement = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
-        getToolTipPos(), nil, "HUD")
+            getToolTipPos(), nil, "HUD")
     end
 end
 local function createHotbarItem(item, xicon, num, data, half)
@@ -106,22 +108,45 @@ local function createHotbarItem(item, xicon, num, data, half)
     elseif num then
         icon = I.Controller_Icon_QS.getEmptyIcon(half, num, selected, drawNumber)
     end
-    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(sizeX * 1.5, sizeY * 1.5), nil,
+
+    -- Create a consistent box size for the icon - use exact size
+    local boxSize = util.vector2(sizeX, sizeY)
+    local boxedIcon = utility.renderItemBoxed(icon, boxSize, nil,
         util.vector2(0.5, 0.5),
         { item = item, num = num, data = data })
+
     local paddingTemplate = I.MWUI.templates.padding
     if isEquipped then
         paddingTemplate = I.MWUI.templates.borders
     end
+
+    -- Create the outer padding with a fixed size
+    local outerSize = util.vector2(sizeX, sizeY)
     local padding = utility.renderItemBoxed(ui.content { boxedIcon },
-        util.vector2(sizeX * 2, sizeY * 2),
+        outerSize,
         paddingTemplate, util.vector2(0.5, 0.5))
     return padding
 end
+
+-- Create a spacer element with the specified width
+local function createSpacerElement(width, half)
+    local height = half and (utility.iconSize / 2) or utility.iconSize
+
+    return {
+        type = ui.TYPE.Container,
+        props = {
+            size = util.vector2(width, height),
+        },
+        content = ui.content {} -- Empty content
+    }
+end
+
 local function getHotbarItems(half)
     local items = {}
     local inv = types.Actor.inventory(self):getAll()
     local count = num + 10
+    local gutterSize = settings:get("hotbarGutterSize") or 5
+
     while num < count do
         local data = I.QuickSelect_Storage.getFavoriteItemData(num)
 
@@ -136,7 +161,6 @@ local function getHotbarItems(half)
                 if spell then
                     effect = spell.effects[1]
                     icon = effect.effect.icon
-                    --    --print("Spell" .. data.spell)
                 end
             elseif data.spellType:lower() == "enchant" then
                 local enchant = utility.getEnchantment(data.enchantId)
@@ -146,11 +170,20 @@ local function getHotbarItems(half)
                 end
             end
         end
+
+        -- Add the hotbar item
         table.insert(items, createHotbarItem(item, icon, num, data, half))
+
+        -- Add spacer element if this isn't the last item
+        if num < count - 1 and gutterSize > 0 then
+            table.insert(items, createSpacerElement(gutterSize, half))
+        end
+
         num = num + 1
     end
     return items
 end
+
 local function drawHotbar()
     if hotBarElement then
         hotBarElement:destroy()
@@ -162,36 +195,55 @@ local function drawHotbar()
     if not enableHotbar then
         return
     end
-    local xContent         = {}
-    local content          = {}
-    num                    = 1 + (10 * I.QuickSelect.getSelectedPage())
-    --local trainerRow = renderItemBoxed({}, util.vector2((160 * scale) * 7, 400 * scale),
-    ---    I.MWUI.templates.padding)
+
+    -- Configuration for the hotbar
+    local iconSize = utility.iconSize
+    local boxSize = iconSize                                 -- Use exact icon size
+    local gutterSize = settings:get("hotbarGutterSize") or 5 -- Get the gutter size from settings
+    local itemsPerRow = HOTBAR_ITEMS_PER_ROW
+
+    -- Calculate the width - we need to account for items and spacers separately now
+    local totalWidth = (boxSize * itemsPerRow) + (gutterSize * (itemsPerRow - 1))
+    local hotbarWidth = totalWidth + 10 -- Add a small buffer
+    local hotbarHeight = boxSize + 10
+
+    local xContent = {}
+    local content = {}
+    num = 1 + (itemsPerRow * I.QuickSelect.getSelectedPage())
+
     local showExtraHotbars = settings:get("previewOtherHotbars")
     if showExtraHotbars then
         if I.QuickSelect.getSelectedPage() > 0 then
-            num = 1 + (10 * (I.QuickSelect.getSelectedPage() - 1))
+            num = 1 + (itemsPerRow * (I.QuickSelect.getSelectedPage() - 1))
+            -- Previous hotbar (half height if it's not the current one)
             table.insert(content,
-                utility.renderItemBoxed(utility.flexedItems(getHotbarItems(true), true, util.vector2(0.5, 0.5)),
-                    utility.scaledVector2(600, 100),
+                utility.renderItemBoxed(
+                    utility.flexedItems(getHotbarItems(true), true, util.vector2(0.5, 0.5)),
+                    util.vector2(hotbarWidth, hotbarHeight * 0.8),
                     I.MWUI.templates.padding,
                     util.vector2(0.5, 0.5)))
         end
     end
+
+    -- Current hotbar (full height)
     table.insert(content,
         utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true, util.vector2(0.5, 0.5)),
-            utility.scaledVector2(800, 80),
+            util.vector2(hotbarWidth, hotbarHeight),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
+
     if showExtraHotbars then
         if I.QuickSelect.getSelectedPage() < 2 then
+            -- Next hotbar (half height if it's not the current one)
             table.insert(content,
-                utility.renderItemBoxed(utility.flexedItems(getHotbarItems(true), true, util.vector2(0.5, 0.5)),
-                    utility.scaledVector2(900, 100),
+                utility.renderItemBoxed(
+                    utility.flexedItems(getHotbarItems(true), true, util.vector2(0.5, 0.5)),
+                    util.vector2(hotbarWidth, hotbarHeight * 0.8),
                     I.MWUI.templates.padding,
                     util.vector2(0.5, 0.5)))
         end
     end
+
     content = ui.content(content)
 
     local anchor = util.vector2(0.5, 1)
@@ -203,10 +255,10 @@ local function drawHotbar()
     if controllerPickMode then
         drawToolTip()
     end
+
     hotBarElement = ui.create {
         layer = "HUD",
-        template = I.MWUI.templates.padding
-        ,
+        template = I.MWUI.templates.padding,
         props = {
             anchor = anchor,
             relativePosition = relativePosition,
@@ -221,7 +273,7 @@ local function drawHotbar()
                     horizontal = false,
                     align = ui.ALIGNMENT.Center,
                     arrange = ui.ALIGNMENT.Center,
-                    size = util.vector2(380, 40),
+                    size = util.vector2(hotbarWidth, hotbarHeight),
                 }
             }
         }

@@ -113,8 +113,13 @@ local function createHotbarItem(item, xicon, num, data, half)
         icon = I.Controller_Icon_QS.getEmptyIcon(half, num, selected, drawNumber)
     end
 
-    -- Create a consistent box size for the icon - use exact size
-    local boxSize = util.vector2(sizeX, sizeY)
+    -- Add a small margin around the icon to prevent clipping
+    local iconPadding = 2 -- 2px padding on each side
+
+    -- Create a box size that's slightly larger than the icon
+    local boxSize = util.vector2(sizeX + iconPadding * 2, sizeY + iconPadding * 2)
+
+    -- Create the icon with proper padding to prevent clipping
     local boxedIcon = utility.renderItemBoxed(icon, boxSize, nil,
         util.vector2(0.5, 0.5),
         { item = item, num = num, data = data })
@@ -125,7 +130,7 @@ local function createHotbarItem(item, xicon, num, data, half)
     end
 
     -- Create the outer padding with a fixed size
-    local outerSize = util.vector2(sizeX, sizeY)
+    local outerSize = util.vector2(sizeX + iconPadding * 2, sizeY + iconPadding * 2)
     local padding = utility.renderItemBoxed(ui.content { boxedIcon },
         outerSize,
         paddingTemplate, util.vector2(0.5, 0.5))
@@ -135,7 +140,11 @@ end
 -- Create a spacer element with the specified width
 local function createSpacerElement(width, half)
     log("Creating spacer: width=" .. width .. ", half=" .. tostring(half))
+    local iconPadding = 2 -- Same padding as in createHotbarItem
     local height = half and (utility.iconSize / 2) or utility.iconSize
+
+    -- Add padding to height to match the padded icons
+    height = height + (iconPadding * 2)
 
     -- Create a transparent texture for the spacer
     local transparentTexture = ui.texture({ path = "icons\\quickselect\\selected.tga" })
@@ -246,11 +255,15 @@ local function drawHotbar()
 
     -- Configuration for the hotbar
     local iconSize = utility.iconSize
-    local boxSize = iconSize                                 -- Use exact icon size
+    local iconPadding = 2                                    -- Same padding as in createHotbarItem
+    local paddedIconSize = iconSize + (iconPadding * 2)      -- Account for padding
+    local boxSize = paddedIconSize                           -- Use padded icon size
     local gutterSize = settings:get("hotbarGutterSize") or 5 -- Get the gutter size from settings
     local itemsPerRow = HOTBAR_ITEMS_PER_ROW
 
-    log("Config - iconSize: " .. iconSize .. ", gutterSize: " .. gutterSize .. ", itemsPerRow: " .. itemsPerRow)
+    log("Config - iconSize: " ..
+        iconSize ..
+        ", paddedIconSize: " .. paddedIconSize .. ", gutterSize: " .. gutterSize .. ", itemsPerRow: " .. itemsPerRow)
 
     -- Calculate the width - account for items and spacers
     local itemWidth = boxSize

@@ -17,7 +17,7 @@ local spellMode = false
 local columnsAndRows = {}
 local selectedCol = 1
 local selectedRow = 1
-local startOffset =0
+local startOffset = 0
 local maxCount = 0
 local num = 1
 local scale = 0.8
@@ -52,11 +52,11 @@ local function mouseClick(mouseEvent, data)
         end
         if spell.enchant then
             I.QuickSelect_Storage.saveStoredEnchantData(spell.enchant, spell.id, slotToSave)
-         --   ui.showMessage("Saved enchant to slot " .. slotToSave)
+            --   ui.showMessage("Saved enchant to slot " .. slotToSave)
         else
             I.QuickSelect_Storage.saveStoredSpellData(spell.id, "Spell", slotToSave)
 
-          --  ui.showMessage("Saved spell to slot " .. slotToSave)
+            --  ui.showMessage("Saved spell to slot " .. slotToSave)
         end
         if QuickSelectWindow then
             QuickSelectWindow:destroy()
@@ -106,7 +106,6 @@ local function mouseClick(mouseEvent, data)
     end
 end
 local function mouseMoveButton(event, data)
-
     if not QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content then
         return
     end
@@ -128,10 +127,11 @@ local function mouseMoveButton(event, data)
             utility.itemWindowLocs.BottomCenter, nil, "HUD")
     end
     for index, value in ipairs(QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content) do
-        local sdata = QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1].content[1].props.spellData
+        local sdata = QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1]
+            .content[1].props.spellData
         if not sdata or not sdata.bold then
-        QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1].content[1].template =
-            I.MWUI.templates.textNormal
+            QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1].content[1].template =
+                I.MWUI.templates.textNormal
         end
     end
     data.template = I.MWUI.templates.textHeader
@@ -159,14 +159,19 @@ local function createItemIcon(item, spell, num)
     else
         return {}
     end
-    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(utility.iconSize * 1.5, utility.iconSize * 1.5), nil,
+
+    -- Use consistent icon sizes
+    local iconSize = utility.iconSize
+
+    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
         util.vector2(0.5, 0.5),
-        { item = item, num = num } ,{
+        { item = item, num = num }, {
             mouseMove = async:callback(mouseMove),
             mouseClick = async:callback(mouseClick),
         })
+
     local padding = utility.renderItemBoxed(ui.content { boxedIcon },
-        util.vector2(utility.iconSize * 1.5, utility.iconSize * 1.5),
+        util.vector2(iconSize * 1.5, iconSize * 1.5),
         I.MWUI.templates.padding)
     return padding
 end
@@ -209,13 +214,19 @@ local function createHotbarItem(item, xicon, num, data)
             }
         }
     end
-    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(utility.iconSize * 1.5, utility.iconSize * 1.5), nil,
+
+    -- Use consistent icon sizes
+    local iconSize = utility.iconSize
+
+    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
         util.vector2(0.5, 0.5),
         { item = item, num = num, data = data }, {
             mouseMove = async:callback(mouseMove),
             mouseClick = async:callback(mouseClick),
         })
-    local padding = utility.renderItemBoxed(ui.content { boxedIcon }, util.vector2(utility.iconSize * 2, utility.iconSize * 2),
+
+    local padding = utility.renderItemBoxed(ui.content { boxedIcon },
+        util.vector2(iconSize * 1.5, iconSize * 1.5),
         I.MWUI.templates.padding)
     return padding
 end
@@ -245,7 +256,7 @@ local function getHotbarItems()
                     icon = effect.effect.icon
                 end
                 item = types.Actor.inventory(self):find(data.itemId)
-               -- print(item)
+                -- print(item)
             elseif data.itemId then
                 item = types.Actor.inventory(self):find(data.itemId)
             end
@@ -291,7 +302,7 @@ local function drawItemSelect()
         utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
-            
+
     --rcontent = flexedItems(content,false)
     --   table.insert(content,flexedItems(lis, true))
     -- table.insert(content, imageContent(resource, size))
@@ -350,7 +361,7 @@ local function drawSpellSelect()
     table.insert(content, utility.renderItemBold("(Use mouse wheel to scroll)", nil, nil, nil, true))
     local spellsAndIds = {}
     local spellList = {}
-    table.insert(spellsAndIds, {name = " Spells:", type = "" ,bold = true})
+    table.insert(spellsAndIds, { name = " Spells:", type = "", bold = true })
     for index, spell in ipairs(types.Actor.spells(self)) do
         if spell.type == core.magic.SPELL_TYPE.Power or spell.type == core.magic.SPELL_TYPE.Spell then
             table.insert(spellList, { id = spell.id, name = spell.name, type = "Spell" })
@@ -361,15 +372,20 @@ local function drawSpellSelect()
         table.insert(spellsAndIds, value)
     end
     local enchL = getAllEnchantments(types.Actor.inventory(self), true)
-    table.insert(spellsAndIds, {name = "Enchantments:", type = "" ,bold = true})
-  
+    table.insert(spellsAndIds, { name = "Enchantments:", type = "", bold = true })
+
     local enchantList = {}
     for index, ench in ipairs(enchL) do
-        if index> startOffset then
-        table.insert(enchantList,
-            { id = ench.item.recordId, name = ench.item.type.record(ench.item).name, type = "Enchant", enchant = ench
-            .item.type.record(ench.item).enchant })
-        ----print("ench nane" .. ench.item.type.record(ench.item).name)
+        if index > startOffset then
+            table.insert(enchantList,
+                {
+                    id = ench.item.recordId,
+                    name = ench.item.type.record(ench.item).name,
+                    type = "Enchant",
+                    enchant = ench
+                        .item.type.record(ench.item).enchant
+                })
+            ----print("ench nane" .. ench.item.type.record(ench.item).name)
         end
     end
     table.sort(enchantList, compareNames)
@@ -379,14 +395,17 @@ local function drawSpellSelect()
     maxCount = #spellsAndIds
     for i = 1, 30, 1 do
         if spellsAndIds[i + startOffset] then
-            table.insert(xContent, utility.renderItemBold(spellsAndIds[i + startOffset].name, nil, nil, nil, true, spellsAndIds[i + startOffset],{
-                mouseMove = async:callback(mouseMoveButton),
-                mousePress = async:callback(mouseClick)
-            }))
+            table.insert(xContent,
+                utility.renderItemBold(spellsAndIds[i + startOffset].name, nil, nil, nil, true,
+                    spellsAndIds[i + startOffset], {
+                        mouseMove = async:callback(mouseMoveButton),
+                        mousePress = async:callback(mouseClick)
+                    }))
         end
     end
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(xContent, false), utility.scaledVector2(400, 800), I.MWUI.templates.borders,
+        utility.renderItemBoxed(utility.flexedItems(xContent, false), utility.scaledVector2(400, 800),
+            I.MWUI.templates.borders,
             util.vector2(0.5, 0.5)))
     content = ui.content(content)
     QuickSelectWindow = ui.create {
@@ -551,7 +570,7 @@ local function ButtonClicked(data)
         spellMode = true
         drawSpellSelect()
     elseif text == core.getGMST("sQuickMenu4") then
---delete
+        --delete
         I.QuickSelect_Storage.deleteStoredItemData(slotToSave)
         if QuickSelectWindow then
             QuickSelectWindow:destroy()
@@ -559,7 +578,7 @@ local function ButtonClicked(data)
         end
         I.UI.setMode()
     elseif text == core.getGMST(
-        "sCancel") then
+            "sCancel") then
         if QuickSelectWindow then
             QuickSelectWindow:destroy()
             QuickSelectWindow = nil
@@ -586,16 +605,16 @@ return {
     engineHandlers = {
         onKeyPress = onKeyPress,
         onControllerButtonPress = onControllerButtonPress,
-        onMouseWheel = function (vert)
+        onMouseWheel = function(vert)
             if not QuickSelectWindow then return end
-            local modifer = 10      
+            local modifer = 10
 
             if spellMode then
                 modifer = 1
             end
             if vert > 0 then
                 startOffset = startOffset - modifer
-            elseif startOffset + modifer < maxCount  then
+            elseif startOffset + modifer < maxCount then
                 startOffset = startOffset + modifer
             end
             --print(startOffset)

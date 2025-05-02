@@ -24,7 +24,8 @@ end
 
 local function getEnchantment(id) --
     if not id then
-        return end
+        return
+    end
     return core.magic.enchantments.records[id]
 end
 local function FindEnchantment(item)
@@ -41,7 +42,7 @@ local function calculateTextScale()
 end
 
 local scale = 0.8
-local iconSize = 30
+local iconSize = 40
 
 local function imageContent(resource, size)
     if (size == nil) then
@@ -177,10 +178,10 @@ local function drawListMenu(buttonTable, winLoc, prevWindow, layer, fontSize, ex
     end
     return renderItemChoiceX(buttonTable, wx, wy, align, anchor, layer, fontSize)
 end
-local function renderItemBold(item, bold, id, tooltipData, isSpell, spellData,events)
+local function renderItemBold(item, bold, id, tooltipData, isSpell, spellData, events)
     if not id then id = item end
     local textTemplate = I.MWUI.templates.textNormal
-    if  bold or (spellData and spellData.bold )then
+    if bold or (spellData and spellData.bold) then
         textTemplate = I.MWUI.templates.textHeader
     end
 
@@ -219,10 +220,11 @@ local function renderItemBold(item, bold, id, tooltipData, isSpell, spellData,ev
 end
 
 
-local function flexedItems(content, horizontal,anchor)
+local function flexedItems(content, horizontal, anchor)
     if not horizontal then
         horizontal = false
     end
+
     return ui.content {
         {
             id = "flexeditems",
@@ -235,7 +237,6 @@ local function flexedItems(content, horizontal,anchor)
                 horizontal = horizontal,
                 align = ui.ALIGNMENT.Center,
                 arrange = ui.ALIGNMENT.Center,
-                --     size = util.vector2(100, 100),
                 autosize = true,
                 relativePosition = anchor,
                 anchor = anchor
@@ -244,11 +245,11 @@ local function flexedItems(content, horizontal,anchor)
     }
 end
 
-local function renderItemBoxed(content, size, itemTemplate, relativePosition, data,events)
+local function renderItemBoxed(content, size, itemTemplate, relativePosition, data, events)
     local text
 
     if data then
-      
+
     end
     if not size then
         size = scaledVector2(100, 100)
@@ -284,7 +285,7 @@ return {
     imageContent = imageContent,
     scaledVector2 = scaledVector2,
     renderItemX = renderItemX,
-    renderItemChoiceX = renderItemChoiceX,  
+    renderItemChoiceX = renderItemChoiceX,
     drawListMenu = drawListMenu,
     renderItemBoxed = renderItemBoxed,
     renderItemWithIcon = renderItemWithIcon,
@@ -296,7 +297,7 @@ return {
     iconSize = iconSize,
     flexedItems = flexedItems,
     itemWindowLocs = itemWindowLocs,
-    findSlot = function (item)
+    findSlot = function(item)
         if (item == nil) then
             return
         end
@@ -359,4 +360,5 @@ return {
         end
         -- --print("Couldn't find slot for " .. item.recordId)
         return nil
-    end}
+    end
+}

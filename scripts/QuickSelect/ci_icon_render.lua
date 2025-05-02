@@ -16,6 +16,7 @@ local storage = require("openmw.storage")
 local function getIconSize()
     return 40
 end
+
 local savedTextures = {}
 local function textContent(text)
     return {
@@ -35,17 +36,27 @@ local function imageContent(resource, half)
     if half then
         opacity = 0.5
     end
-    local size2 = size
+
+    -- Create a consistent size for all images
+    local sizeX = size
+    local sizeY = size
+
     if half then
-        size2 = size2 / 2
+        sizeY = sizeY / 2
     end
+
+    if not resource then
+        return {}
+    end
+
     return {
         type = ui.TYPE.Image,
         props = {
             resource = resource,
-            size = util.vector2(size, size2),
-            alpha = opacity
-            -- relativeSize = util.vector2(1,1)
+            size = util.vector2(sizeX, sizeY),
+            alpha = opacity,
+            arrange = ui.ALIGNMENT.Center,
+            align = ui.ALIGNMENT.Center
         }
     }
 end
@@ -138,7 +149,8 @@ local function getSpellIcon(iconPath, half, selected)
 
     return context
 end
-local function getEmptyIcon(half, num, selected,useNumber)
+local function getEmptyIcon(half, num, selected, useNumber)
+    local size = getIconSize()
     local selectionResource
     local drawFavoriteStar = true
     selectionResource = getTexture("icons\\quickselect\\selected.tga")
@@ -151,7 +163,13 @@ local function getEmptyIcon(half, num, selected,useNumber)
     if useNumber then
         text = tostring(num)
     end
-    
+
+    -- Calculate proper size for the text, matching the icon size
+    local textSize = 20
+    if half then
+        textSize = textSize / 1.5
+    end
+
     return ui.content {
         selectedContent,
         {
@@ -159,7 +177,7 @@ local function getEmptyIcon(half, num, selected,useNumber)
             template = I.MWUI.templates.textNormal,
             props = {
                 text = text,
-                textSize = 20 * 1,
+                textSize = textSize,
                 relativePosition = util.vector2(0.5, 0.5),
                 anchor = util.vector2(0.5, 0.5),
                 arrange = ui.ALIGNMENT.Center,

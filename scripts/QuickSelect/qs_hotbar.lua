@@ -25,6 +25,9 @@ local controllerPickMode = false --True if we are picking a slot for equipping O
 local selectedNum = 1
 local HOTBAR_ITEMS_PER_ROW = 10
 
+-- Remove the early initialization code
+-- Let's initialize in onLoad instead
+
 local function log(message)
     print("[HOTBAR DEBUG] " .. tostring(message))
 end
@@ -102,15 +105,26 @@ local function createHotbarItem(item, xicon, num, data, half)
     local drawNumber = settings:get("showNumbersForEmptySlots")
     local offset = I.QuickSelect.getSelectedPage() * 10
     local selected = (num) == (selectedNum + offset)
+
+    -- When disableIconShrinking is true, don't pass the selected state to the icon functions
+    local useSelectedState = selected
+    -- Add a nil check to avoid errors if the setting isn't initialized yet
+    local disableShrinking = settings:get("disableIconShrinking")
+    if disableShrinking ~= false and selected then
+        -- Default to true (disable shrinking) unless explicitly set to false
+        useSelectedState = false -- Don't use selected state for icon generation
+    end
+
     if half then
         sizeY = sizeY / 2
     end
+
     if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item, half, selected)
+        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState)
     elseif xicon then
-        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, selected)
+        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState)
     elseif num then
-        icon = I.Controller_Icon_QS.getEmptyIcon(half, num, selected, drawNumber)
+        icon = I.Controller_Icon_QS.getEmptyIcon(half, num, useSelectedState, drawNumber)
     end
 
     -- Add a small margin around the icon to prevent clipping
@@ -535,11 +549,18 @@ local function getPrevKey()
         return "]"
     end
 end
-local function onSettingChanged(key, value)
-    if key == "iconSize" or key == "hotbarGutterSize" or key == "showNumbersForEmptySlots" or key == "hotBarOnTop" or key == "hotbarVerticalSpacing" then
+
+-- Create a settings update callback function
+local function onSettingsChanged()
+    -- Only redraw the hotbar if it's visible
+    if enableHotbar then
         I.QuickSelect_Hotbar.drawHotbar()
     end
 end
+
+-- Subscribe to settings changes
+settings:subscribe(async:callback(onSettingsChanged))
+
 return {
     --I.QuickSelect_Hotbar.drawHotbar()
     interfaceName = "QuickSelect_Hotbar",
@@ -552,6 +573,11 @@ return {
     },
     engineHandlers = {
         onLoad = function()
+            -- Initialize settings if they don't exist
+            if settings:get("disableIconShrinking") == nil then
+                settings:set("disableIconShrinking", true)
+            end
+
             if settings:get("persistMode") then
                 enableHotbar = true
                 drawHotbar()
@@ -636,6 +662,5 @@ return {
                 end
             end
         end,
-        onSettingChanged = onSettingChanged
     }
 }

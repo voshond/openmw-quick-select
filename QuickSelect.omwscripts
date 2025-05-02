@@ -1,0 +1,5 @@
+PLAYER:scripts/QuickSelect/QuickSelect_p.lua
+PLAYER:scripts/QuickSelect/ci_icon_render.lua
+PLAYER:scripts/QuickSelect/select_items_win1.lua
+PLAYER:scripts/QuickSelect/ci_favorite_storage.lua
+PLAYER:scripts/QuickSelect/qs_hotbar.lua

@@ -56,14 +56,6 @@ I.Settings.registerGroup {
             default = true
         },
         {
-            key = "showNumbersForEmptySlots",
-            renderer = "checkbox",
-            name = "Show numbers for empty slots",
-            description =
-            "If enabled, empty slots will show a number indicating the slot number. If disabled, empty slots will be blank.",
-            default = true
-        },
-        {
             key = "pauseWhenSelecting",
             renderer = "checkbox",
             name = "Pause While Selecting",

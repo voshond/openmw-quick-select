@@ -94,7 +94,7 @@ local function FindEnchant(item)
     return item.type.records[item.recordId].enchant
 end
 
-local function getItemIcon(item, half, selected)
+local function getItemIcon(item, half, selected, slotNumber)
     local itemIcon = nil
 
     local selectionResource
@@ -120,16 +120,33 @@ local function getItemIcon(item, half, selected)
     if selected then
         selectedContent = imageContent(selectionResource)
     end
+
+    -- Save item count text for the upper left
+    local itemCountText = textContent(tostring(text))
+
     local context = ui.content {
         selectedContent,
         imageContent(magicIcon, half),
         imageContent(itemIcon, half),
-        textContent(tostring(text))
+        itemCountText,
+        -- Add slot number to bottom right if we have it
+        slotNumber and {
+            type = ui.TYPE.Text,
+            template = I.MWUI.templates.textNormal,
+            props = {
+                text = tostring(slotNumber),
+                textSize = 14,                             -- Smaller size for the slot number
+                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
+                anchor = util.vector2(0.9, 0.9),
+                arrange = ui.ALIGNMENT.End,
+                align = ui.ALIGNMENT.End,
+            }
+        }
     }
 
     return context
 end
-local function getSpellIcon(iconPath, half, selected)
+local function getSpellIcon(iconPath, half, selected, slotNumber)
     local itemIcon = nil
 
     local selectionResource
@@ -146,6 +163,19 @@ local function getSpellIcon(iconPath, half, selected)
     local context = ui.content {
         imageContent(itemIcon, half),
         selectedContent,
+        -- Add slot number to bottom right if we have it
+        slotNumber and {
+            type = ui.TYPE.Text,
+            template = I.MWUI.templates.textNormal,
+            props = {
+                text = tostring(slotNumber),
+                textSize = 14,                             -- Smaller size for the slot number
+                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
+                anchor = util.vector2(0.9, 0.9),
+                arrange = ui.ALIGNMENT.End,
+                align = ui.ALIGNMENT.End,
+            }
+        }
     }
 
     return context
@@ -160,13 +190,12 @@ local function getEmptyIcon(half, num, selected, useNumber)
     if selected then
         selectedContent = imageContent(selectionResource)
     end
-    local text = ""
-    if useNumber then
-        text = tostring(num)
-    end
+
+    -- Always show the number regardless of useNumber parameter
+    local text = tostring(num)
 
     -- Calculate proper size for the text, matching the icon size
-    local textSize = 20
+    local textSize = 14 -- Smaller size for slot numbers
     if half then
         textSize = textSize / 1.5
     end
@@ -179,10 +208,10 @@ local function getEmptyIcon(half, num, selected, useNumber)
             props = {
                 text = text,
                 textSize = textSize,
-                relativePosition = util.vector2(0.5, 0.5),
-                anchor = util.vector2(0.5, 0.5),
-                arrange = ui.ALIGNMENT.Center,
-                align = ui.ALIGNMENT.Center,
+                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
+                anchor = util.vector2(0.9, 0.9),
+                arrange = ui.ALIGNMENT.End,
+                align = ui.ALIGNMENT.End,
             },
             num = num,
             events = {

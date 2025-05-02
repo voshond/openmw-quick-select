@@ -102,7 +102,7 @@ local function createHotbarItem(item, xicon, num, data, half)
     local isEquipped = I.QuickSelect_Storage.isSlotEquipped(num)
     local sizeX = utility.getIconSize()
     local sizeY = utility.getIconSize()
-    local drawNumber = settings:get("showNumbersForEmptySlots")
+    local drawNumber = true -- Always draw the number regardless of settings
     local offset = I.QuickSelect.getSelectedPage() * 10
     local selected = (num) == (selectedNum + offset)
 
@@ -119,10 +119,11 @@ local function createHotbarItem(item, xicon, num, data, half)
         sizeY = sizeY / 2
     end
 
+    -- Instead of using metatables, we'll pass the slot number directly
     if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState)
+        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState, num)
     elseif xicon then
-        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState)
+        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState, num)
     elseif num then
         icon = I.Controller_Icon_QS.getEmptyIcon(half, num, useSelectedState, drawNumber)
     end

@@ -168,6 +168,7 @@ local function createHotbarItem(item, xicon, num, data, half)
                             position = util.vector2(0, (sizeY - 4) + iconPadding * 2),
                             arrange = ui.ALIGNMENT.End,
                             align = ui.ALIGNMENT.End,
+                            border = 1,
                             alpha = 1,
                             color = util.color.rgb(1, 1, 0), -- Yellow highlight for equipped items
                         }
@@ -338,43 +339,45 @@ local function drawHotbar()
     local content = {}
     log("Starting page: " .. I.QuickSelect.getSelectedPage())
 
-    local showExtraHotbars = settings:get("previewOtherHotbars")
-    log("Show extra hotbars: " .. tostring(showExtraHotbars))
+    local visibleHotbars = settings:get("visibleHotbars")
+    log("Visible hotbars: " .. tostring(visibleHotbars))
 
-    if showExtraHotbars then
-        -- Render all bars stacked in reverse order when previewOtherHotbars is enabled
+    if visibleHotbars > 1 then
+        -- Render multiple bars stacked in reverse order based on visibleHotbars setting
         -- Scale bar height based on vertical spacing setting
         local heightScale = math.max(0.1, verticalSpacing / 100) -- Convert to percentage, min 10%
 
         -- Calculate margin height based on vertical spacing (lower = less margin)
         local marginHeight = math.max(1, math.floor(verticalSpacing / 10))
 
-        -- Bar 3 (top)
-        num = 1 + (itemsPerRow * 2) -- Page 2 (third bar)
-        log("Adding bar 3 (top)")
-        local bar3Items = getHotbarItems()
-        log("Bar 3 items count: " .. #bar3Items)
+        -- Bar 3 (top) - Only shown when visibleHotbars is 3
+        if visibleHotbars == 3 then
+            num = 1 + (itemsPerRow * 2) -- Page 2 (third bar)
+            log("Adding bar 3 (top)")
+            local bar3Items = getHotbarItems()
+            log("Bar 3 items count: " .. #bar3Items)
 
-        table.insert(content,
-            utility.renderItemBoxed(
-                utility.flexedItems(bar3Items, true, util.vector2(0.5, 0.5)),
-                util.vector2(hotbarWidth, hotbarHeight * heightScale),
-                I.MWUI.templates.padding,
-                util.vector2(0.5, 0.5)))
+            table.insert(content,
+                utility.renderItemBoxed(
+                    utility.flexedItems(bar3Items, true, util.vector2(0.5, 0.5)),
+                    util.vector2(hotbarWidth, hotbarHeight * heightScale),
+                    I.MWUI.templates.padding,
+                    util.vector2(0.5, 0.5)))
 
-        -- Add a margin element between bar 3 and bar 2
-        if marginHeight > 1 then
-            table.insert(content, {
-                type = ui.TYPE.Container,
-                props = {
-                    size = util.vector2(hotbarWidth, marginHeight),
-                    minSize = util.vector2(hotbarWidth, marginHeight),
-                    fixedSize = util.vector2(hotbarWidth, marginHeight)
-                }
-            })
+            -- Add a margin element between bar 3 and bar 2
+            if marginHeight > 1 then
+                table.insert(content, {
+                    type = ui.TYPE.Container,
+                    props = {
+                        size = util.vector2(hotbarWidth, marginHeight),
+                        minSize = util.vector2(hotbarWidth, marginHeight),
+                        fixedSize = util.vector2(hotbarWidth, marginHeight)
+                    }
+                })
+            end
         end
 
-        -- Bar 2 (middle)
+        -- Bar 2 (middle) - Shown when visibleHotbars is 2 or 3
         num = 1 + (itemsPerRow * 1) -- Page 1 (second bar)
         log("Adding bar 2 (middle)")
         local bar2Items = getHotbarItems()
@@ -408,7 +411,7 @@ local function drawHotbar()
 
     -- Apply the same height scaling to the main bar when vertical spacing is low
     local mainBarHeight = hotbarHeight
-    if showExtraHotbars and verticalSpacing < 70 then
+    if visibleHotbars > 1 and verticalSpacing < 70 then
         local heightScale = math.max(0.1, verticalSpacing / 100) -- Use the same scale as other bars
         mainBarHeight = hotbarHeight * heightScale
     end
@@ -438,7 +441,7 @@ local function drawHotbar()
 
     -- Calculate total height based on how many bars are showing
     local totalHeight = hotbarHeight
-    if showExtraHotbars then
+    if visibleHotbars > 1 then
         -- Calculate height based on vertical spacing setting
         local heightScale = math.max(0.1, verticalSpacing / 100) -- Convert to percentage, min 10%
 
@@ -447,9 +450,12 @@ local function drawHotbar()
 
         -- Use scaled height for all bars when vertical spacing is low
         if verticalSpacing < 70 then
-            totalHeight = (hotbarHeight * heightScale * 3) + (marginHeight * 2)
+            -- Calculate based on number of visible hotbars
+            totalHeight = (hotbarHeight * heightScale * visibleHotbars) + (marginHeight * (visibleHotbars - 1))
         else
-            totalHeight = hotbarHeight + (hotbarHeight * heightScale * 2) + (marginHeight * 2)
+            -- For bar 1 use full height, for additional bars use scaled height
+            totalHeight = hotbarHeight + (hotbarHeight * heightScale * (visibleHotbars - 1)) +
+                (marginHeight * (visibleHotbars - 1))
         end
 
         -- Create a smaller container when vertical spacing is very low

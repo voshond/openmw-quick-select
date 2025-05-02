@@ -139,14 +139,49 @@ local function createHotbarItem(item, xicon, num, data, half)
         util.vector2(0.5, 0.5),
         { item = item, num = num, data = data })
 
+    -- Always use padding template to maintain consistent layout
     local paddingTemplate = I.MWUI.templates.padding
+
+    -- Create an equipped indicator if needed
+    local iconContent
     if isEquipped then
-        paddingTemplate = I.MWUI.templates.borders
+        -- Create a border overlay that doesn't affect layout
+        local borderTexture = ui.texture({ path = "icons\\quickselect\\selected.tga" })
+
+        -- Wrap the boxedIcon with a container that includes both the icon and an overlay border
+        iconContent = ui.content {
+            boxedIcon,
+            {
+                type = ui.TYPE.Container,
+                props = {
+                    size = boxSize,
+                    position = util.vector2(0, 0),
+                    arrange = ui.ALIGNMENT.Center,
+                    align = ui.ALIGNMENT.Center,
+                },
+                content = ui.content {
+                    {
+                        type = ui.TYPE.Image,
+                        props = {
+                            resource = borderTexture,
+                            size = util.vector2(sizeX + iconPadding * 2, 4),
+                            position = util.vector2(0, (sizeY - 4) + iconPadding * 2),
+                            arrange = ui.ALIGNMENT.End,
+                            align = ui.ALIGNMENT.End,
+                            alpha = 1,
+                            color = util.color.rgb(1, 1, 0), -- Yellow highlight for equipped items
+                        }
+                    }
+                }
+            }
+        }
+    else
+        iconContent = ui.content { boxedIcon }
     end
 
-    -- Create the outer padding with a fixed size
+    -- Create the outer padding with a fixed size - always use padding template
     local outerSize = util.vector2(sizeX + iconPadding * 2, sizeY + iconPadding * 2)
-    local padding = utility.renderItemBoxed(ui.content { boxedIcon },
+    local padding = utility.renderItemBoxed(iconContent,
         outerSize,
         paddingTemplate, util.vector2(0.5, 0.5))
     return padding

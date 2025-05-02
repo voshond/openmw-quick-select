@@ -124,8 +124,26 @@ local function getItemIcon(item, half, selected, slotNumber)
     -- Save item count text for the upper left
     local itemCountText = textContent(tostring(text))
 
+    -- Format the slot number based on which bar it's on
+    local formattedSlotNumber = ""
+    if slotNumber then
+        local slotNum = slotNumber % 10
+        if slotNum == 0 then slotNum = 10 end
+
+        if slotNumber <= 10 then
+            -- Main bar (1-10)
+            formattedSlotNumber = tostring(slotNum)
+        elseif slotNumber <= 20 then
+            -- Second bar (s1-s10)
+            formattedSlotNumber = "s" .. tostring(slotNum)
+        else
+            -- Third bar (c1-c10)
+            formattedSlotNumber = "c" .. tostring(slotNum)
+        end
+    end
+
     local context = ui.content {
-        selectedContent,
+        -- selectedContent,
         imageContent(magicIcon, half),
         imageContent(itemIcon, half),
         itemCountText,
@@ -134,12 +152,13 @@ local function getItemIcon(item, half, selected, slotNumber)
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = tostring(slotNumber),
-                textSize = 14,                             -- Smaller size for the slot number
-                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
-                anchor = util.vector2(0.9, 0.9),
+                text = formattedSlotNumber,
+                textSize = 14,                              -- Smaller size for the slot number
+                relativePosition = util.vector2(0.85, 0.9), -- Bottom right position with margin
+                anchor = util.vector2(0.85, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
+                padding = util.vector4(0, 0, 5, 0), -- Add right padding/margin (left, top, right, bottom)
             }
         }
     }
@@ -160,20 +179,39 @@ local function getSpellIcon(iconPath, half, selected, slotNumber)
     end
     itemIcon = getTexture(iconPath)
 
+    -- Format the slot number based on which bar it's on
+    local formattedSlotNumber = ""
+    if slotNumber then
+        local slotNum = slotNumber % 10
+        if slotNum == 0 then slotNum = 10 end
+
+        if slotNumber <= 10 then
+            -- Main bar (1-10)
+            formattedSlotNumber = tostring(slotNum)
+        elseif slotNumber <= 20 then
+            -- Second bar (s1-s10)
+            formattedSlotNumber = "s" .. tostring(slotNum)
+        else
+            -- Third bar (c1-c10)
+            formattedSlotNumber = "c" .. tostring(slotNum)
+        end
+    end
+
     local context = ui.content {
         imageContent(itemIcon, half),
-        selectedContent,
+        -- selectedContent,
         -- Add slot number to bottom right if we have it
         slotNumber and {
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = tostring(slotNumber),
-                textSize = 14,                             -- Smaller size for the slot number
-                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
-                anchor = util.vector2(0.9, 0.9),
+                text = formattedSlotNumber,
+                textSize = 14,                              -- Smaller size for the slot number
+                relativePosition = util.vector2(0.85, 0.9), -- Bottom right position with margin
+                anchor = util.vector2(0.85, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
+                padding = util.vector4(0, 0, 5, 0), -- Add right padding/margin (left, top, right, bottom)
             }
         }
     }
@@ -191,8 +229,23 @@ local function getEmptyIcon(half, num, selected, useNumber)
         selectedContent = imageContent(selectionResource)
     end
 
-    -- Always show the number regardless of useNumber parameter
-    local text = tostring(num)
+    -- Format the slot number based on which bar it's on
+    local formattedSlotNumber = ""
+    if num then
+        local slotNum = num % 10
+        if slotNum == 0 then slotNum = 10 end
+
+        if num <= 10 then
+            -- Main bar (1-10)
+            formattedSlotNumber = tostring(slotNum)
+        elseif num <= 20 then
+            -- Second bar (s1-s10)
+            formattedSlotNumber = "s" .. tostring(slotNum)
+        else
+            -- Third bar (c1-c10)
+            formattedSlotNumber = "c" .. tostring(slotNum)
+        end
+    end
 
     -- Calculate proper size for the text, matching the icon size
     local textSize = 14 -- Smaller size for slot numbers
@@ -201,17 +254,18 @@ local function getEmptyIcon(half, num, selected, useNumber)
     end
 
     return ui.content {
-        selectedContent,
+        -- selectedContent,
         {
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = text,
+                text = formattedSlotNumber,
                 textSize = textSize,
-                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
-                anchor = util.vector2(0.9, 0.9),
+                relativePosition = util.vector2(0.85, 0.9), -- Bottom right position with margin
+                anchor = util.vector2(0.85, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
+                padding = util.vector4(0, 0, 5, 0), -- Add right padding/margin (left, top, right, bottom)
             },
             num = num,
             events = {

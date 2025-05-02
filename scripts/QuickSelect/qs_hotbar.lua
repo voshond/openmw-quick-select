@@ -25,6 +25,10 @@ local controllerPickMode = false --True if we are picking a slot for equipping O
 local selectedNum = 1
 local HOTBAR_ITEMS_PER_ROW = 10
 
+local function log(message)
+    print("[HOTBAR DEBUG] " .. tostring(message))
+end
+
 local function startPickingMode()
     enableHotbar = true
     controllerPickMode = true
@@ -130,69 +134,113 @@ end
 
 -- Create a spacer element with the specified width
 local function createSpacerElement(width, half)
+    log("Creating spacer: width=" .. width .. ", half=" .. tostring(half))
     local height = half and (utility.iconSize / 2) or utility.iconSize
+
+    -- Create a transparent texture for the spacer
+    local transparentTexture = ui.texture({ path = "icons\\quickselect\\selected.tga" })
 
     return {
         type = ui.TYPE.Container,
+        template = I.MWUI.templates.padding, -- Add padding template to make it more visible to layout
         props = {
             size = util.vector2(width, height),
+            minSize = util.vector2(width, height),   -- Enforce minimum size
+            fixedSize = util.vector2(width, height), -- Try to enforce exact size
+            arrange = ui.ALIGNMENT.Center,
+            align = ui.ALIGNMENT.Center,
         },
-        content = ui.content {} -- Empty content
+        content = ui.content {
+            {
+                type = ui.TYPE.Image,
+                props = {
+                    resource = transparentTexture,
+                    size = util.vector2(width, height),
+                    alpha = 0.01, -- Very slightly visible for testing
+                }
+            }
+        }
     }
 end
 
 local function getHotbarItems(half)
+    log("---- BEGIN getHotbarItems ----")
+    log("half=" .. tostring(half) .. ", num=" .. num)
+
     local items = {}
     local inv = types.Actor.inventory(self):getAll()
     local count = num + 10
     local gutterSize = settings:get("hotbarGutterSize") or 5
 
+    log("gutterSize=" .. gutterSize .. ", count=" .. count)
+
+    local startNum = num
     while num < count do
         local data = I.QuickSelect_Storage.getFavoriteItemData(num)
+        log("Processing item " .. num)
 
         local item
         local effect
         local icon
         if data.item then
             item = types.Actor.inventory(self):find(data.item)
+            log("Item found: " .. tostring(data.item))
         elseif data.spell or data.enchantId then
-            if data.spellType:lower() == "spell" then
+            log("Spell or enchant item")
+            if data.spellType and data.spellType:lower() == "spell" then
                 local spell = types.Actor.spells(self)[data.spell]
                 if spell then
                     effect = spell.effects[1]
                     icon = effect.effect.icon
+                    log("Spell icon found")
                 end
-            elseif data.spellType:lower() == "enchant" then
+            elseif data.spellType and data.spellType:lower() == "enchant" then
                 local enchant = utility.getEnchantment(data.enchantId)
                 if enchant then
                     effect = enchant.effects[1]
                     icon = effect.effect.icon
+                    log("Enchant icon found")
                 end
             end
+        else
+            log("Empty slot")
         end
 
         -- Add the hotbar item
+        log("Adding hotbar item " .. num)
         table.insert(items, createHotbarItem(item, icon, num, data, half))
 
         -- Add spacer element if this isn't the last item
         if num < count - 1 and gutterSize > 0 then
+            log("Adding spacer after item " .. num)
             table.insert(items, createSpacerElement(gutterSize, half))
         end
 
         num = num + 1
     end
+
+    log("Created " .. #items .. " elements (items + spacers)")
+    log("Initial num=" .. startNum .. ", final num=" .. num)
+    log("---- END getHotbarItems ----")
+
     return items
 end
 
 local function drawHotbar()
+    log("==== BEGIN drawHotbar ====")
+
     if hotBarElement then
+        log("Destroying existing hotbar")
         hotBarElement:destroy()
     end
     if tooltipElement then
+        log("Destroying existing tooltip")
         tooltipElement:destroy()
         tooltipElement = nil
     end
     if not enableHotbar then
+        log("Hotbar disabled, exiting")
+        log("==== END drawHotbar ====")
         return
     end
 
@@ -202,23 +250,43 @@ local function drawHotbar()
     local gutterSize = settings:get("hotbarGutterSize") or 5 -- Get the gutter size from settings
     local itemsPerRow = HOTBAR_ITEMS_PER_ROW
 
-    -- Calculate the width - we need to account for items and spacers separately now
-    local totalWidth = (boxSize * itemsPerRow) + (gutterSize * (itemsPerRow - 1))
-    local hotbarWidth = totalWidth + 10 -- Add a small buffer
-    local hotbarHeight = boxSize + 10
+    log("Config - iconSize: " .. iconSize .. ", gutterSize: " .. gutterSize .. ", itemsPerRow: " .. itemsPerRow)
+
+    -- Calculate the width - account for items and spacers
+    local itemWidth = boxSize
+    local spacerWidth = gutterSize
+    local totalItemsWidth = itemWidth * itemsPerRow
+    local totalSpacersWidth = spacerWidth * (itemsPerRow - 1)
+    local totalWidth = totalItemsWidth + totalSpacersWidth
+    -- Use base padding plus gutter-based scaling
+    local basePadding = 80               -- Significantly increase base padding to prevent cutoff
+    local gutterPadding = gutterSize * 6 -- Additional padding based on gutter size
+    local paddingAmount = basePadding + gutterPadding
+    local hotbarWidth = totalWidth + paddingAmount
+    local hotbarHeight = boxSize + 20
+
+    log("Size - boxSize: " .. boxSize .. ", totalWidth: " .. totalWidth .. ", hotbarWidth: " .. hotbarWidth
+        .. ", padding: " .. paddingAmount .. " (base: " .. basePadding .. ", gutter-based: " .. gutterPadding .. ")")
 
     local xContent = {}
     local content = {}
     num = 1 + (itemsPerRow * I.QuickSelect.getSelectedPage())
+    log("Starting num: " .. num .. ", page: " .. I.QuickSelect.getSelectedPage())
 
     local showExtraHotbars = settings:get("previewOtherHotbars")
+    log("Show extra hotbars: " .. tostring(showExtraHotbars))
+
     if showExtraHotbars then
         if I.QuickSelect.getSelectedPage() > 0 then
+            log("Adding previous hotbar")
             num = 1 + (itemsPerRow * (I.QuickSelect.getSelectedPage() - 1))
             -- Previous hotbar (half height if it's not the current one)
+            local prevItems = getHotbarItems(true)
+            log("Previous hotbar items count: " .. #prevItems)
+
             table.insert(content,
                 utility.renderItemBoxed(
-                    utility.flexedItems(getHotbarItems(true), true, util.vector2(0.5, 0.5)),
+                    utility.flexedItems(prevItems, true, util.vector2(0.5, 0.5)),
                     util.vector2(hotbarWidth, hotbarHeight * 0.8),
                     I.MWUI.templates.padding,
                     util.vector2(0.5, 0.5)))
@@ -226,18 +294,26 @@ local function drawHotbar()
     end
 
     -- Current hotbar (full height)
+    log("Adding current hotbar")
+    local currentItems = getHotbarItems()
+    log("Current hotbar items count: " .. #currentItems)
+
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true, util.vector2(0.5, 0.5)),
+        utility.renderItemBoxed(utility.flexedItems(currentItems, true, util.vector2(0.5, 0.5)),
             util.vector2(hotbarWidth, hotbarHeight),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
 
     if showExtraHotbars then
         if I.QuickSelect.getSelectedPage() < 2 then
+            log("Adding next hotbar")
             -- Next hotbar (half height if it's not the current one)
+            local nextItems = getHotbarItems(true)
+            log("Next hotbar items count: " .. #nextItems)
+
             table.insert(content,
                 utility.renderItemBoxed(
-                    utility.flexedItems(getHotbarItems(true), true, util.vector2(0.5, 0.5)),
+                    utility.flexedItems(nextItems, true, util.vector2(0.5, 0.5)),
                     util.vector2(hotbarWidth, hotbarHeight * 0.8),
                     I.MWUI.templates.padding,
                     util.vector2(0.5, 0.5)))
@@ -245,6 +321,7 @@ local function drawHotbar()
     end
 
     content = ui.content(content)
+    log("Content elements count: " .. #content)
 
     local anchor = util.vector2(0.5, 1)
     local relativePosition = util.vector2(0.5, 1)
@@ -253,9 +330,11 @@ local function drawHotbar()
         relativePosition = util.vector2(0.5, 0)
     end
     if controllerPickMode then
+        log("Drawing tooltip")
         drawToolTip()
     end
 
+    log("Creating hotbar UI")
     hotBarElement = ui.create {
         layer = "HUD",
         template = I.MWUI.templates.padding,
@@ -274,10 +353,14 @@ local function drawHotbar()
                     align = ui.ALIGNMENT.Center,
                     arrange = ui.ALIGNMENT.Center,
                     size = util.vector2(hotbarWidth, hotbarHeight),
+                    minSize = util.vector2(hotbarWidth, hotbarHeight),   -- Enforce minimum size
+                    fixedSize = util.vector2(hotbarWidth, hotbarHeight), -- Try to enforce fixed size
                 }
             }
         }
     }
+
+    log("==== END drawHotbar ====")
 end
 local data
 local function selectSlot(item, spell, enchant)

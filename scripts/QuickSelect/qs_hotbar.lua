@@ -119,13 +119,26 @@ local function createHotbarItem(item, xicon, num, data, half)
         sizeY = sizeY / 2
     end
 
-    -- Instead of using metatables, we'll pass the slot number directly
+    -- Calculate the slot's bar for determining the prefix
+    -- This is based on the actual slot number range:
+    -- Bar 1 (slots 1-10): no prefix
+    -- Bar 2 (slots 11-20): "s" prefix
+    -- Bar 3 (slots 21-30): "c" prefix
+    local slotPrefix = ""
+
+    if num >= 21 and num <= 30 then
+        slotPrefix = "c"
+    elseif num >= 11 and num <= 20 then
+        slotPrefix = "s"
+    end
+
+    -- Instead of using metatables, we'll pass the slot number directly with appropriate prefix
     if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState, num)
+        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState, num, slotPrefix)
     elseif xicon then
-        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState, num)
+        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState, num, slotPrefix)
     elseif num then
-        icon = I.Controller_Icon_QS.getEmptyIcon(half, num, useSelectedState, drawNumber)
+        icon = I.Controller_Icon_QS.getEmptyIcon(half, num, useSelectedState, drawNumber, slotPrefix)
     end
 
     -- Add a small margin around the icon to prevent clipping

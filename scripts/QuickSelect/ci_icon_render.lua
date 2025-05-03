@@ -94,7 +94,7 @@ local function FindEnchant(item)
     return item.type.records[item.recordId].enchant
 end
 
-local function getItemIcon(item, half, selected, slotNumber)
+local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
     local itemIcon = nil
 
     local selectionResource
@@ -127,6 +127,19 @@ local function getItemIcon(item, half, selected, slotNumber)
     -- Save item count text for the upper left
     local itemCountText = textContent(tostring(text))
 
+    -- Format the slot number with the prefix if available
+    local slotText = slotNumber
+    if slotPrefix and slotPrefix ~= "" then
+        -- Calculate the slot's position within its bar (1-10)
+        local slotPosition = ((slotNumber - 1) % 10) + 1
+        -- Display slot number with prefix
+        slotText = slotPrefix .. slotPosition
+    else
+        -- For the first bar, just show the slot position (1-10)
+        local slotPosition = ((slotNumber - 1) % 10) + 1
+        slotText = slotPosition
+    end
+
     local context = ui.content {
         selectedContent,
         imageContent(magicIcon, half, magicIconOpacity),
@@ -137,7 +150,7 @@ local function getItemIcon(item, half, selected, slotNumber)
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = tostring(slotNumber),
+                text = tostring(slotText),
                 textSize = 14,                             -- Smaller size for the slot number
                 relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
                 anchor = util.vector2(0.9, 0.9),
@@ -149,7 +162,7 @@ local function getItemIcon(item, half, selected, slotNumber)
 
     return context
 end
-local function getSpellIcon(iconPath, half, selected, slotNumber)
+local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
     local itemIcon = nil
 
     local selectionResource
@@ -163,6 +176,19 @@ local function getSpellIcon(iconPath, half, selected, slotNumber)
     end
     itemIcon = getTexture(iconPath)
 
+    -- Format the slot number with the prefix if available
+    local slotText = slotNumber
+    if slotPrefix and slotPrefix ~= "" then
+        -- Calculate the slot's position within its bar (1-10)
+        local slotPosition = ((slotNumber - 1) % 10) + 1
+        -- Display slot number with prefix
+        slotText = slotPrefix .. slotPosition
+    else
+        -- For the first bar, just show the slot position (1-10)
+        local slotPosition = ((slotNumber - 1) % 10) + 1
+        slotText = slotPosition
+    end
+
     local context = ui.content {
         imageContent(itemIcon, half),
         selectedContent,
@@ -171,7 +197,7 @@ local function getSpellIcon(iconPath, half, selected, slotNumber)
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = tostring(slotNumber),
+                text = tostring(slotText),
                 textSize = 14,                             -- Smaller size for the slot number
                 relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
                 anchor = util.vector2(0.9, 0.9),
@@ -183,7 +209,7 @@ local function getSpellIcon(iconPath, half, selected, slotNumber)
 
     return context
 end
-local function getEmptyIcon(half, num, selected, useNumber)
+local function getEmptyIcon(half, num, selected, useNumber, slotPrefix)
     local size = getIconSize()
     local selectionResource
     local drawFavoriteStar = true
@@ -194,8 +220,18 @@ local function getEmptyIcon(half, num, selected, useNumber)
         selectedContent = imageContent(selectionResource)
     end
 
-    -- Always show the number regardless of useNumber parameter
-    local text = tostring(num)
+    -- Format the slot number with the prefix if available
+    local text = num
+    if slotPrefix and slotPrefix ~= "" then
+        -- Calculate the slot's position within its bar (1-10)
+        local slotPosition = ((num - 1) % 10) + 1
+        -- Display slot number with prefix
+        text = slotPrefix .. slotPosition
+    else
+        -- For the first bar, just show the slot position (1-10)
+        local slotPosition = ((num - 1) % 10) + 1
+        text = slotPosition
+    end
 
     -- Calculate proper size for the text, matching the icon size
     local textSize = 14 -- Smaller size for slot numbers
@@ -209,7 +245,7 @@ local function getEmptyIcon(half, num, selected, useNumber)
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
-                text = text,
+                text = tostring(text),
                 textSize = textSize,
                 relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
                 anchor = util.vector2(0.9, 0.9),

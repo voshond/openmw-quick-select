@@ -20,7 +20,7 @@ local function getIconSizeGrow()
     return getIconSize() + ret * 0.25
 end
 local function createHotbarItem(item, spell)
-    local icon = I.Controller_Icon_QS.getItemIcon(item)
+    local icon = I.Controller_Icon_QS.getItemIcon(item, false, false, nil, "")
     local boxedIcon = { --box around the titem
         type = ui.TYPE.Container,
         props = {

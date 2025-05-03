@@ -224,6 +224,45 @@ local function renderItemBold(item, bold, id, tooltipData, isSpell, spellData, e
     }
 end
 
+local function renderItemLeft(item, bold, id, tooltipData, isSpell, spellData, events)
+    if not id then id = item end
+    local textTemplate = I.MWUI.templates.textNormal
+    if bold or (spellData and spellData.bold) then
+        textTemplate = I.MWUI.templates.textHeader
+    end
+
+    return {
+        id = "renderItemLeft",
+        type = ui.TYPE.Container,
+        tooltipData = tooltipData,
+        props = {
+            align = ui.ALIGNMENT.Start,
+            relativePosition = util.vector2(0, 0.5),
+            arrange = ui.ALIGNMENT.Start,
+        },
+        content = ui.content {
+            {
+                template = I.MWUI.templates.padding,
+                alignment = ui.ALIGNMENT.Start,
+                content = ui.content {
+                    {
+                        type = ui.TYPE.Text,
+                        template = textTemplate,
+                        props = {
+                            text = item,
+                            textSize = 20 * scale,
+                            relativePosition = util.vector2(0, 0.5),
+                            arrange = ui.ALIGNMENT.Start,
+                            align = ui.ALIGNMENT.Start,
+                            spellData = spellData,
+                        },
+                        events = events,
+                    }
+                }
+            }
+        }
+    }
+end
 
 local function flexedItems(content, horizontal, anchor)
     if not horizontal then
@@ -294,6 +333,7 @@ return {
     renderItemBoxed = renderItemBoxed,
     renderItemWithIcon = renderItemWithIcon,
     renderItemBold = renderItemBold,
+    renderItemLeft = renderItemLeft,
     getEnchantment = getEnchantment,
     FindEnchantment = FindEnchantment,
     calculateTextScale = calculateTextScale,

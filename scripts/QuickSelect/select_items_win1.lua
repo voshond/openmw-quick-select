@@ -155,7 +155,7 @@ end
 local function createItemIcon(item, spell, num)
     local icon
     if item and not spell then
-        icon = I.Controller_Icon_QS.getItemIcon(item)
+        icon = I.Controller_Icon_QS.getItemIcon(item, false, false, num, "")
     else
         return {}
     end
@@ -189,17 +189,34 @@ local function getItemRow()
 end
 local function createHotbarItem(item, xicon, num, data)
     local icon
+    local prefix = ""
+    local displayNum = num
+
+    -- Adjust display number for different hotbars
+    if num > 20 then
+        -- Ctrl hotbar (3rd hotbar)
+        prefix = "c"
+        displayNum = num - 20
+    elseif num > 10 then
+        -- Shift hotbar (2nd hotbar)
+        prefix = "s"
+        displayNum = num - 10
+    end
+
+    -- Convert 10 to 0 for display
+    if displayNum == 10 then displayNum = 0 end
+
     if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item)
+        icon = I.Controller_Icon_QS.getItemIcon(item, false, false, num, "")
     elseif xicon then
-        icon = I.Controller_Icon_QS.getSpellIcon(xicon)
+        icon = I.Controller_Icon_QS.getSpellIcon(xicon, false, false, num, "")
     elseif num then
         icon = ui.content {
             {
                 type = ui.TYPE.Text,
                 template = I.MWUI.templates.textNormal,
                 props = {
-                    text = tostring(num),
+                    text = prefix .. tostring(displayNum),
                     textSize = 20 * scale,
                     relativePosition = util.vector2(0.5, 0.5),
                     anchor = util.vector2(0.5, 0.5),
@@ -215,7 +232,7 @@ local function createHotbarItem(item, xicon, num, data)
         }
     end
 
-    -- Use consistent icon sizes
+    -- Use fixed icon size
     local iconSize = utility.getIconSize()
 
     local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
@@ -445,14 +462,19 @@ local function drawQuickSelect()
     table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenuTitle")))
     table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenuInstruc")))
 
+    table.insert(content, utility.renderItemLeft("Hotbar 1 (1-0)"))
     table.insert(content,
         utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true), utility.scaledVector2(900, 100),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
+
+    table.insert(content, utility.renderItemLeft("Hotbar 2 (Shift 1-0)"))
     table.insert(content,
         utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true), utility.scaledVector2(900, 100),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
+
+    table.insert(content, utility.renderItemLeft("Hotbar 3 (Ctrl 1-0)"))
     table.insert(content,
         utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true), utility.scaledVector2(900, 100),
             I.MWUI.templates.padding,

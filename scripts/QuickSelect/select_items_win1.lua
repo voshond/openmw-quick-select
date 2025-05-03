@@ -26,6 +26,10 @@ local lis = {}
 
 local slotToSave
 
+local ICON_SIZE = 40
+local ICON_PADDING_MULTIPLIER = 1.2
+local ITEMS_PER_ROW = 10
+
 local function mouseMove(mouseEvent, data)
     if tooltip then
         tooltip:destroy()
@@ -152,41 +156,66 @@ end
 local function getSkillBase(skillID, actor)
     return types.NPC.stats.skills[skillID:lower()](actor).base
 end
-local function createItemIcon(item, spell, num)
+
+-- Add a helper function to create custom icon content with our fixed size
+local function createCustomIcon(item, xicon, num, prefix)
     local icon
-    if item and not spell then
-        icon = I.Controller_Icon_QS.getItemIcon(item, false, false, num, "")
-    else
-        return {}
+
+    if item and not xicon then
+        -- Create a custom item icon with fixed size
+        local record = item.type.records[item.recordId]
+        local itemIcon = ui.texture({ path = record.icon })
+
+        local content = {
+            type = ui.TYPE.Image,
+            props = {
+                resource = itemIcon,
+                size = util.vector2(ICON_SIZE, ICON_SIZE),
+                arrange = ui.ALIGNMENT.Center,
+                align = ui.ALIGNMENT.Center
+            }
+        }
+
+        -- Include count text if applicable
+        if item.count > 1 then
+            icon = ui.content {
+                content,
+                {
+                    type = ui.TYPE.Text,
+                    template = I.MWUI.templates.textHeader,
+                    props = {
+                        text = tostring(item.count),
+                        textSize = 14,
+                        relativePosition = util.vector2(0.1, 0.1),
+                        anchor = util.vector2(0.1, 0.1),
+                        arrange = ui.ALIGNMENT.Start,
+                        align = ui.ALIGNMENT.Start,
+                    }
+                }
+            }
+        else
+            icon = ui.content { content }
+        end
+    elseif xicon then
+        -- Create a custom spell icon with fixed size
+        local iconTexture = ui.texture({ path = xicon })
+
+        icon = ui.content {
+            {
+                type = ui.TYPE.Image,
+                props = {
+                    resource = iconTexture,
+                    size = util.vector2(ICON_SIZE - 4, ICON_SIZE - 4), -- -4 due to padding
+                    arrange = ui.ALIGNMENT.Center,
+                    align = ui.ALIGNMENT.Center
+                }
+            }
+        }
     end
 
-    -- Use consistent icon sizes
-    local iconSize = utility.getIconSize()
-
-    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
-        util.vector2(0.5, 0.5),
-        { item = item, num = num }, {
-            mouseMove = async:callback(mouseMove),
-            mouseClick = async:callback(mouseClick),
-        })
-
-    local padding = utility.renderItemBoxed(ui.content { boxedIcon },
-        util.vector2(iconSize * 1.5, iconSize * 1.5),
-        I.MWUI.templates.padding)
-    return padding
+    return icon
 end
-local function getItemRow()
-    local items = {}
-    local inv = types.Actor.inventory(self):getAll()
-    local count = num + 10
 
-    maxCount = #inv
-    while num < count do
-        table.insert(items, createItemIcon(inv[num], nil, num))
-        num = num + 1
-    end
-    return items
-end
 local function createHotbarItem(item, xicon, num, data)
     local icon
     local prefix = ""
@@ -207,9 +236,9 @@ local function createHotbarItem(item, xicon, num, data)
     if displayNum == 10 then displayNum = 0 end
 
     if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item, false, false, num, "")
+        icon = createCustomIcon(item, nil, num, prefix)
     elseif xicon then
-        icon = I.Controller_Icon_QS.getSpellIcon(xicon, false, false, num, "")
+        icon = createCustomIcon(nil, xicon, num, prefix)
     elseif num then
         icon = ui.content {
             {
@@ -233,7 +262,7 @@ local function createHotbarItem(item, xicon, num, data)
     end
 
     -- Use fixed icon size
-    local iconSize = utility.getIconSize()
+    local iconSize = ICON_SIZE
 
     local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
         util.vector2(0.5, 0.5),
@@ -243,7 +272,7 @@ local function createHotbarItem(item, xicon, num, data)
         })
 
     local padding = utility.renderItemBoxed(ui.content { boxedIcon },
-        util.vector2(iconSize * 1.5, iconSize * 1.5),
+        util.vector2(iconSize * ICON_PADDING_MULTIPLIER, iconSize * ICON_PADDING_MULTIPLIER),
         I.MWUI.templates.padding)
     return padding
 end
@@ -283,51 +312,93 @@ local function getHotbarItems()
     end
     return items
 end
+local function createItemIcon(item, spell, num)
+    local icon
+    if item and not spell then
+        icon = createCustomIcon(item, nil, num)
+    else
+        return {}
+    end
+
+    -- Use fixed icon size
+    local iconSize = ICON_SIZE
+
+    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
+        util.vector2(0.5, 0.5),
+        { item = item, num = num }, {
+            mouseMove = async:callback(mouseMove),
+            mouseClick = async:callback(mouseClick),
+        })
+
+    local padding = utility.renderItemBoxed(ui.content { boxedIcon },
+        util.vector2(iconSize * ICON_PADDING_MULTIPLIER, iconSize * ICON_PADDING_MULTIPLIER),
+        I.MWUI.templates.padding)
+    return padding
+end
+
+local function getItemRow()
+    local items = {}
+    local inv = types.Actor.inventory(self):getAll()
+    local count = num + 10
+
+    maxCount = #inv
+    while num < count do
+        table.insert(items, createItemIcon(inv[num], nil, num))
+        num = num + 1
+    end
+    return items
+end
+
 local function drawItemSelect()
     if QuickSelectWindow then
         QuickSelectWindow:destroy()
     end
-    local xContent = {}
-    local content  = {}
-    num            = 1 + startOffset
-    --Draw search menu
+    local xContent       = {}
+    local content        = {}
+    num                  = 1 + startOffset
+
+    -- Calculate container width based on icon size
+    -- Each row has 10 items plus some padding
+    local containerWidth = ICON_SIZE * ICON_PADDING_MULTIPLIER * ITEMS_PER_ROW * 1.35
 
     table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenu6")))
     table.insert(content, utility.renderItemBold("(Use mouse wheel to scroll)", nil, nil, nil, true))
 
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
 
-    --rcontent = flexedItems(content,false)
-    --   table.insert(content,flexedItems(lis, true))
-    -- table.insert(content, imageContent(resource, size))
     content = ui.content(content)
     QuickSelectWindow = ui.create {
         layer = "Windows",
-        template = I.MWUI.templates.boxTransparentThick
-        ,
+        template = I.MWUI.templates.boxTransparentThick,
         props = {
             anchor = util.vector2(0.5, 0.5),
             relativePosition = util.vector2(0.5, 0.5),
@@ -342,7 +413,6 @@ local function drawItemSelect()
                     horizontal = false,
                     align = ui.ALIGNMENT.Center,
                     arrange = ui.ALIGNMENT.Center,
-                    --    size = util.vector2(0, 0),
                 }
             }
         }
@@ -453,38 +523,42 @@ local function drawQuickSelect()
     if QuickSelectWindow then
         QuickSelectWindow:destroy()
     end
-    local xContent = {}
-    local content  = {}
-    num            = 1
-    --local trainerRow = utility.renderItemBoxed({}, util.vector2((160 * scale) * 7, 400 * scale),
-    ---    I.MWUI.templates.padding)
+    local xContent       = {}
+    local content        = {}
+    num                  = 1
+
+    -- Calculate container width based on icon size
+    -- Each hotbar has 10 items plus some padding
+    local containerWidth = ICON_SIZE * ICON_PADDING_MULTIPLIER * ITEMS_PER_ROW * 1.35
 
     table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenuTitle")))
     table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenuInstruc")))
 
     table.insert(content, utility.renderItemLeft("Hotbar 1 (1-0)"))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
 
     table.insert(content, utility.renderItemLeft("Hotbar 2 (Shift 1-0)"))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
 
     table.insert(content, utility.renderItemLeft("Hotbar 3 (Ctrl 1-0)"))
     table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true), utility.scaledVector2(900, 100),
+        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true),
+            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
             I.MWUI.templates.padding,
             util.vector2(0.5, 0.5)))
 
     content = ui.content(content)
     QuickSelectWindow = ui.create {
         layer = "Windows",
-        template = I.MWUI.templates.boxTransparentThick
-        ,
+        template = I.MWUI.templates.boxTransparentThick,
         props = {
             anchor = util.vector2(0.5, 0.5),
             relativePosition = util.vector2(0.5, 0.5),
@@ -499,7 +573,6 @@ local function drawQuickSelect()
                     horizontal = false,
                     align = ui.ALIGNMENT.Center,
                     arrange = ui.ALIGNMENT.Center,
-                    --    size = util.vector2(0, 0),
                 }
             }
         }
@@ -608,6 +681,7 @@ local function ButtonClicked(data)
         I.UI.setMode()
     end
 end
+
 return {
 
     interfaceName = "QuickSelect_Win1",

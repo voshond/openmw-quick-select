@@ -99,7 +99,7 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
 
     local selectionResource
     local drawFavoriteStar = true
-    selectionResource = getTexture("icons\\quickselect\\selected.tga")
+    selectionResource = getTexture("icons\\voshondsQuickSelect\\selected.tga")
 
     -- Get magic icon with reduced opacity (0.7)
     local magicIconOpacity = 0.3
@@ -167,7 +167,7 @@ local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
 
     local selectionResource
     local drawFavoriteStar = true
-    selectionResource = getTexture("icons\\quickselect\\selected.tga")
+    selectionResource = getTexture("icons\\voshondsQuickSelect\\selected.tga")
     local pendingText = getTexture("icons\\buying.tga")
 
     local selectedContent = {}
@@ -213,7 +213,7 @@ local function getEmptyIcon(half, num, selected, useNumber, slotPrefix)
     local size = getIconSize()
     local selectionResource
     local drawFavoriteStar = true
-    selectionResource = getTexture("icons\\quickselect\\selected.tga")
+    selectionResource = getTexture("icons\\voshondsQuickSelect\\selected.tga")
 
     local selectedContent = {}
     if selected then

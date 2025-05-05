@@ -219,7 +219,7 @@ local function createHotbarItem(item, xicon, num, data, half)
     local iconContent
     if isEquipped then
         -- Create a border overlay that doesn't affect layout
-        local borderTexture = ui.texture({ path = "icons\\quickselect\\selected.tga" })
+        local borderTexture = ui.texture({ path = "icons\\voshondsQuickSelect\\selected.tga" })
 
         -- Wrap the boxedIcon with a container that includes both the icon and an overlay border
         iconContent = ui.content {
@@ -271,7 +271,7 @@ local function createSpacerElement(width, half)
     height = height + (iconPadding * 2)
 
     -- Create a transparent texture for the spacer
-    local transparentTexture = ui.texture({ path = "icons\\quickselect\\selected.tga" })
+    local transparentTexture = ui.texture({ path = "icons\\voshondsQuickSelect\\selected.tga" })
 
     return {
         type = ui.TYPE.Container,

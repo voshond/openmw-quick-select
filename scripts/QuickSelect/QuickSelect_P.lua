@@ -136,12 +136,16 @@ local function onInputAction(action)
                     -- If a different spell is selected, maintain spell stance if a spell stance was active
                     local currentStance = types.Actor.getStance(self)
                     local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
+                    local hadSpellSelected = (selectedSpell ~= nil)
 
                     -- Change to the new spell
                     types.Actor.setSelectedSpell(self, itemData.spell)
 
                     -- If we were already in spell stance, maintain it with the new spell
                     if wasSpellStance then
+                        types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                        -- If we had any spell selected but were in the nothing stance, switch to spell stance
+                    elseif hadSpellSelected then
                         types.Actor.setStance(self, types.Actor.STANCE.Spell)
                     end
 

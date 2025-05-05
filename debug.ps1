@@ -14,8 +14,8 @@ if (-not (Test-Path $targetDir)) {
 }
 
 # Copy all files from current directory to target
-Copy-Item -Path "$sourceDir\scripts\voshondsQuickSelect\*" -Destination $targetDir -Recurse -Force
-Write-Host "Copied files from $sourceDir to $targetDir"
+#Copy-Item -Path "$sourceDir\scripts\voshondsQuickSelect\*" -Destination $targetDir -Recurse -Force
+# Write-Host "Copied files from $sourceDir to $targetDir"
 
 # Find the main OpenMW process - get all processes and filter for the game window
 $openmwProcesses = Get-Process -Name "openmw" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne "" }

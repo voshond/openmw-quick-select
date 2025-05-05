@@ -26,11 +26,8 @@ local function initTooltipLayer()
     end
 
     if not tooltipLayerExists then
-        -- Instead of trying to insert after a specific layer which may not exist,
-        -- we'll try to append it to the end of the layers list which ensures it's on top
-
         -- Wrap layer creation in pcall to catch errors
-        local success = pcall(function()
+        local success, err = pcall(function()
             local layerCount = #ui.layers
             if layerCount > 0 then
                 -- Add it after the topmost existing layer
@@ -46,23 +43,17 @@ local function initTooltipLayer()
             end
         end)
 
-        -- If it failed, the layer might have been created by another script in the meantime
+        -- If creation failed, log a message but continue without error
         if not success then
-            -- Let's check if the layer exists now after the error
-            for i, layer in ipairs(ui.layers) do
-                if layer.name == "TooltipLayer" then
-                    -- Layer exists now, we can proceed
-                    return
-                end
-            end
-            -- If we get here, something else went wrong, but we'll continue without the layer
-            -- The tooltips will just use whatever layer is specified in the drawListMenu calls
+            log("TooltipLayer creation failed: " .. tostring(err))
         end
+    else
+        log("TooltipLayer already exists, skipping creation")
     end
 end
 
--- Initialize the tooltip layer on script load
-initTooltipLayer()
+-- Don't initialize immediately, will be initialized in onLoad instead
+-- initTooltipLayer()
 
 local hotBarElement
 local tooltipElement
@@ -139,11 +130,17 @@ local function drawToolTip()
 
     -- Choose the layer to use - check if TooltipLayer exists, otherwise fall back to HUD
     local layerToUse = "HUD"
+    local tooltipLayerExists = false
     for i, layer in ipairs(ui.layers) do
         if layer.name == "TooltipLayer" then
             layerToUse = "TooltipLayer"
+            tooltipLayerExists = true
             break
         end
+    end
+
+    if not tooltipLayerExists then
+        log("TooltipLayer not found, using HUD layer instead")
     end
 
     if item then
@@ -692,6 +689,9 @@ return {
             if settings:get("disableIconShrinking") == nil then
                 settings:set("disableIconShrinking", true)
             end
+
+            -- Initialize tooltip layer only once at startup
+            initTooltipLayer()
 
             if settings:get("persistMode") then
                 enableHotbar = true

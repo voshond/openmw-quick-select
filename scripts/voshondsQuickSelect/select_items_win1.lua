@@ -689,7 +689,13 @@ local function UiModeChanged(data)
             tooltip:destroy()
             tooltip = nil
         end
-        I.QuickSelect_Hotbar.drawHotbar()
+        if I.QuickSelect_Hotbar then
+            I.QuickSelect_Hotbar.drawHotbar()
+        else
+            -- If QuickSelect_Hotbar is not available, log a message
+            -- This prevents the error without breaking other functionality
+            print("[select_items_win1] QuickSelect_Hotbar interface not available")
+        end
         slotToSave = nil
     end
 end

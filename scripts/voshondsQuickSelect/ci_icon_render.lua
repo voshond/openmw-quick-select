@@ -13,8 +13,9 @@ local camera = require("openmw.camera")
 local input = require("openmw.input")
 local async = require("openmw.async")
 local storage = require("openmw.storage")
+local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+
 local function getIconSize()
-    local settings = storage.playerSection("SettingsQuickSelect")
     return settings:get("iconSize") or 40
 end
 

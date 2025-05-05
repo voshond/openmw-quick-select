@@ -45,7 +45,7 @@ local scale = 0.8
 local iconSize = 40
 
 local function getIconSize()
-    local settings = storage.playerSection("SettingsQuickSelect")
+    local settings = storage.playerSection("SettingsVoshondsQuickSelect")
     return settings:get("iconSize") or 40
 end
 

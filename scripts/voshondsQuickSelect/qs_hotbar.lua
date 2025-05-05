@@ -14,6 +14,11 @@ local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local tooltipData = require("scripts.voshondsQuickSelect.ci_tooltipgen")
 local utility = require("scripts.voshondsQuickSelect.qs_utility")
 
+-- Debug logging function (moved to the top)
+local function log(message)
+    print("[HOTBAR DEBUG] " .. tostring(message))
+end
+
 -- Create a dedicated tooltip layer on top of everything else
 local function initTooltipLayer()
     -- Check if the layer already exists to avoid errors
@@ -69,10 +74,6 @@ local HOTBAR_ITEMS_PER_ROW = 10
 
 -- Remove the early initialization code
 -- Let's initialize in onLoad instead
-
-local function log(message)
-    print("[HOTBAR DEBUG] " .. tostring(message))
-end
 
 local function startPickingMode()
     enableHotbar = true

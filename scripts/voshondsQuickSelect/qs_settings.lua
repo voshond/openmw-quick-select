@@ -9,18 +9,18 @@ local util = require('openmw.util')
 local ui = require('openmw.ui')
 local I = require('openmw.interfaces')
 
-local settings = storage.playerSection("SettingsQuickSelect")
+local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
 I.Settings.registerPage {
-    key = "SettingsQuickSelect",
-    l10n = "SettingsQuickSelect",
+    key = "SettingsVoshondsQuickSelect",
+    l10n = "SettingsVoshondsQuickSelect",
     name = "voshond's QuickSelect",
     description = "These settings allow you to modify the behavior of the Quickselect bar."
 }
 I.Settings.registerGroup {
-    key = "SettingsQuickSelect",
-    page = "SettingsQuickSelect",
-    l10n = "SettingsQuickSelect",
+    key = "SettingsVoshondsQuickSelect",
+    page = "SettingsVoshondsQuickSelect",
+    l10n = "SettingsVoshondsQuickSelect",
     name = "Main Settings",
     permanentStorage = true,
     description = [[

@@ -5,7 +5,7 @@ param(
 
 # Copy script files to ModOrganizer folder
 $sourceDir = Get-Location
-$targetDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\voshondsQuickSelect\scripts\QuickSelect"
+$targetDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\voshond's Quick Select\scripts\QuickSelect"
 
 # Check if target directory exists, create if not
 if (-not (Test-Path $targetDir)) {

@@ -9,7 +9,7 @@ local async = require('openmw.async')
 local storage = require('openmw.storage')
 local I = require('openmw.interfaces')
 
-local settings = storage.playerSection("SettingsQuickSelect")
+local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
 local utility = require("scripts.QuickSelect.qs_utility")
 local storedItems

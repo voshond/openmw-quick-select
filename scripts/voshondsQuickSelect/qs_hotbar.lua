@@ -688,6 +688,20 @@ end
 -- Subscribe to settings changes
 settings:subscribe(async:callback(onSettingsChanged))
 
+-- Add variable to track current UI mode
+local currentUiMode = nil
+
+-- Update or add onUpdate function
+local function onUpdate(dt)
+    -- Check for UI mode changes
+    local newMode = I.UI and I.UI.getMode and I.UI.getMode()
+    if newMode ~= currentUiMode then
+        -- Mode has changed, call the UiModeChanged function
+        UiModeChanged({ oldMode = currentUiMode, newMode = newMode })
+        currentUiMode = newMode
+    end
+end
+
 return {
     interfaceName = "QuickSelect_Hotbar",
     interface = {
@@ -718,6 +732,7 @@ return {
             pickSlotMode = false
             controllerPickMode = false
             selectedNum = 1
+            currentUiMode = I.UI and I.UI.getMode and I.UI.getMode()
 
             if settings:get("persistMode") then
                 enableHotbar = true
@@ -728,6 +743,7 @@ return {
                 drawHotbar()
             end)
         end,
+        onUpdate = onUpdate,
         onKeyPress = function(key)
             if core.isWorldPaused() and not controllerPickMode then
                 return

@@ -5,7 +5,7 @@ param(
 
 # Copy script files to ModOrganizer folder
 $sourceDir = Get-Location
-$targetDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\Quickselect\scripts\QuickSelect"
+$targetDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\voshondsQuickSelect\scripts\QuickSelect"
 
 # Check if target directory exists, create if not
 if (-not (Test-Path $targetDir)) {
@@ -14,7 +14,7 @@ if (-not (Test-Path $targetDir)) {
 }
 
 # Copy all files from current directory to target
-Copy-Item -Path "$sourceDir\scripts\QuickSelect\*" -Destination $targetDir -Recurse -Force
+Copy-Item -Path "$sourceDir\scripts\voshondsQuickSelect\*" -Destination $targetDir -Recurse -Force
 Write-Host "Copied files from $sourceDir to $targetDir"
 
 # Find the main OpenMW process - get all processes and filter for the game window

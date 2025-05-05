@@ -166,6 +166,15 @@ local function createCustomIcon(item, xicon, num, prefix)
         local record = item.type.records[item.recordId]
         local itemIcon = ui.texture({ path = record.icon })
 
+        -- Check if item has an enchantment and add magic background
+        local hasEnchantment = false
+        local magicBgIcon = nil
+
+        if record.enchant and record.enchant ~= "" then
+            hasEnchantment = true
+            magicBgIcon = ui.texture({ path = "textures\\menu_icon_magic_mini.dds" })
+        end
+
         local content = {
             type = ui.TYPE.Image,
             props = {
@@ -176,25 +185,41 @@ local function createCustomIcon(item, xicon, num, prefix)
             }
         }
 
+        -- Build the content with magic background if needed
+        local iconContent = {}
+
+        if hasEnchantment then
+            table.insert(iconContent, {
+                type = ui.TYPE.Image,
+                props = {
+                    resource = magicBgIcon,
+                    size = util.vector2(ICON_SIZE, ICON_SIZE),
+                    alpha = 0.3, -- Match the opacity used in the hotbar
+                    arrange = ui.ALIGNMENT.Center,
+                    align = ui.ALIGNMENT.Center
+                }
+            })
+        end
+
+        table.insert(iconContent, content)
+
         -- Include count text if applicable
         if item.count > 1 then
-            icon = ui.content {
-                content,
-                {
-                    type = ui.TYPE.Text,
-                    template = I.MWUI.templates.textHeader,
-                    props = {
-                        text = tostring(item.count),
-                        textSize = 14,
-                        relativePosition = util.vector2(0.1, 0.1),
-                        anchor = util.vector2(0.1, 0.1),
-                        arrange = ui.ALIGNMENT.Start,
-                        align = ui.ALIGNMENT.Start,
-                    }
+            icon = ui.content(iconContent)
+            table.insert(icon, {
+                type = ui.TYPE.Text,
+                template = I.MWUI.templates.textHeader,
+                props = {
+                    text = tostring(item.count),
+                    textSize = 14,
+                    relativePosition = util.vector2(0.1, 0.1),
+                    anchor = util.vector2(0.1, 0.1),
+                    arrange = ui.ALIGNMENT.Start,
+                    align = ui.ALIGNMENT.Start,
                 }
-            }
+            })
         else
-            icon = ui.content { content }
+            icon = ui.content(iconContent)
         end
     elseif xicon then
         -- Create a custom spell icon with fixed size
@@ -463,17 +488,17 @@ local function drawSpellSelect()
 
     local enchantList = {}
     for index, ench in ipairs(enchL) do
-        if index > startOffset then
-            table.insert(enchantList,
-                {
-                    id = ench.item.recordId,
-                    name = ench.item.type.record(ench.item).name,
-                    type = "Enchant",
-                    enchant = ench
-                        .item.type.record(ench.item).enchant
-                })
-            ----print("ench nane" .. ench.item.type.record(ench.item).name)
-        end
+        -- if index > startOffset then
+        table.insert(enchantList,
+            {
+                id = ench.item.recordId,
+                name = ench.item.type.record(ench.item).name,
+                type = "Enchant",
+                enchant = ench
+                    .item.type.record(ench.item).enchant
+            })
+        ----print("ench nane" .. ench.item.type.record(ench.item).name)
+        -- end
     end
     table.sort(enchantList, compareNames)
     for index, value in ipairs(enchantList) do

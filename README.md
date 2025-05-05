@@ -68,4 +68,3 @@ Original Author of QuickSelect: ZackHasaCat
 If you've found an issue with this mod, or if you simply have a question, please use one of the following ways to reach out:
 
 -   [Open an issue on Github](https://github.com/voshond/openmw-quick-select/issues)
--   Email `martin.k.herrmann@me.com`

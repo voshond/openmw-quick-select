@@ -111,8 +111,29 @@ local function onInputAction(action)
             targetPage = 2
         end
 
+        -- Check if the item in this slot is a weapon and already equipped
+        local slotNumber = slot + (targetPage * 10)
+        local itemData = I.QuickSelect_Storage.getFavoriteItemData(slotNumber)
+
+        if itemData and itemData.item then
+            local realItem = types.Actor.inventory(self):find(itemData.item)
+            if realItem and realItem.type == types.Weapon then
+                local isEquipped = I.QuickSelect_Storage.isSlotEquipped(slotNumber)
+                if isEquipped then
+                    -- If the weapon is already equipped, toggle weapon stance
+                    local currentStance = types.Actor.getStance(self)
+                    if currentStance == types.Actor.STANCE.Weapon then
+                        types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                    else
+                        types.Actor.setStance(self, types.Actor.STANCE.Weapon)
+                    end
+                    return
+                end
+            end
+        end
+
         -- Use the determined page instead of the selected page
-        I.QuickSelect_Storage.equipSlot(slot + (targetPage * 10))
+        I.QuickSelect_Storage.equipSlot(slotNumber)
         I.QuickSelect_Hotbar.drawHotbar()
     end
 end

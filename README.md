@@ -1,14 +1,37 @@
-# Quickselect
+# voshond's Quickselect
 
-OpenMW Dev build(0.49) required
+### Requirements
+
+OpenMW build(0.49+) required
+
+### Description
+
+This mod is basically a fork of ZackHasaCat's [Quickselect](https://gitlab.com/modding-openmw/quickselect/) OpenMW mod, but modified based on my personal needs from a PC player's perspective.
+
+#### A quick summary of the features
+
+-   Adds up to 3 Hotbars to the game
+-   Allows the player to bind items, spells and enchantments to the hotbars
+-   Gives the player direct access to these by pressing 1-0, shift 1-0 or ctrl 1-0
+-   Allows for customisation of the icon size, spacing between and the number of bars shown
+
+#### Noteable modifications from the original
+
+-   Managing bars does not "switch" the bar, but instead the player can directly access the bar by using shift/ctrl - this is probably the most noteable diviation, as it seems quickselect was more built with an controller in mind (i don't really do that)
+-   Activating a weapon/spell that is already equipped will simply "unready" that weapon/spell
+-   If you do not have the spell/weapon equipped, the player simply readies the activated spell
+-   If the user has a spell ready, and simply switches to another spell, the stance is maintained
+-   Same goes when switchting to a torch/probe/lockpick
+
+### Original Notes
 
 **Before installing this mod, you should unbind all the vanilla hotkeys!**
 
-Quickselect adds a hotbar to the UI, with custom behaviour. 
+Quickselect adds a hotbar to the UI, with custom behaviour.
 
 You can either have it show at all times, or only show when needed. It allows for a more controller friendly experience, the shoulder buttons/dpad left/right allow you to select which slot to use, then A to use it.
 
-The mod re-implements the vanilla favorite menu(F1), with some enhancements. 
+The mod re-implements the vanilla favorite menu(F1), with some enhancements.
 
 If you press a hotkey which has an item equipped already, it will unequip it.
 
@@ -18,14 +41,15 @@ You can use the DPad/Shoulder buttons to select which item you'd like to equip. 
 
 Check the settings, you can customize behaviour from there.
 
-#### Credits
+### Credits
 
-Author: ZackHasaCat
+Author: voshond
+Original Author of QuickSelect: ZackHasaCat
 
-#### Installation
+### Installation
 
-1. Download the mod from the above link, release or dev version.
-1. Extract the zip to a location of your choosing, examples below:
+1.  Download the mod from the above link, release or dev version.
+1.  Extract the zip to a location of your choosing, examples below:
 
         # Windows
         C:\games\OpenMWMods\quickselect
@@ -36,13 +60,12 @@ Author: ZackHasaCat
         # macOS
         /Users/username/games/OpenMWMods/quickselect
 
-1. Add the appropriate data path to your `opemw.cfg` file (e.g. `data="C:\games\OpenMWMods\quickselect"`)
-1. Add  `content=quickselect.omwscripts` to your load order in `openmw.cfg` or enable it via OpenMW-Launcher
+1.  Add the appropriate data path to your `opemw.cfg` file (e.g. `data="C:\games\OpenMWMods\quickselect"`)
+1.  Add `content=quickselect.omwscripts` to your load order in `openmw.cfg` or enable it via OpenMW-Launcher
 
-#### Report A Problem
+### Report A Problem
 
 If you've found an issue with this mod, or if you simply have a question, please use one of the following ways to reach out:
 
-* [Open an issue on GitLab](https://gitlab.com/modding-openmw/quickselect/-/issues)
-* Email `zack@iwsao.com`
-* Contact the author on Discord: `@ZackHasaCat`
+-   [Open an issue on Github](https://github.com/voshond/openmw-quick-select/issues)
+-   Email `martin.k.herrmann@me.com`

@@ -10,9 +10,9 @@ local util = require('openmw.util')
 local ui = require('openmw.ui')
 local I = require('openmw.interfaces')
 
-local settings = storage.playerSection("SettingsQuickSelect")
-local tooltipData = require("scripts.QuickSelect.ci_tooltipgen")
-local utility = require("scripts.QuickSelect.qs_utility")
+local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+local tooltipData = require("scripts.voshondsQuickSelect.ci_tooltipgen")
+local utility = require("scripts.voshondsQuickSelect.qs_utility")
 
 -- Create a dedicated tooltip layer on top of everything else
 local function initTooltipLayer()

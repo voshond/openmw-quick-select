@@ -58,9 +58,9 @@ end
 -- Initialize the tooltip layer on script load
 initTooltipLayer()
 
-local utility = require("scripts.QuickSelect.qs_utility")
-local tooltipData = require("scripts.QuickSelect.ci_tooltipgen")
-local messageBoxUtil = require("scripts.QuickSelect.messagebox")
+local utility = require("scripts.voshondsQuickSelect.qs_utility")
+local tooltipData = require("scripts.voshondsQuickSelect.ci_tooltipgen")
+local messageBoxUtil = require("scripts.voshondsQuickSelect.messagebox")
 local QuickSelectWindow
 local hoveredOverId
 local spellMode = false

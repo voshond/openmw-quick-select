@@ -11,7 +11,7 @@ local I = require('openmw.interfaces')
 
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
-local utility = require("scripts.QuickSelect.qs_utility")
+local utility = require("scripts.voshondsQuickSelect.qs_utility")
 local storedItems
 
 local function getFavoriteItems()

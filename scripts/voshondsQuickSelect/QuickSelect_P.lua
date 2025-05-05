@@ -10,9 +10,9 @@ local input = require('openmw.input')
 local I = require('openmw.interfaces')
 local storage = require('openmw.storage')
 local async = require('openmw.async')
-local settings = require("scripts.QuickSelect.qs_settings")
+local settings = require("scripts.voshondsQuickSelect.qs_settings")
 local function getIconSize()
-    local settingsStorage = storage.playerSection("SettingsQuickSelect")
+    local settingsStorage = storage.playerSection("SettingsVoshondsQuickSelect")
     return settingsStorage:get("iconSize") or 40
 end
 local selectedPage = 0

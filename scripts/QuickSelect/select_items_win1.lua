@@ -8,6 +8,56 @@ local util = require("openmw.util")
 local types = require("openmw.types")
 local input = require("openmw.input")
 
+-- Create a dedicated tooltip layer on top of everything else
+local function initTooltipLayer()
+    -- Check if the layer already exists to avoid errors
+    local tooltipLayerExists = false
+    for i, layer in ipairs(ui.layers) do
+        if layer.name == "TooltipLayer" then
+            tooltipLayerExists = true
+            break
+        end
+    end
+
+    if not tooltipLayerExists then
+        -- Instead of trying to insert after a specific layer which may not exist,
+        -- we'll try to append it to the end of the layers list which ensures it's on top
+
+        -- Wrap layer creation in pcall to catch errors
+        local success = pcall(function()
+            local layerCount = #ui.layers
+            if layerCount > 0 then
+                -- Add it after the topmost existing layer
+                local topLayerName = ui.layers[layerCount].name
+                ui.layers.insertAfter(topLayerName, "TooltipLayer", { interactive = false })
+            else
+                -- If no layers exist yet (unlikely), create a Windows layer and insert after it
+                if not ui.layers.indexOf("Windows") then
+                    -- Create a Windows layer first if it doesn't exist
+                    ui.layers.insertAfter("HUD", "Windows", { interactive = true })
+                end
+                ui.layers.insertAfter("Windows", "TooltipLayer", { interactive = false })
+            end
+        end)
+
+        -- If it failed, the layer might have been created by another script in the meantime
+        if not success then
+            -- Let's check if the layer exists now after the error
+            for i, layer in ipairs(ui.layers) do
+                if layer.name == "TooltipLayer" then
+                    -- Layer exists now, we can proceed
+                    return
+                end
+            end
+            -- If we get here, something else went wrong, but we'll continue without the layer
+            -- The tooltips will just use whatever layer is specified in the drawListMenu calls
+        end
+    end
+end
+
+-- Initialize the tooltip layer on script load
+initTooltipLayer()
+
 local utility = require("scripts.QuickSelect.qs_utility")
 local tooltipData = require("scripts.QuickSelect.ci_tooltipgen")
 local messageBoxUtil = require("scripts.QuickSelect.messagebox")
@@ -35,15 +85,25 @@ local function mouseMove(mouseEvent, data)
         tooltip:destroy()
         tooltip = nil
     end
+
+    -- Choose the layer to use - check if TooltipLayer exists, otherwise fall back to HUD
+    local layerToUse = "HUD"
+    for i, layer in ipairs(ui.layers) do
+        if layer.name == "TooltipLayer" then
+            layerToUse = "TooltipLayer"
+            break
+        end
+    end
+
     if data.data.item then
         tooltip = utility.drawListMenu(tooltipData.genToolTips(data.data.item),
-            utility.itemWindowLocs.BottomCenter, nil, "HUD")
+            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
         -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
     elseif data.data.data.spell then
         local spellRecord = core.magic.spells.records[data.data.data.spell]
         --print(data.data.data.spell)
         tooltip = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
-            utility.itemWindowLocs.BottomCenter, nil, "HUD")
+            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
     end
 end
 local function mouseClick(mouseEvent, data)
@@ -119,16 +179,26 @@ local function mouseMoveButton(event, data)
         tooltip:destroy()
         tooltip = nil
     end
+
+    -- Choose the layer to use - check if TooltipLayer exists, otherwise fall back to HUD
+    local layerToUse = "HUD"
+    for i, layer in ipairs(ui.layers) do
+        if layer.name == "TooltipLayer" then
+            layerToUse = "TooltipLayer"
+            break
+        end
+    end
+
     if sdata.id and sdata.enchant then
         local item = types.Actor.inventory(self):find(sdata.id)
         tooltip = utility.drawListMenu(tooltipData.genToolTips(item),
-            utility.itemWindowLocs.BottomCenter, nil, "HUD")
+            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
         -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
     elseif sdata.id then
         local spellRecord = core.magic.spells.records[sdata.id]
         --print(data.data.data.spell)
         tooltip = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
-            utility.itemWindowLocs.BottomCenter, nil, "HUD")
+            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
     end
     for index, value in ipairs(QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content) do
         local sdata = QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1]

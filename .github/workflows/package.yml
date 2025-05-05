@@ -14,7 +14,7 @@ jobs:
         runs-on: windows-latest
 
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
 
             - name: Get Version
               id: get_version
@@ -33,7 +33,7 @@ jobs:
                   .\package.ps1 -version "${{ steps.get_version.outputs.version }}"
 
             - name: Upload Package as Artifact
-              uses: actions/upload-artifact@v3
+              uses: actions/upload-artifact@v4
               with:
                   name: voshondsQuickSelect-v${{ steps.get_version.outputs.version }}
                   path: dist/voshondsQuickSelect-v${{ steps.get_version.outputs.version }}.zip

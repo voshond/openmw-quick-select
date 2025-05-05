@@ -11,12 +11,13 @@ local ui = require('openmw.ui')
 local I = require('openmw.interfaces')
 
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
-local tooltipData = require("scripts.voshondsQuickSelect.ci_tooltipgen")
-local utility = require("scripts.voshondsQuickSelect.qs_utility")
+local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
+local utility = require("scripts.voshondsquickselect.qs_utility")
+local Debug = require("scripts.voshondsquickselect.qs_debug")
 
--- Debug logging function (moved to the top)
+-- Debug logging function (using the new Debug module)
 local function log(message)
-    print("[HOTBAR DEBUG] " .. tostring(message))
+    Debug.hotbar(message)
 end
 
 -- Create a dedicated tooltip layer on top of everything else
@@ -600,6 +601,19 @@ local function UiModeChanged(data)
             enableHotbar = true
             drawHotbar()
         end
+    else -- no mode (mode ended)
+        -- Clean up UI if we're not in our menu mode
+        if enableHotbar then
+            if pickSlotMode then
+                -- Keep the hotbar open
+            else
+                -- Still destroy visible tooltips
+                if tooltipElement then
+                    tooltipElement:destroy()
+                    tooltipElement = nil
+                end
+            end
+        end
     end
 end
 local function selectNextOrPrevHotBar(dir)
@@ -675,29 +689,44 @@ end
 settings:subscribe(async:callback(onSettingsChanged))
 
 return {
-    --I.QuickSelect_Hotbar.drawHotbar()
     interfaceName = "QuickSelect_Hotbar",
     interface = {
         drawHotbar = drawHotbar,
         selectSlot = selectSlot,
+        isHotbarEnabled = function()
+            return enableHotbar
+        end,
+        endPickingMode = endPickingMode,
+        startPickingMode = startPickingMode
     },
     eventHandlers = {
         UiModeChanged = UiModeChanged,
     },
     engineHandlers = {
         onLoad = function()
+            -- Initialize tooltip layer on load
+            log("==== Initializing QuickSelect_Hotbar ====")
+            initTooltipLayer()
+
             -- Initialize settings if they don't exist
             if settings:get("disableIconShrinking") == nil then
                 settings:set("disableIconShrinking", true)
             end
 
-            -- Initialize tooltip layer only once at startup
-            initTooltipLayer()
+            -- Set initial state
+            enableHotbar = false
+            pickSlotMode = false
+            controllerPickMode = false
+            selectedNum = 1
 
             if settings:get("persistMode") then
                 enableHotbar = true
-                drawHotbar()
             end
+
+            -- Initial draw with a small delay to ensure all interfaces are registered
+            async:newUnsavableSimulationTimer(0.05, function()
+                drawHotbar()
+            end)
         end,
         onKeyPress = function(key)
             if core.isWorldPaused() and not controllerPickMode then
@@ -777,6 +806,6 @@ return {
                     endPickingMode()
                 end
             end
-        end,
+        end
     }
 }

@@ -11,7 +11,8 @@ local I = require('openmw.interfaces')
 
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
-local utility = require("scripts.voshondsQuickSelect.qs_utility")
+local utility = require("scripts.voshondsquickselect.qs_utility")
+local Debug = require("scripts.voshondsquickselect.qs_debug")
 local storedItems
 
 local function getFavoriteItems()
@@ -37,7 +38,7 @@ local function deleteStoredItemData(slot)
 end
 local function saveStoredItemData(id, slot)
     getFavoriteItems()
-    --print(id, slot)
+    Debug.storage("Saving item " .. tostring(id) .. " to slot " .. tostring(slot))
     deleteStoredItemData(slot)
     storedItems[slot].item = id
 end
@@ -53,6 +54,7 @@ local function saveStoredEnchantData(enchantId, itemId, slot)
     storedItems[slot].spellType = "Enchant"
     storedItems[slot].enchantId = enchantId
     storedItems[slot].itemId    = itemId
+    Debug.storage("Saving enchanted item " .. tostring(itemId) .. " to slot " .. tostring(slot))
 end
 local function findItem(id)
     for index, value in ipairs(types.Actor.inventory(self)) do
@@ -70,7 +72,7 @@ local function isSlotEquipped(slot)
             local isMatched = (spell.id == item.spell)
             return isMatched
         elseif item.enchantId then
-            --print("enchant:", slot)
+            Debug.storage("Checking enchanted item in slot " .. slot)
             local equip = types.Actor.getSelectedEnchantedItem(self)
             if not equip then return false end
             local realItem = types.Actor.inventory(self):find(item.itemId)
@@ -159,7 +161,11 @@ local function equipSlot(slot)
     end
 
     async:newUnsavableSimulationTimer(0.1, function()
-        I.QuickSelect_Hotbar.drawHotbar()
+        if I.QuickSelect_Hotbar then
+            I.QuickSelect_Hotbar.drawHotbar()
+        else
+            Debug.error("QuickSelect_Storage", "QuickSelect_Hotbar interface not available")
+        end
     end)
 end
 return {

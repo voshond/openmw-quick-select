@@ -2,6 +2,8 @@ local types = require("openmw.types")
 local self = require("openmw.self")
 local core = require("openmw.core")
 local I = require("openmw.interfaces")
+local Debug = require("scripts.voshondsquickselect.qs_debug")
+
 local function getWeaponTooltipType(record)
     local type = record.type
     local wt = types.Weapon.TYPE
@@ -32,7 +34,7 @@ end
 local function genMagicTooltips(list, spellRecord, item)
     local name = spellRecord.name
 
-    table.insert(list,name)
+    table.insert(list, name)
     for index, value in ipairs(spellRecord.effects) do
         local range = nil
         if value.range == core.magic.RANGE.Self then
@@ -69,6 +71,7 @@ end
 
 local function getItemNormalizedHealth(itemData, maxCondition)
     if itemData.condition == 0 or not itemData.condition then
+        Debug.log("ToolTipGen", "Item has no condition or condition is 0")
         return 0.0
     else
         return itemData.condition / tonumber(maxCondition)
@@ -206,7 +209,8 @@ local function genToolTips(item)
                 string.format(core.getGMST("sSlash") .. ": %g - %g", types.Weapon.records[item.recordId].slashMinDamage,
                     types.Weapon.records[item.recordId].slashMaxDamage))
             table.insert(list,
-                string.format(core.getGMST("sThrust") .. ": %g - %g", types.Weapon.records[item.recordId].thrustMinDamage,
+                string.format(core.getGMST("sThrust") .. ": %g - %g", types.Weapon.records[item.recordId]
+                    .thrustMinDamage,
                     types.Weapon.records[item.recordId].thrustMaxDamage))
         end
     end
@@ -219,7 +223,8 @@ local function genToolTips(item)
         table.insert(list,
             core.getGMST("sWeight") .. ": " .. tostring(math.floor(record.weight)) .. " (" .. weightType .. ")")
         local armorSkillType = weightType:lower() .. "armor"
-        local rating = types.Armor.records[item.recordId].baseArmor * (types.NPC.stats.skills[armorSkillType](self).modified / 30)
+        local rating = types.Armor.records[item.recordId].baseArmor *
+            (types.NPC.stats.skills[armorSkillType](self).modified / 30)
         table.insert(list, core.getGMST("sArmorRating") .. ": " .. tostring(math.floor(rating)))
     elseif record.weight > 0 then
         local weight = record.weight

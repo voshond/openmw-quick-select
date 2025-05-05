@@ -10,12 +10,14 @@ local input = require('openmw.input')
 local I = require('openmw.interfaces')
 local storage = require('openmw.storage')
 local async = require('openmw.async')
-local settings = require("scripts.voshondsQuickSelect.qs_settings")
+local settings = require("scripts.voshondsquickselect.qs_settings")
+local Debug = require("scripts.voshondsquickselect.qs_debug")
+
+local selectedPage = 0
 local function getIconSize()
     local settingsStorage = storage.playerSection("SettingsVoshondsQuickSelect")
     return settingsStorage:get("iconSize") or 40
 end
-local selectedPage = 0
 local function getIconSizeGrow()
     local ret = 20
     return getIconSize() + ret * 0.25
@@ -96,7 +98,11 @@ local function onInputAction(action)
         -- Alt cycles through hotbars
         if input.isAltPressed() then
             selectedPage = (selectedPage + 1) % 3
-            I.QuickSelect_Hotbar.drawHotbar()
+            if I.QuickSelect_Hotbar then
+                I.QuickSelect_Hotbar.drawHotbar()
+            else
+                Debug.error("QuickSelect_p", "QuickSelect_Hotbar interface not available")
+            end
             return
         end
 
@@ -130,7 +136,11 @@ local function onInputAction(action)
                     end
 
                     -- Update the hotbar UI to reflect the spell change
-                    I.QuickSelect_Hotbar.drawHotbar()
+                    if I.QuickSelect_Hotbar then
+                        I.QuickSelect_Hotbar.drawHotbar()
+                    else
+                        Debug.error("QuickSelect_p", "QuickSelect_Hotbar interface not available")
+                    end
                     return
                 else
                     -- If a different spell is selected, maintain spell stance if a spell stance was active
@@ -151,7 +161,11 @@ local function onInputAction(action)
 
                     -- Allow a small delay for the game state to update before redrawing the UI
                     async:newUnsavableSimulationTimer(0.05, function()
-                        I.QuickSelect_Hotbar.drawHotbar()
+                        if I.QuickSelect_Hotbar then
+                            I.QuickSelect_Hotbar.drawHotbar()
+                        else
+                            Debug.error("QuickSelect_p", "QuickSelect_Hotbar interface not available")
+                        end
                     end)
 
                     return
@@ -222,7 +236,11 @@ local function onInputAction(action)
 
         -- Use the determined page instead of the selected page
         I.QuickSelect_Storage.equipSlot(slotNumber)
-        I.QuickSelect_Hotbar.drawHotbar()
+        if I.QuickSelect_Hotbar then
+            I.QuickSelect_Hotbar.drawHotbar()
+        else
+            Debug.error("QuickSelect_p", "QuickSelect_Hotbar interface not available")
+        end
     end
 end
 return {
@@ -240,7 +258,39 @@ return {
     engineHandlers = {
         onInputAction = onInputAction,
         onLoad = function()
-            -- I.QuickSelect_Hotbar.drawHotbar()
+            -- Initialize the QuickSelect system
+            Debug.quickSelect("Initializing QuickSelect system")
+
+            -- Initialize with page 0 selected
+            selectedPage = 0
+
+            -- Use a timer to check when other interfaces become available
+            async:newUnsavableSimulationTimer(0.5, function()
+                Debug.quickSelect("Checking for required interfaces")
+                local interfaces = {
+                    "QuickSelect_Storage",
+                    "QuickSelect_Hotbar",
+                    "QuickSelect_Win1",
+                    "Controller_Icon_QS"
+                }
+
+                local allAvailable = true
+                for _, interfaceName in ipairs(interfaces) do
+                    if not I[interfaceName] then
+                        Debug.warning("QuickSelect", "Interface " .. interfaceName .. " not available")
+                        allAvailable = false
+                    end
+                end
+
+                if allAvailable then
+                    Debug.quickSelect("All required interfaces are available")
+
+                    -- Try to draw the hotbar once all interfaces are available
+                    if I.QuickSelect_Hotbar then
+                        I.QuickSelect_Hotbar.drawHotbar()
+                    end
+                end
+            end)
         end
     }
 }

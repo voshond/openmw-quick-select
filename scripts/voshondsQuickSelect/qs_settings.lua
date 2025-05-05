@@ -127,6 +127,13 @@ I.Settings.registerGroup {
                 max = 100,
             },
         },
+        {
+            key = "enableDebugLogging",
+            renderer = "checkbox",
+            name = "Enable Debug Logging",
+            description = "If enabled, debug print statements will be shown in the console. Useful for troubleshooting but may impact performance.",
+            default = false
+        },
     },
 
 }

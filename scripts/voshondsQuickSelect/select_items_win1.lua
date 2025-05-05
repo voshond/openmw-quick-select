@@ -7,6 +7,7 @@ local ui = require("openmw.ui")
 local util = require("openmw.util")
 local types = require("openmw.types")
 local input = require("openmw.input")
+local Debug = require("scripts.voshondsquickselect.qs_debug")
 
 -- Create a dedicated tooltip layer on top of everything else
 local function initTooltipLayer()
@@ -58,9 +59,9 @@ end
 -- Initialize the tooltip layer on script load
 initTooltipLayer()
 
-local utility = require("scripts.voshondsQuickSelect.qs_utility")
-local tooltipData = require("scripts.voshondsQuickSelect.ci_tooltipgen")
-local messageBoxUtil = require("scripts.voshondsQuickSelect.messagebox")
+local utility = require("scripts.voshondsquickselect.qs_utility")
+local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
+local messageBoxUtil = require("scripts.voshondsquickselect.messagebox")
 local QuickSelectWindow
 local hoveredOverId
 local spellMode = false
@@ -694,7 +695,7 @@ local function UiModeChanged(data)
         else
             -- If QuickSelect_Hotbar is not available, log a message
             -- This prevents the error without breaking other functionality
-            print("[select_items_win1] QuickSelect_Hotbar interface not available")
+            Debug.error("select_items_win1", "QuickSelect_Hotbar interface not available")
         end
         slotToSave = nil
     end
@@ -814,7 +815,7 @@ return {
             elseif startOffset + modifer < maxCount then
                 startOffset = startOffset + modifer
             end
-            --print(startOffset)
+            Debug.items("Scroll offset: " .. startOffset)
             if startOffset < 0 then
                 startOffset = 0
             end

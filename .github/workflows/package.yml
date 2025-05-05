@@ -1,0 +1,50 @@
+name: Package Mod
+
+on:
+    push:
+        branches: [main, master]
+        tags:
+            - 'v*'
+    pull_request:
+        branches: [main, master]
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: windows-latest
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Get Version
+              id: get_version
+              shell: pwsh
+              run: |
+                  $version = "1.0.0"
+                  # If this is a tag with v prefix (like v1.2.3), use that version
+                  if ("${{ github.ref }}".StartsWith('refs/tags/v')) {
+                    $version = "${{ github.ref }}".Substring(11)
+                  }
+                  echo "version=$version" >> $env:GITHUB_OUTPUT
+
+            - name: Run Package Script
+              shell: pwsh
+              run: |
+                  .\package.ps1 -version "${{ steps.get_version.outputs.version }}"
+
+            - name: Upload Package as Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: voshondsQuickSelect-v${{ steps.get_version.outputs.version }}
+                  path: dist/voshondsQuickSelect-v${{ steps.get_version.outputs.version }}.zip
+
+            - name: Create Release
+              id: create_release
+              if: startsWith(github.ref, 'refs/tags/v')
+              uses: softprops/action-gh-release@v1
+              with:
+                  files: dist/voshondsQuickSelect-v${{ steps.get_version.outputs.version }}.zip
+                  draft: false
+                  prerelease: false
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

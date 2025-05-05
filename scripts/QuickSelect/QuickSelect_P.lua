@@ -111,23 +111,84 @@ local function onInputAction(action)
             targetPage = 2
         end
 
-        -- Check if the item in this slot is a weapon and already equipped
+        -- Check if the item in this slot is already equipped
         local slotNumber = slot + (targetPage * 10)
         local itemData = I.QuickSelect_Storage.getFavoriteItemData(slotNumber)
 
-        if itemData and itemData.item then
-            local realItem = types.Actor.inventory(self):find(itemData.item)
-            if realItem and realItem.type == types.Weapon then
-                local isEquipped = I.QuickSelect_Storage.isSlotEquipped(slotNumber)
-                if isEquipped then
-                    -- If the weapon is already equipped, toggle weapon stance
+        if itemData then
+            -- Handle spells
+            if itemData.spell and not itemData.enchantId then
+                local selectedSpell = types.Actor.getSelectedSpell(self)
+                if selectedSpell and selectedSpell.id == itemData.spell then
+                    -- If the same spell is already selected, toggle spell stance
                     local currentStance = types.Actor.getStance(self)
-                    if currentStance == types.Actor.STANCE.Weapon then
+                    if currentStance == types.Actor.STANCE.Spell then
                         types.Actor.setStance(self, types.Actor.STANCE.Nothing)
                     else
-                        types.Actor.setStance(self, types.Actor.STANCE.Weapon)
+                        types.Actor.setStance(self, types.Actor.STANCE.Spell)
                     end
                     return
+                end
+                -- Handle enchanted items
+            elseif itemData.enchantId then
+                local enchantedItem = types.Actor.getSelectedEnchantedItem(self)
+                local realItem = types.Actor.inventory(self):find(itemData.itemId)
+                if enchantedItem and realItem and enchantedItem.recordId == realItem.recordId then
+                    -- If the same enchanted item is already selected, toggle spell stance
+                    local currentStance = types.Actor.getStance(self)
+                    if currentStance == types.Actor.STANCE.Spell then
+                        types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                    else
+                        types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                    end
+                    return
+                end
+                -- Handle regular items
+            elseif itemData.item then
+                local realItem = types.Actor.inventory(self):find(itemData.item)
+                if realItem then
+                    local isEquipped = I.QuickSelect_Storage.isSlotEquipped(slotNumber)
+                    if isEquipped then
+                        -- Special handling for light sources
+                        if realItem.type == types.Light then
+                            local currentStance = types.Actor.getStance(self)
+                            if currentStance == types.Actor.STANCE.Spell then
+                                -- If a spell is ready, toggle to nothing
+                                types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                            elseif currentStance == types.Actor.STANCE.Weapon then
+                                -- If a weapon is ready, unequip the light
+                                local equip = types.Actor.equipment(self)
+                                for slotKey, item in pairs(equip) do
+                                    if item == realItem then
+                                        equip[slotKey] = nil
+                                        types.Actor.setEquipment(self, equip)
+                                        break
+                                    end
+                                end
+                            else
+                                -- If nothing is ready, unequip the light
+                                local equip = types.Actor.equipment(self)
+                                for slotKey, item in pairs(equip) do
+                                    if item == realItem then
+                                        equip[slotKey] = nil
+                                        types.Actor.setEquipment(self, equip)
+                                        break
+                                    end
+                                end
+                            end
+                            return
+                            -- Regular handling for weapons and lockpicks
+                        elseif realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe then
+                            -- Toggle weapon stance for weapon, lockpick, and probe
+                            local currentStance = types.Actor.getStance(self)
+                            if currentStance == types.Actor.STANCE.Weapon then
+                                types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                            else
+                                types.Actor.setStance(self, types.Actor.STANCE.Weapon)
+                            end
+                            return
+                        end
+                    end
                 end
             end
         end

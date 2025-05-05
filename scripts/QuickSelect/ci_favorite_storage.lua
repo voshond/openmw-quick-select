@@ -38,18 +38,18 @@ end
 local function saveStoredItemData(id, slot)
     getFavoriteItems()
     --print(id, slot)
-    deleteStoredItemData(slot   )
-    storedItems[slot].item      = id
+    deleteStoredItemData(slot)
+    storedItems[slot].item = id
 end
 local function saveStoredSpellData(spellId, spellType, slot)
     getFavoriteItems()
-    deleteStoredItemData(slot   )
+    deleteStoredItemData(slot)
     storedItems[slot].spellType = spellType
     storedItems[slot].spell     = spellId
 end
 local function saveStoredEnchantData(enchantId, itemId, slot)
     getFavoriteItems()
-    deleteStoredItemData(slot   )
+    deleteStoredItemData(slot)
     storedItems[slot].spellType = "Enchant"
     storedItems[slot].enchantId = enchantId
     storedItems[slot].itemId    = itemId
@@ -78,11 +78,24 @@ local function isSlotEquipped(slot)
             local equip = types.Actor.equipment(self)
             local realItem = types.Actor.inventory(self):find(item.item)
             if not realItem then return false end
-            local slot = utility.findSlot(realItem)
-            if not slot then
+
+            -- Special handling for Lockpicks, Probes, and Lights
+            if realItem.type == types.Lockpick or realItem.type == types.Probe or realItem.type == types.Light then
+                -- Check if the item is equipped in any slot
+                for _, equippedItem in pairs(equip) do
+                    if equippedItem == realItem then
+                        return true
+                    end
+                end
                 return false
+            else
+                -- Normal handling for other item types
+                local slot = utility.findSlot(realItem)
+                if not slot then
+                    return false
+                end
+                return equip[slot] == realItem
             end
-            return equip[slot] == realItem
         end
     end
     return false
@@ -91,7 +104,6 @@ local function getEquipped(item)
     local equip = types.Actor.equipment(self)
     for index, value in pairs(equip) do
         if value == item then
-            
             return index
         end
     end
@@ -127,7 +139,7 @@ local function equipSlot(slot)
             if not equipped then
                 core.sendGlobalEvent('UseItem', { object = realItem, actor = self })
 
-                if realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe then
+                if realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe or realItem.type == types.Light then
                     async:newUnsavableSimulationTimer(0.1, function()
                         if types.Actor.getStance(self) ~= types.Actor.STANCE.Weapon then
                             types.Actor.setStance(self, types.Actor.STANCE.Weapon)
@@ -158,7 +170,7 @@ return {
         equipSlot             = equipSlot,
         saveStoredEnchantData = saveStoredEnchantData,
         isSlotEquipped        = isSlotEquipped,
-        deleteStoredItemData = deleteStoredItemData,
+        deleteStoredItemData  = deleteStoredItemData,
     },
     engineHandlers = {
         onSave = function()

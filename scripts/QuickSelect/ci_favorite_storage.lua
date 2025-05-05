@@ -65,7 +65,10 @@ local function isSlotEquipped(slot)
         if item.spell and not item.enchantId then
             local spell = types.Actor.getSelectedSpell(self)
             if not spell then return false end
-            return spell.id == item.spell
+
+            -- Additional logging to debug the issue
+            local isMatched = (spell.id == item.spell)
+            return isMatched
         elseif item.enchantId then
             --print("enchant:", slot)
             local equip = types.Actor.getSelectedEnchantedItem(self)

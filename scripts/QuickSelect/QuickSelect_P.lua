@@ -9,6 +9,7 @@ local ui = require('openmw.ui')
 local input = require('openmw.input')
 local I = require('openmw.interfaces')
 local storage = require('openmw.storage')
+local async = require('openmw.async')
 local settings = require("scripts.QuickSelect.qs_settings")
 local function getIconSize()
     local settingsStorage = storage.playerSection("SettingsQuickSelect")
@@ -127,6 +128,28 @@ local function onInputAction(action)
                     else
                         types.Actor.setStance(self, types.Actor.STANCE.Spell)
                     end
+
+                    -- Update the hotbar UI to reflect the spell change
+                    I.QuickSelect_Hotbar.drawHotbar()
+                    return
+                else
+                    -- If a different spell is selected, maintain spell stance if a spell stance was active
+                    local currentStance = types.Actor.getStance(self)
+                    local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
+
+                    -- Change to the new spell
+                    types.Actor.setSelectedSpell(self, itemData.spell)
+
+                    -- If we were already in spell stance, maintain it with the new spell
+                    if wasSpellStance then
+                        types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                    end
+
+                    -- Allow a small delay for the game state to update before redrawing the UI
+                    async:newUnsavableSimulationTimer(0.05, function()
+                        I.QuickSelect_Hotbar.drawHotbar()
+                    end)
+
                     return
                 end
                 -- Handle enchanted items

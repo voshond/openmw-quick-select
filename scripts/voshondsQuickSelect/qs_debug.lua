@@ -1,12 +1,19 @@
-local storage = require('openmw.storage')
-local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+local storage = nil
+local settings = nil
+
+pcall(function()
+    storage = require('openmw.storage')
+    if storage then
+        settings = storage.playerSection("SettingsVoshondsQuickSelect")
+    end
+end)
 
 -- Debug module to centralize all logging functionality
 local Debug = {}
 
 -- Main logging function that checks if debug is enabled before printing
 function Debug.log(module, message)
-    if settings:get("enableDebugLogging") then
+    if settings and settings:get("enableDebugLogging") then
         print("[" .. module .. "] " .. tostring(message))
     end
 end
@@ -25,7 +32,7 @@ function Debug.storage(message)
 end
 
 function Debug.items(message)
-    Debug.log("select_items_win1", message)
+    Debug.log("QuickSelect_Items", message)
 end
 
 -- Function to report errors that will always print regardless of debug setting
@@ -48,7 +55,7 @@ end
 
 -- Function to check if debug logging is enabled
 function Debug.isEnabled()
-    return settings:get("enableDebugLogging")
+    return settings and settings:get("enableDebugLogging") or false
 end
 
 return Debug

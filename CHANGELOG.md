@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.3 (2025-05-06)
+
+Debug Helper changes
+
+
 ## Version 1.0.2 (2025-05-06)
 
 Debug Message Improvements
@@ -17,5 +22,6 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 

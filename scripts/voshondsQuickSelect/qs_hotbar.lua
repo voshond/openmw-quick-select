@@ -568,7 +568,7 @@ local function selectSlot(item, spell, enchant)
     enableHotbar = true
     pickSlotMode = true
     controllerPickMode = true
-    -- print(item,spell,enchant)
+    -- Debug.hotbar("Item: " .. tostring(item) .. ", Spell: " .. tostring(spell) .. ", Enchant: " .. tostring(enchant))
     data = { item = item, spell = spell, enchant = enchant }
     drawHotbar()
 end
@@ -783,7 +783,7 @@ return {
                         I.QuickSelect_Hotbar.drawHotbar()
                         return
                     end
-                    --  print("EQUP ME"  )
+                    --  Debug.hotbar("Equipping item")
                     I.QuickSelect_Storage.equipSlot(selectedNum + (I.QuickSelect.getSelectedPage() * 10))
                     endPickingMode()
                 end
@@ -799,7 +799,7 @@ return {
                 selectNextOrPrevHotKey("next")
             elseif btn == input.CONTROLLER_BUTTON.DPadDown and controllerPickMode then
                 selectNextOrPrevHotBar("next")
-                --  print("down")
+                --  Debug.hotbar("Down action")
             elseif btn == input.CONTROLLER_BUTTON.DPadUp and controllerPickMode then
                 if not enableHotbar then
                     return
@@ -814,7 +814,7 @@ return {
                     I.QuickSelect_Hotbar.drawHotbar()
                     return
                 end
-                --  print("EQUP ME"  )
+                --  Debug.hotbar("Equipping item")
                 I.QuickSelect_Storage.equipSlot(selectedNum + (I.QuickSelect.getSelectedPage() * 10))
                 endPickingMode()
             elseif btn == input.CONTROLLER_BUTTON.B then

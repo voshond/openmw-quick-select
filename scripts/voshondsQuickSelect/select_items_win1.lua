@@ -102,7 +102,7 @@ local function mouseMove(mouseEvent, data)
         -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
     elseif data.data.data.spell then
         local spellRecord = core.magic.spells.records[data.data.data.spell]
-        --print(data.data.data.spell)
+        -- Debug.items("Spell data: " .. tostring(data.data.data.spell))
         tooltip = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
             utility.itemWindowLocs.BottomCenter, nil, layerToUse)
     end
@@ -113,7 +113,7 @@ local function mouseClick(mouseEvent, data)
         local spell = data.props.spellData
 
         if not spell.id then
-            ----print("no id")
+            -- Debug.items("No id found")
         end
         if spell.enchant then
             I.QuickSelect_Storage.saveStoredEnchantData(spell.enchant, spell.id, slotToSave)
@@ -192,12 +192,14 @@ local function mouseMoveButton(event, data)
 
     if sdata.id and sdata.enchant then
         local item = types.Actor.inventory(self):find(sdata.id)
+        -- print(item)
+        -- Debug.items("Item: " .. tostring(item))
         tooltip = utility.drawListMenu(tooltipData.genToolTips(item),
             utility.itemWindowLocs.BottomCenter, nil, layerToUse)
         -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
     elseif sdata.id then
         local spellRecord = core.magic.spells.records[sdata.id]
-        --print(data.data.data.spell)
+        -- Debug.items("Spell data: " .. tostring(data.data.data.spell))
         tooltip = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
             utility.itemWindowLocs.BottomCenter, nil, layerToUse)
     end
@@ -568,7 +570,7 @@ local function drawSpellSelect()
                 enchant = ench
                     .item.type.record(ench.item).enchant
             })
-        ----print("ench nane" .. ench.item.type.record(ench.item).name)
+        -- Debug.items("Enchantment name: " .. ench.item.type.record(ench.item).name)
         -- end
     end
     table.sort(enchantList, compareNames)

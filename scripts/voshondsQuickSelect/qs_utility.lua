@@ -324,7 +324,8 @@ local function renderItemBoxed(content, size, itemTemplate, relativePosition, da
         events = events,
     }
 end
-return {
+
+local utility = {
     imageContent = imageContent,
     scaledVector2 = scaledVector2,
     renderItemX = renderItemX,
@@ -402,8 +403,31 @@ return {
         elseif item.type == types.Light then
             return types.Actor.EQUIPMENT_SLOT.CarriedLeft
         end
-        -- --print("Couldn't find slot for " .. item.recordId)
+        -- Debug.warning("qs_utility", "Couldn't find slot for " .. item.recordId)
         return nil
     end,
-    getIconSize = getIconSize
+    getIconSize = getIconSize,
+    --[[
+     * Creates a standardized debug logger for a module
+     * @param {string} moduleName - The name of the module to create loggers for
+     * @return {table} - A table with log, warning, and error functions
+     ]]
+    createLogger = function(moduleName)
+        local Debug = require("scripts.voshondsquickselect.qs_debug")
+
+        return {
+            log = function(message)
+                Debug.log(moduleName, message)
+            end,
+
+            warning = function(message)
+                Debug.warning(moduleName, message)
+            end,
+
+            error = function(message)
+                Debug.error(moduleName, message)
+            end
+        }
+    end,
 }
+return utility

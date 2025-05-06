@@ -109,9 +109,9 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
     if item and item.type then
         local record = item.type.records[item.recordId]
         if not record then
-            --print("No record for " .. item.recordId)
+            -- Debug.error("ci_icon_render", "No record for " .. item.recordId)
         else
-            --print(record.icon)
+            -- Debug.log("ci_icon_render", "Icon: " .. tostring(record.icon))
         end
         if item.count > 1 then
             text = formatNumber(item.count)

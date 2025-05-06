@@ -68,3 +68,22 @@ Original Author of QuickSelect: ZackHasaCat
 If you've found an issue with this mod, or if you simply have a question, please use one of the following ways to reach out:
 
 -   [Open an issue on Github](https://github.com/voshond/openmw-quick-select/issues)
+
+### For Developers
+
+#### Deployment
+
+To create a new release:
+
+1. Make sure all your changes are committed
+2. Run the deployment script: `.\deploy.ps1`
+3. Enter the version number when prompted (format: x.y.z)
+4. Enter release notes when prompted (optional)
+5. The script will:
+    - Update the CHANGELOG.md
+    - Package the mod
+    - Create a Git tag
+    - Push changes to GitHub
+    - Trigger the GitHub Actions workflow to create a release
+
+You can also run the script with parameters: `.\deploy.ps1 -version "1.2.3" -message "Release notes here"`

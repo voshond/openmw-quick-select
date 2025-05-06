@@ -1,7 +1,9 @@
-## MOMW Mod Template Changelog
+## OpenMW Quick Select Changelog
 
-#### Version 1.0
+<!-- New versions will be added here by the deploy script -->
+
+#### Version 1.0.0
 
 Initial version of the mod.
 
-<!--[Download Link](https://gitlab.com/modding-openmw/momw-mod-template/-/packages/TODO)-->
+<!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->

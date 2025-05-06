@@ -1,5 +1,5 @@
 param(
-    [string]$version = "1.0.0"
+    [string]$version = "1.0.1"
 )
 
 # Set paths

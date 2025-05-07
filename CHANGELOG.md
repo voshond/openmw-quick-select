@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.4 (2025-05-08)
+
+Remove unused settings and features from origin project. Hide the Hotbar when UI is hidden.
+
+
 ## Version 1.0.3 (2025-05-06)
 
 Debug Helper changes
@@ -22,6 +27,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

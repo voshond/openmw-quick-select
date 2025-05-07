@@ -34,19 +34,13 @@ local function initTooltipLayer()
     if not tooltipLayerExists then
         -- Wrap layer creation in pcall to catch errors
         local success, err = pcall(function()
-            local layerCount = #ui.layers
-            if layerCount > 0 then
-                -- Add it after the topmost existing layer
-                local topLayerName = ui.layers[layerCount].name
-                ui.layers.insertAfter(topLayerName, "TooltipLayer", { interactive = false })
-            else
-                -- If no layers exist yet (unlikely), create a Windows layer and insert after it
-                if not ui.layers.indexOf("Windows") then
-                    -- Create a Windows layer first if it doesn't exist
-                    ui.layers.insertAfter("HUD", "Windows", { interactive = true })
-                end
-                ui.layers.insertAfter("Windows", "TooltipLayer", { interactive = false })
+            -- Create TooltipLayer after Windows layer but before HUD
+            -- This ensures tooltips appear above the HUD but don't interfere with screenshots
+            if not ui.layers.indexOf("Windows") then
+                -- Create a Windows layer first if it doesn't exist
+                ui.layers.insertAfter("HUD", "Windows", { interactive = true })
             end
+            ui.layers.insertAfter("Windows", "TooltipLayer", { interactive = false })
         end)
 
         -- If creation failed, log a message but continue without error
@@ -80,9 +74,6 @@ local function startPickingMode()
     enableHotbar = true
     controllerPickMode = true
     I.QuickSelect_Hotbar.drawHotbar()
-    if settings:get("pauseWhenSelecting") then
-        I.UI.setMode("LevelUp", { windows = {} })
-    end
 end
 local function endPickingMode()
     enableHotbar = false
@@ -263,11 +254,11 @@ end
 -- Create a spacer element with the specified width
 local function createSpacerElement(width, half)
     log("Creating spacer: width=" .. width .. ", half=" .. tostring(half))
-    local iconPadding = 2 -- Same padding as in createHotbarItem
+    local iconPadding = 0 -- Same padding as in createHotbarItem
     local height = half and (utility.getIconSize() / 2) or utility.getIconSize()
 
     -- Add padding to height to match the padded icons
-    height = height + (iconPadding * 2)
+    height = height + (iconPadding)
 
     -- Create a transparent texture for the spacer
     local transparentTexture = ui.texture({ path = "icons\\voshondsQuickSelect\\selected.tga" })
@@ -589,15 +580,9 @@ local function saveSlot()
 end
 local function UiModeChanged(data)
     if data.newMode then
-        if controllerPickMode and not settings:get("persistMode") then
-            if settings:get("pauseWhenSelecting") and data.newMode == "LevelUp" then
-                return
-            end
+        if controllerPickMode then
             controllerPickMode = false
             pickSlotMode = false
-            enableHotbar = false
-            drawHotbar()
-        elseif settings:get("persistMode") then
             enableHotbar = true
             drawHotbar()
         end
@@ -661,20 +646,11 @@ local function selectNextOrPrevHotKey(dir)
     end
 end
 local function getNextKey()
-    local status = settings:get("barSelectionMode")
-    if status == "-/= Keys" then
-        return "="
-    elseif status == "[/] Keys" then
-        return "["
-    end
+    return "="
 end
+
 local function getPrevKey()
-    local status = settings:get("barSelectionMode")
-    if status == "-/= Keys" then
-        return "-"
-    elseif status == "[/] Keys" then
-        return "]"
-    end
+    return "-"
 end
 
 -- Create a settings update callback function
@@ -699,6 +675,15 @@ local function onUpdate(dt)
         -- Mode has changed, call the UiModeChanged function
         UiModeChanged({ oldMode = currentUiMode, newMode = newMode })
         currentUiMode = newMode
+    end
+
+    -- Check HUD visibility and update hotbar accordingly
+    if hotBarElement then
+        local hudVisible = I.UI and I.UI.isHudVisible and I.UI.isHudVisible()
+        if hotBarElement.layout.props.visible ~= hudVisible then
+            hotBarElement.layout.props.visible = hudVisible
+            hotBarElement:update()
+        end
     end
 end
 
@@ -728,15 +713,11 @@ return {
             end
 
             -- Set initial state
-            enableHotbar = false
+            enableHotbar = true
             pickSlotMode = false
             controllerPickMode = false
             selectedNum = 1
             currentUiMode = I.UI and I.UI.getMode and I.UI.getMode()
-
-            if settings:get("persistMode") then
-                enableHotbar = true
-            end
 
             -- Initial draw with a small delay to ensure all interfaces are registered
             async:newUnsavableSimulationTimer(0.05, function()
@@ -758,35 +739,6 @@ return {
                 selectNextOrPrevHotBar("next")
             elseif prevKey and char == prevKey then
                 selectNextOrPrevHotBar("prev")
-            end
-            if settings:get("useArrowKeys") then
-                if key.code == input.KEY.RightArrow then
-                    selectNextOrPrevHotKey("next")
-                elseif key.code == input.KEY.LeftArrow then
-                    selectNextOrPrevHotKey("prev")
-                elseif key.code == input.KEY.UpArrow then
-                    if not enableHotbar then
-                        return
-                    end
-                    selectNextOrPrevHotBar("prev")
-                elseif key.code == input.KEY.DownArrow then
-                    if not enableHotbar then
-                        return
-                    end
-                    selectNextOrPrevHotBar("next")
-                elseif key.code == input.KEY.Enter then
-                    if not enableHotbar then
-                        return
-                    end
-                    if pickSlotMode then
-                        saveSlot()
-                        I.QuickSelect_Hotbar.drawHotbar()
-                        return
-                    end
-                    --  Debug.hotbar("Equipping item")
-                    I.QuickSelect_Storage.equipSlot(selectedNum + (I.QuickSelect.getSelectedPage() * 10))
-                    endPickingMode()
-                end
             end
         end,
         onControllerButtonPress = function(btn)

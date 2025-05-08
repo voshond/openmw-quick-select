@@ -73,6 +73,7 @@ local fadeDuration = 2.0 -- 2 seconds fade duration before hiding
 local lastUpdateTime = 0
 local UPDATE_THROTTLE = 2.0 -- Only update the hotbar every 2 seconds at most
 local needsRedraw = false
+local wasHudVisible = true  -- Track the previous state of HUD visibility
 
 -- Forward declare the drawHotbar function to use it in resetFade
 local drawHotbar
@@ -810,22 +811,44 @@ local function onUpdate(dt)
     end
 
     -- Check HUD visibility and update hotbar accordingly
-    if hotBarElement then
-        local hudVisible = I.UI and I.UI.isHudVisible and I.UI.isHudVisible()
+    local hudVisible = I.UI and I.UI.isHudVisible and I.UI.isHudVisible()
+
+    -- Handle HUD visibility changes
+    if hudVisible ~= wasHudVisible then
+        -- State changed
         if hudVisible == false then
-            local success, err = pcall(function()
-                hotBarElement:destroy()
-                hotBarElement = nil
-            end)
-            if not success then
-                log("Error destroying hotbar when HUD is hidden: " .. tostring(err))
+            -- HUD was just hidden
+            if hotBarElement then
+                local success, err = pcall(function()
+                    hotBarElement:destroy()
+                    hotBarElement = nil
+                end)
+                if not success then
+                    log("Error destroying hotbar when HUD is hidden: " .. tostring(err))
+                end
             end
+        else
+            -- HUD was just shown - trigger a redraw
+            log("HUD became visible - triggering hotbar redraw")
+            needsRedraw = true
+        end
+
+        -- Update tracking variable
+        wasHudVisible = hudVisible
+    elseif hudVisible == false and hotBarElement then
+        -- Safety check - if somehow HUD is hidden but hotbar still exists, destroy it
+        local success, err = pcall(function()
+            hotBarElement:destroy()
+            hotBarElement = nil
+        end)
+        if not success then
+            log("Error destroying hotbar when HUD is hidden: " .. tostring(err))
         end
     end
 
     -- Only update the hotbar when absolutely necessary
     local currentTime = os.time()
-    if needsRedraw and (currentTime - lastUpdateTime) > UPDATE_THROTTLE then
+    if needsRedraw and hudVisible and (currentTime - lastUpdateTime) > UPDATE_THROTTLE then
         lastUpdateTime = currentTime
         needsRedraw = false
         drawHotbar()

@@ -15,7 +15,7 @@ local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
 local utility = require("scripts.voshondsquickselect.qs_utility")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
 
--- Debug logging function (using the new Debug module)
+-- Debug logging function (using the Debug module)
 local function log(message)
     Debug.hotbar(message)
 end
@@ -58,7 +58,7 @@ end
 local hotBarElement
 local tooltipElement
 local num = 1
-local enableHotbar = false       --True if we are showing the hotbar
+local enableHotbar = true        -- Always enabled
 local pickSlotMode = false       --True if we are picking a slot for saving
 local controllerPickMode = false --True if we are picking a slot for equipping OR saving
 local selectedNum = 1
@@ -67,19 +67,24 @@ local HOTBAR_ITEMS_PER_ROW = 10
 -- Fade-related variables
 local fadeTimer = 0
 local isFading = false
-local fadeDuration = 2.0 -- 2 seconds fade duration
-local fadeAlpha = 1.0
+local fadeDuration = 2.0 -- 2 seconds fade duration before hiding
+
+-- Add these variables at the top of the file with the other state variables
+local lastUpdateTime = 0
+local UPDATE_THROTTLE = 2.0 -- Only update the hotbar every 2 seconds at most
+local needsRedraw = false
+
+-- Forward declare the drawHotbar function to use it in resetFade
+local drawHotbar
 
 -- Remove the early initialization code
 -- Let's initialize in onLoad instead
 
 local function startPickingMode()
-    enableHotbar = true
     controllerPickMode = true
     I.QuickSelect_Hotbar.drawHotbar()
 end
 local function endPickingMode()
-    enableHotbar = false
     pickSlotMode = false
     controllerPickMode = false
     I.UI.setMode()
@@ -151,8 +156,26 @@ local function drawToolTip()
     end
 end
 local function createHotbarItem(item, xicon, num, data, half)
+    -- Add debug logging to track item creation
+    log("Creating hotbar item for slot " .. num)
+
     local icon
-    local isEquipped = I.QuickSelect_Storage.isSlotEquipped(num)
+    -- Forcefully check if the slot is equipped every time we create the hotbar item
+    -- This ensures the equipped status is always up-to-date
+    local isEquipped = false
+
+    -- Use pcall to safely check equipped status
+    local success, result = pcall(function()
+        return I.QuickSelect_Storage.isSlotEquipped(num)
+    end)
+
+    if success then
+        isEquipped = result
+        log("Slot " .. num .. " equipped status: " .. tostring(isEquipped))
+    else
+        log("Error checking if slot " .. num .. " is equipped: " .. tostring(result))
+    end
+
     local sizeX = utility.getIconSize()
     local sizeY = utility.getIconSize()
     local drawNumber = true -- Always draw the number regardless of settings
@@ -230,7 +253,7 @@ local function createHotbarItem(item, xicon, num, data, half)
                         type = ui.TYPE.Image,
                         props = {
                             resource = borderTexture,
-                            size = util.vector2(sizeX + iconPadding * 2, 2),
+                            size = util.vector2(sizeX + iconPadding * 2, 3), -- Make the line thicker
                             position = util.vector2(0, (sizeY - 2) + iconPadding * 2),
                             arrange = ui.ALIGNMENT.End,
                             align = ui.ALIGNMENT.End,
@@ -242,6 +265,9 @@ local function createHotbarItem(item, xicon, num, data, half)
                 }
             }
         }
+
+        -- Add extra log for equipped items
+        log("Created equipped item marker for slot " .. num)
     else
         iconContent = ui.content { boxedIcon }
     end
@@ -352,29 +378,48 @@ local function getHotbarItems(half)
     return items
 end
 
-local function drawHotbar()
+-- Now define the real drawHotbar function
+drawHotbar = function()
+    -- Modified condition: Only skip if no redraw is explicitly needed AND UI already exists
+    -- This ensures that any explicit calls to drawHotbar from outside still trigger a redraw
+    if hotBarElement and not needsRedraw and not pickSlotMode and not controllerPickMode then
+        -- Add a debug message to understand when we're skipping redraws
+        log("Skipping redraw - UI exists and no changes detected")
+        return
+    end
+
     log("==== BEGIN drawHotbar ====")
 
+    -- If an existing hotbar exists, destroy it before creating a new one
     if hotBarElement then
         log("Destroying existing hotbar")
-        hotBarElement:destroy()
+        local success, err = pcall(function()
+            hotBarElement:destroy()
+        end)
+        if not success then
+            log("Error destroying hotbar: " .. tostring(err))
+        end
+        hotBarElement = nil
     end
+
     if tooltipElement then
         log("Destroying existing tooltip")
-        tooltipElement:destroy()
+        local success, err = pcall(function()
+            tooltipElement:destroy()
+        end)
+        if not success then
+            log("Error destroying tooltip: " .. tostring(err))
+        end
         tooltipElement = nil
     end
 
     -- Reset fade state when drawing new hotbar
     fadeTimer = 0
     isFading = false
-    fadeAlpha = 1.0
 
-    if not enableHotbar then
-        log("Hotbar disabled, exiting")
-        log("==== END drawHotbar ====")
-        return
-    end
+    -- Force retrieve the latest item data from storage to ensure we have the most recent changes
+    -- This is especially important when items are just saved to slots
+    log("Retrieving latest hotbar data")
 
     -- Configuration for the hotbar
     local iconSize = utility.getIconSize()
@@ -543,8 +588,7 @@ local function drawHotbar()
             anchor = anchor,
             relativePosition = relativePosition,
             arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center,
-            alpha = fadeAlpha -- Add alpha property for fading
+            align = ui.ALIGNMENT.Center
         },
         content = ui.content {
             {
@@ -562,68 +606,80 @@ local function drawHotbar()
         }
     }
 
+    -- At the end of drawHotbar, mark that we've just redrawn
+    needsRedraw = false
+    lastUpdateTime = os.time()
+
+    -- Log the end of drawing
     log("==== END drawHotbar ====")
 end
 
--- Add a new function to handle fading
+-- Simplify the updateFade function to avoid setAlpha calls
 local function updateFade(dt)
+    -- Skip if fading is disabled
     if not settings:get("enableFadingBars") then
         return
     end
 
-    if not enableHotbar then
+    -- Skip if hotbar is disabled or doesn't exist
+    if not enableHotbar or not hotBarElement then
         return
     end
 
-    -- Check if hotBarElement exists before proceeding
-    if not hotBarElement then
-        return
-    end
-
+    -- If we're not fading yet, increment the timer
     if not isFading then
         fadeTimer = fadeTimer + dt
         if fadeTimer >= fadeDuration then
+            -- Once timer exceeds duration, set fading state
             isFading = true
             fadeTimer = 0
-            log("Starting fade out")
+            log("Starting hotbar hide process")
         end
     else
+        -- When we're in fading state, just wait a short time and then hide
         fadeTimer = fadeTimer + dt
-        fadeAlpha = math.max(0, 1 - (fadeTimer / 0.5)) -- 0.5 second fade out
 
-        -- Check if hotBarElement still exists before updating
-        if hotBarElement and hotBarElement.props then
-            hotBarElement.props.alpha = fadeAlpha
-            hotBarElement:update()
-            log("Fade alpha: " .. fadeAlpha)
-        end
-
-        if fadeAlpha <= 0 then
-            enableHotbar = false
+        -- Once the short delay passes, hide the hotbar
+        if fadeTimer >= 0.3 then -- Short delay before hiding
+            log("Hiding hotbar")
+            -- Simply destroy the element instead of trying to fade it
             if hotBarElement then
-                hotBarElement:destroy()
-                hotBarElement = nil
-                log("Hotbar destroyed after fade")
+                local success, err = pcall(function()
+                    hotBarElement:destroy()
+                    hotBarElement = nil
+                end)
+                if not success then
+                    log("Error destroying hotbar: " .. tostring(err))
+                end
             end
+            isFading = false
         end
     end
 end
 
--- Add a function to reset fade state
+-- Update the resetFade function to avoid setAlpha calls
 local function resetFade()
-    fadeTimer = 0
-    isFading = false
-    fadeAlpha = 1.0
-    enableHotbar = true
     log("Fade state reset")
+    isFading = false
+    fadeTimer = 0
+    needsRedraw = true
+
+    -- Force immediate redraw only if necessary
+    if not hotBarElement then
+        -- Check if drawHotbar is available first
+        if type(drawHotbar) == "function" then
+            drawHotbar()
+        else
+            log("Error: drawHotbar not available yet")
+            needsRedraw = true
+        end
+    end
 end
 
 local data
 local function selectSlot(item, spell, enchant)
-    enableHotbar = true
     pickSlotMode = true
     controllerPickMode = true
-    -- Debug.hotbar("Item: " .. tostring(item) .. ", Spell: " .. tostring(spell) .. ", Enchant: " .. tostring(enchant))
     data = { item = item, spell = spell, enchant = enchant }
     drawHotbar()
 end
@@ -637,9 +693,21 @@ local function saveSlot()
         elseif data.enchant then
             I.QuickSelect_Storage.saveStoredEnchantData(data.enchant, data.item, selectedSlot)
         end
-        enableHotbar = false
+
+        log("Saved item data to slot " .. selectedSlot)
         pickSlotMode = false
         data = nil
+
+        -- Force redraw to show the newly saved slot
+        needsRedraw = true
+
+        -- Use direct call with error handling to redraw immediately
+        local success, err = pcall(function()
+            drawHotbar()
+        end)
+        if not success then
+            log("Error redrawing hotbar after save: " .. tostring(err))
+        end
     end
 end
 local function UiModeChanged(data)
@@ -647,29 +715,23 @@ local function UiModeChanged(data)
         if controllerPickMode then
             controllerPickMode = false
             pickSlotMode = false
-            enableHotbar = true
             drawHotbar()
         end
     else -- no mode (mode ended)
         -- Clean up UI if we're not in our menu mode
-        if enableHotbar then
-            if pickSlotMode then
-                -- Keep the hotbar open
-            else
-                -- Still destroy visible tooltips
-                if tooltipElement then
-                    tooltipElement:destroy()
-                    tooltipElement = nil
-                end
+        if pickSlotMode then
+            -- Keep the hotbar open
+        else
+            -- Still destroy visible tooltips
+            if tooltipElement then
+                tooltipElement:destroy()
+                tooltipElement = nil
             end
         end
     end
 end
 local function selectNextOrPrevHotBar(dir)
     if dir == "next" then
-        if not enableHotbar then
-            return
-        end
         local num = I.QuickSelect.getSelectedPage() + 1
         if num > 2 then
             num = 0
@@ -682,13 +744,12 @@ local function selectNextOrPrevHotBar(dir)
             num = 2
         end
         I.QuickSelect.setSelectedPage(num)
-
         I.QuickSelect_Hotbar.drawHotbar()
     end
 end
 local function selectNextOrPrevHotKey(dir)
     if dir == "next" then
-        if not enableHotbar or not controllerPickMode then
+        if not controllerPickMode then
             startPickingMode()
             return
         end
@@ -698,7 +759,7 @@ local function selectNextOrPrevHotKey(dir)
         end
         I.QuickSelect_Hotbar.drawHotbar()
     elseif dir == "prev" then
-        if not enableHotbar or not controllerPickMode then
+        if not controllerPickMode then
             startPickingMode()
             return
         end
@@ -719,10 +780,7 @@ end
 
 -- Create a settings update callback function
 local function onSettingsChanged()
-    -- Only redraw the hotbar if it's visible
-    if enableHotbar then
-        I.QuickSelect_Hotbar.drawHotbar()
-    end
+    I.QuickSelect_Hotbar.drawHotbar()
 end
 
 -- Subscribe to settings changes
@@ -733,33 +791,62 @@ local currentUiMode = nil
 
 -- Update or add onUpdate function
 local function onUpdate(dt)
-    -- Check for UI mode changes
-    local newMode = I.UI and I.UI.getMode and I.UI.getMode()
-    if newMode ~= currentUiMode then
-        -- Mode has changed, call the UiModeChanged function
-        UiModeChanged({ oldMode = currentUiMode, newMode = newMode })
-        currentUiMode = newMode
+    -- Handle fade effect if enabled (but don't use alpha)
+    if isFading and fadeTimer < fadeDuration then
+        fadeTimer = fadeTimer + dt
+        -- No alpha changes here
+    elseif isFading and fadeTimer >= fadeDuration then
+        -- When fade timer is complete, destroy the hotbar
+        if hotBarElement then
+            local success, err = pcall(function()
+                hotBarElement:destroy()
+                hotBarElement = nil
+            end)
+            if not success then
+                log("Error destroying hotbar: " .. tostring(err))
+            end
+        end
+        isFading = false
     end
 
-    -- Check HUD visibility and update hotbar accordingly
-    if hotBarElement then
-        local hudVisible = I.UI and I.UI.isHudVisible and I.UI.isHudVisible()
-        if hotBarElement.layout.props.visible ~= hudVisible then
-            hotBarElement.layout.props.visible = hudVisible
-            hotBarElement:update()
-        end
+    -- Only update the hotbar when absolutely necessary
+    local currentTime = os.time()
+    if needsRedraw and (currentTime - lastUpdateTime) > UPDATE_THROTTLE then
+        lastUpdateTime = currentTime
+        needsRedraw = false
+        drawHotbar()
     end
 end
 
 return {
     interfaceName = "QuickSelect_Hotbar",
     interface = {
-        drawHotbar = drawHotbar,
+        drawHotbar = function()
+            -- When called through the interface, always set needsRedraw to true
+            -- This ensures external calls always result in a redraw
+            needsRedraw = true
+
+            -- Add a safety wrapper
+            local success, err = pcall(function()
+                drawHotbar()
+            end)
+            if not success then
+                log("Error calling drawHotbar: " .. tostring(err))
+            end
+        end,
         startPickingMode = startPickingMode,
         endPickingMode = endPickingMode,
         selectSlot = selectSlot,
         saveSlot = saveSlot,
-        resetFade = resetFade,
+        resetFade = function()
+            -- Add a safety wrapper for resetFade too
+            local success, err = pcall(function()
+                resetFade()
+            end)
+            if not success then
+                log("Error calling resetFade: " .. tostring(err))
+            end
+        end,
     },
     eventHandlers = {
         UiModeChanged = UiModeChanged,
@@ -776,7 +863,6 @@ return {
             end
 
             -- Set initial state
-            enableHotbar = true
             pickSlotMode = false
             controllerPickMode = false
             selectedNum = 1
@@ -784,12 +870,22 @@ return {
 
             -- Initial draw with a small delay to ensure all interfaces are registered
             async:newUnsavableSimulationTimer(0.05, function()
-                drawHotbar()
+                local success, err = pcall(function()
+                    drawHotbar()
+                end)
+                if not success then
+                    log("Error in initial draw: " .. tostring(err))
+                end
             end)
         end,
         onUpdate = onUpdate,
         onFrame = function(dt)
-            updateFade(dt)
+            local success, err = pcall(function()
+                updateFade(dt)
+            end)
+            if not success then
+                log("Error in updateFade: " .. tostring(err))
+            end
         end,
         onKeyPress = function(key)
             if core.isWorldPaused() and not controllerPickMode then
@@ -828,7 +924,7 @@ return {
                 end
                 if pickSlotMode then
                     saveSlot()
-                    I.QuickSelect_Hotbar.drawHotbar()
+                    -- Don't redraw here, saveSlot() already does it
                     return
                 end
                 I.QuickSelect_Storage.equipSlot(selectedNum + (I.QuickSelect.getSelectedPage() * 10))

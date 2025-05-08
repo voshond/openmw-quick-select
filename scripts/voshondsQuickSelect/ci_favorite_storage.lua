@@ -36,17 +36,66 @@ local function deleteStoredItemData(slot)
     storedItems[slot].itemId    = nil
     storedItems[slot].item      = nil
 end
+local function triggerHotbarRedraw()
+    -- Do NOT call storage.save() as it doesn't exist in OpenMW API
+    -- Remove: storage.save()
+
+    -- First immediate redraw attempt
+    if I.QuickSelect_Hotbar then
+        Debug.storage("Immediate hotbar redraw triggered")
+        local success, err = pcall(function()
+            I.QuickSelect_Hotbar.drawHotbar()
+        end)
+        if not success then
+            Debug.error("QuickSelect_Storage", "Error in immediate redraw: " .. tostring(err))
+        end
+    end
+
+    -- Second delayed redraw to ensure UI is updated
+    async:newUnsavableSimulationTimer(0.1, function()
+        if I.QuickSelect_Hotbar then
+            Debug.storage("Delayed hotbar redraw triggered")
+            local success, err = pcall(function()
+                -- Clear any existing UI before redrawing
+                I.QuickSelect_Hotbar.resetFade()
+                I.QuickSelect_Hotbar.drawHotbar()
+            end)
+            if not success then
+                Debug.error("QuickSelect_Storage", "Error in delayed redraw: " .. tostring(err))
+            end
+        else
+            Debug.error("QuickSelect_Storage", "QuickSelect_Hotbar interface not available for redraw")
+        end
+    end)
+
+    -- Final backup redraw after longer delay
+    async:newUnsavableSimulationTimer(0.3, function()
+        if I.QuickSelect_Hotbar then
+            Debug.storage("Final hotbar redraw triggered")
+            local success, err = pcall(function()
+                I.QuickSelect_Hotbar.drawHotbar()
+            end)
+            if not success then
+                Debug.error("QuickSelect_Storage", "Error in final redraw: " .. tostring(err))
+            end
+        end
+    end)
+end
 local function saveStoredItemData(id, slot)
     getFavoriteItems()
     Debug.storage("Saving item " .. tostring(id) .. " to slot " .. tostring(slot))
     deleteStoredItemData(slot)
     storedItems[slot].item = id
+
+    triggerHotbarRedraw()
 end
 local function saveStoredSpellData(spellId, spellType, slot)
     getFavoriteItems()
     deleteStoredItemData(slot)
     storedItems[slot].spellType = spellType
     storedItems[slot].spell     = spellId
+
+    triggerHotbarRedraw()
 end
 local function saveStoredEnchantData(enchantId, itemId, slot)
     getFavoriteItems()
@@ -55,6 +104,8 @@ local function saveStoredEnchantData(enchantId, itemId, slot)
     storedItems[slot].enchantId = enchantId
     storedItems[slot].itemId    = itemId
     Debug.storage("Saving enchanted item " .. tostring(itemId) .. " to slot " .. tostring(slot))
+
+    triggerHotbarRedraw()
 end
 local function findItem(id)
     for index, value in ipairs(types.Actor.inventory(self)) do
@@ -63,46 +114,71 @@ local function findItem(id)
 end
 local function isSlotEquipped(slot)
     local item = getFavoriteItemData(slot)
-    if item then
-        if item.spell and not item.enchantId then
-            local spell = types.Actor.getSelectedSpell(self)
-            if not spell then return false end
+    if not item then return false end
 
-            -- Additional logging to debug the issue
-            local isMatched = (spell.id == item.spell)
-            return isMatched
-        elseif item.enchantId then
-            Debug.storage("Checking enchanted item in slot " .. slot)
-            local equip = types.Actor.getSelectedEnchantedItem(self)
-            if not equip then return false end
-            local realItem = types.Actor.inventory(self):find(item.itemId)
-            if not realItem then return false end
+    -- Log slot being checked for equipped status
+    Debug.storage("Checking if slot " .. slot .. " is equipped")
 
-            return types.Actor.getSelectedEnchantedItem(self).recordId == realItem.recordId
-        elseif item.item then
-            local equip = types.Actor.equipment(self)
-            local realItem = types.Actor.inventory(self):find(item.item)
-            if not realItem then return false end
+    -- First, handle spells
+    if item.spell and not item.enchantId then
+        local spell = types.Actor.getSelectedSpell(self)
+        if not spell then return false end
 
-            -- Special handling for Lockpicks, Probes, and Lights
-            if realItem.type == types.Lockpick or realItem.type == types.Probe or realItem.type == types.Light then
-                -- Check if the item is equipped in any slot
-                for _, equippedItem in pairs(equip) do
-                    if equippedItem == realItem then
-                        return true
-                    end
+        -- Log the comparison
+        local isMatched = (spell.id == item.spell)
+        Debug.storage("Spell comparison: " ..
+            tostring(spell.id) .. " == " .. tostring(item.spell) .. " is " .. tostring(isMatched))
+        return isMatched
+
+        -- Then handle enchanted items
+    elseif item.enchantId then
+        Debug.storage("Checking enchanted item in slot " .. slot)
+        local enchantedItem = types.Actor.getSelectedEnchantedItem(self)
+        if not enchantedItem then return false end
+
+        local realItem = types.Actor.inventory(self):find(item.itemId)
+        if not realItem then return false end
+
+        local isMatched = (enchantedItem.recordId == realItem.recordId)
+        Debug.storage("Enchanted item comparison: " ..
+            tostring(enchantedItem.recordId) .. " == " .. tostring(realItem.recordId) .. " is " .. tostring(isMatched))
+        return isMatched
+
+        -- Finally handle regular items
+    elseif item.item then
+        local equip = types.Actor.equipment(self)
+        local realItem = types.Actor.inventory(self):find(item.item)
+        if not realItem then
+            Debug.storage("Item not found in inventory: " .. tostring(item.item))
+            return false
+        end
+
+        -- Special handling for Lockpicks, Probes, and Lights
+        if realItem.type == types.Lockpick or realItem.type == types.Probe or realItem.type == types.Light then
+            -- Check if the item is equipped in any slot
+            for slotName, equippedItem in pairs(equip) do
+                if equippedItem == realItem then
+                    Debug.storage("Item " .. tostring(item.item) .. " is equipped in slot " .. tostring(slotName))
+                    return true
                 end
-                return false
-            else
-                -- Normal handling for other item types
-                local slot = utility.findSlot(realItem)
-                if not slot then
-                    return false
-                end
-                return equip[slot] == realItem
             end
+            Debug.storage("Item " .. tostring(item.item) .. " is not equipped in any slot")
+            return false
+        else
+            -- Normal handling for other item types
+            local itemSlot = utility.findSlot(realItem)
+            if not itemSlot then
+                Debug.storage("No equipment slot found for item: " .. tostring(item.item))
+                return false
+            end
+
+            local isEquipped = (equip[itemSlot] == realItem)
+            Debug.storage("Item " ..
+                tostring(item.item) .. " equipped in slot " .. tostring(itemSlot) .. ": " .. tostring(isEquipped))
+            return isEquipped
         end
     end
+
     return false
 end
 local function getEquipped(item)
@@ -120,11 +196,13 @@ local function equipSlot(slot)
         if item.spell and not item.enchantId then
             types.Actor.clearSelectedCastable(self)
             types.Actor.setSelectedSpell(self, item.spell)
+            Debug.storage("Set selected spell to " .. tostring(item.spell))
         elseif item.enchantId then
             local equip = types.Actor.equipment(self)
             local realItem = types.Actor.inventory(self):find(item.itemId)
             if not realItem then return end
             types.Actor.setSelectedEnchantedItem(self, realItem)
+            Debug.storage("Set selected enchanted item to " .. tostring(item.itemId))
         elseif item.item then
             local realItem = types.Actor.inventory(self):find(item.item)
             if not realItem then return end
@@ -132,6 +210,7 @@ local function equipSlot(slot)
 
             if not equipped then
                 -- Equip the item
+                Debug.storage("Equipping item " .. tostring(item.item))
                 core.sendGlobalEvent('UseItem', { object = realItem, actor = self })
 
                 if realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe then
@@ -143,19 +222,23 @@ local function equipSlot(slot)
                 -- Item is already equipped
                 if realItem.type == types.Light then
                     -- For lights, always unequip when already equipped
+                    Debug.storage("Unequipping light " .. tostring(item.item))
                     local equip = types.Actor.equipment(self)
                     equip[equipped] = nil
                     types.Actor.setEquipment(self, equip)
                 elseif realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe then
                     -- Toggle weapon stance for weapons, lockpicks, and probes
                     if types.Actor.getStance(self) == types.Actor.STANCE.Weapon then
+                        Debug.storage("Setting stance to Nothing")
                         types.Actor.setStance(self, types.Actor.STANCE.Nothing)
                     else
+                        Debug.storage("Setting stance to Weapon")
                         types.Actor.setStance(self, types.Actor.STANCE.Weapon)
                     end
 
                     -- If unEquipOnHotkey is enabled and we're in Nothing stance, unequip
                     if settings:get("unEquipOnHotkey") and types.Actor.getStance(self) == types.Actor.STANCE.Nothing then
+                        Debug.storage("Unequipping item due to unEquipOnHotkey setting")
                         local equip = types.Actor.equipment(self)
                         equip[equipped] = nil
                         types.Actor.setEquipment(self, equip)
@@ -165,13 +248,9 @@ local function equipSlot(slot)
         end
     end
 
-    async:newUnsavableSimulationTimer(0.1, function()
-        if I.QuickSelect_Hotbar then
-            I.QuickSelect_Hotbar.drawHotbar()
-        else
-            Debug.error("QuickSelect_Storage", "QuickSelect_Hotbar interface not available")
-        end
-    end)
+    -- Force multiple redraws to ensure UI updates correctly
+    Debug.storage("Starting redraw sequence after equip action")
+    triggerHotbarRedraw()
 end
 return {
 

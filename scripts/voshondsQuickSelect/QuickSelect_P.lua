@@ -1,5 +1,4 @@
 local core = require("openmw.core")
-
 local self = require("openmw.self")
 local types = require('openmw.types')
 local nearby = require('openmw.nearby')
@@ -13,155 +12,62 @@ local async = require('openmw.async')
 local settings = require("scripts.voshondsquickselect.qs_settings")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
 
+-- Constants
+local MODNAME = "VoshondsQuickSelect"
+local playerSettings = storage.playerSection('SettingsPlayer' .. MODNAME)
+local HOTBAR_UPDATE_INTERVAL = 5.0 -- Update hotbar at most once per 5 seconds
+
+-- State variables
 local selectedPage = 0
-local interfacesReady = false
-local interfaceCheckAttempts = 0
-local MAX_INTERFACE_CHECK_ATTEMPTS = 20 -- 10 seconds total (20 * 0.5s)
+local hotbarContainer = nil
+local lastHotbarUpdateTime = 0   -- Timestamp of last hotbar update
+local initialHotbarDrawn = false -- Flag to ensure we only draw the hotbar once at startup
 
-local function getIconSize()
-    local settingsStorage = storage.playerSection("SettingsVoshondsQuickSelect")
-    return settingsStorage:get("iconSize") or 40
-end
-local function getIconSizeGrow()
-    local ret = 20
-    return getIconSize() + ret * 0.25
-end
-local function createHotbarItem(item, spell)
-    local icon = I.Controller_Icon_QS.getItemIcon(item, false, false, nil, "")
-    local boxedIcon = { --box around the titem
-        type = ui.TYPE.Container,
-        props = {
-            size = util.vector2(getIconSize(), getIconSize()),
-        },
-        events = {
-        },
-        content = {
-            {
-                template = I.MWUI.templates.boxSolid,
-                alignment = ui.ALIGNMENT.Center,
-                content = icon
-            }
-        }
-    }
-    return boxedIcon
-end
-local function getHotbarItems()
-    local items = {}
-    for index, value in ipairs(types.Actor.inventory(self):getAll()) do
-        if index < 10 then
-            table.insert(items, createHotbarItem(value))
-        end
+-- Debug logging with timestamps
+local function log(message, level)
+    local timestamp = os.date("%H:%M:%S")
+    local prefix = string.format("[%s] [QuickSelect] ", timestamp)
+
+    if level == "error" then
+        Debug.error("QuickSelect_p", prefix .. message)
+    elseif level == "warning" then
+        Debug.warning("QuickSelect_p", prefix .. message)
+    else
+        -- Regular debug messages go through the Debug.quickSelect function
+        -- which already checks the enableDebugLogging setting
+        Debug.quickSelect(prefix .. message)
     end
-    return items
 end
+
+-- Simple function to draw the hotbar (will be replaced by the actual implementation in qs_hotbar.lua)
 local function drawHotbar()
-    I.QuickSelect_Win1.drawQuickSelect()
-    if true then
-        return
+    log("Drawing hotbar from QuickSelect_P", "info")
+
+    -- This is just a placeholder. The actual drawHotbar will be handled by QuickSelect_Hotbar
+    if I.QuickSelect_Hotbar and I.QuickSelect_Hotbar.drawHotbar then
+        I.QuickSelect_Hotbar.drawHotbar()
+    else
+        log("QuickSelect_Hotbar interface not available yet", "info")
     end
-    local items = getHotbarItems()
-    local itemFlex = {
-        type = ui.TYPE.Flex,
-        layer = "HUD",
-        content = items,
-        props = {
-            size = util.vector2(450, 300),
-            horizontal = false,
-            vertical = false,
-            arrange = ui.ALIGNMENT.Start,
-            align = ui.ALIGNMENT.Center,
-            autoSize = true
-        },
-    }
-    local pos = 0
-    for index, value in ipairs(items) do
-        pos = pos + 0.1
-    end
-    ui.create {
-        layer = "HUD",
-        template = I.MWUI.templates.boxSolid,
-        events = {
-        },
-        props = {
-            anchor = util.vector2(0.5, 0.5),
-            relativePosition = util.vector2(pos, .1),
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center,
-            autoSize = false,
-            vertical = true,
-            size = util.vector2(450, 300),
-        },
-        content = itemFlex
-    }
 end
 
--- Function to check if all required interfaces are available
-local function checkInterfaces()
-    local requiredInterfaces = {
-        "QuickSelect_Storage",
-        "QuickSelect_Hotbar",
-        "QuickSelect_Win1",
-        "Controller_Icon_QS"
-    }
+-- Should we update the hotbar? (prevents excessive redrawing)
+local function shouldUpdateHotbar(forceUpdate)
+    if forceUpdate then return true end
 
-    -- Check for basic interface availability
-    for _, interfaceName in ipairs(requiredInterfaces) do
-        if not I[interfaceName] then
-            Debug.warning("QuickSelect_p", "Interface not available: " .. interfaceName)
-            return false
-        end
+    local currentTime = os.time()
+    if currentTime - lastHotbarUpdateTime >= HOTBAR_UPDATE_INTERVAL then
+        lastHotbarUpdateTime = currentTime
+        return true
     end
 
-    -- Check for required functions in QuickSelect_Storage
-    local requiredStorageFunctions = {
-        "getFavoriteItemData",
-        "saveStoredItemData",
-        "saveStoredSpellData",
-        "saveStoredEnchantData",
-        "isSlotEquipped",
-        "equipSlot",
-        "deleteStoredItemData"
-    }
-
-    for _, funcName in ipairs(requiredStorageFunctions) do
-        if not I.QuickSelect_Storage[funcName] then
-            Debug.warning("QuickSelect_p", "QuickSelect_Storage function not available: " .. funcName)
-            return false
-        end
-    end
-
-    -- Check for required functions in QuickSelect_Hotbar
-    local requiredHotbarFunctions = {
-        "drawHotbar",
-        "resetFade"
-    }
-
-    for _, funcName in ipairs(requiredHotbarFunctions) do
-        if not I.QuickSelect_Hotbar[funcName] then
-            Debug.warning("QuickSelect_p", "QuickSelect_Hotbar function not available: " .. funcName)
-            return false
-        end
-    end
-
-    return true
+    return false
 end
 
+-- Input handling
 local function onInputAction(action)
-    -- Only process input if interfaces are ready
-    if not interfacesReady then
-        Debug.warning("QuickSelect_p", "Interfaces not ready, ignoring input")
-        return
-    end
-
     if action >= input.ACTION.QuickKey1 and action <= input.ACTION.QuickKey10 then
         local slot = action - input.ACTION.QuickKey1 + 1
-
-        -- Alt cycles through hotbars
-        if input.isAltPressed() then
-            selectedPage = (selectedPage + 1) % 3
-            I.QuickSelect_Hotbar.drawHotbar()
-            return
-        end
 
         -- Direct hotbar selection:
         -- Default: Keys 1-0 select slots from the first hotbar (page 0)
@@ -177,125 +83,137 @@ local function onInputAction(action)
         -- If we're on a different page than the target, switch to it
         if selectedPage ~= targetPage then
             selectedPage = targetPage
-            I.QuickSelect_Hotbar.drawHotbar()
+            log("Switched to page " .. targetPage, "info")
         end
 
         -- Calculate the actual slot number based on the page
         local actualSlot = slot + (targetPage * 10)
+        log("Activated slot " .. actualSlot, "info")
 
-        -- Get the stored item/spell data
-        local itemData = I.QuickSelect_Storage.getFavoriteItemData(actualSlot)
+        -- Now that interfaces might be available, try to use them
+        if I.QuickSelect_Storage then
+            log("QuickSelect_Storage interface is available", "info")
 
-        -- Reset fade state and show hotbar
-        if I.QuickSelect_Hotbar then
-            I.QuickSelect_Hotbar.resetFade()
-            I.QuickSelect_Hotbar.drawHotbar()
-        end
+            local itemData = I.QuickSelect_Storage.getFavoriteItemData(actualSlot)
 
-        -- Handle spells
-        if itemData and itemData.spell and not itemData.enchantId then
-            local selectedSpell = types.Actor.getSelectedSpell(self)
-            if selectedSpell and selectedSpell.id == itemData.spell then
-                -- If the same spell is already selected, toggle spell stance
-                local currentStance = types.Actor.getStance(self)
-                if currentStance == types.Actor.STANCE.Spell then
-                    types.Actor.setStance(self, types.Actor.STANCE.Nothing)
-                else
-                    types.Actor.setStance(self, types.Actor.STANCE.Spell)
-                end
-
-                -- Update the hotbar UI to reflect the spell change
-                if I.QuickSelect_Hotbar then
-                    I.QuickSelect_Hotbar.drawHotbar()
-                else
-                    Debug.error("QuickSelect_p", "QuickSelect_Hotbar interface not available")
-                end
-                return
-            else
-                -- If a different spell is selected, maintain spell stance if a spell stance was active
-                local currentStance = types.Actor.getStance(self)
-                local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
-                local hadSpellSelected = (selectedSpell ~= nil)
-
-                -- Change to the new spell
-                types.Actor.setSelectedSpell(self, itemData.spell)
-
-                -- If we were already in spell stance, maintain it with the new spell
-                if wasSpellStance then
-                    types.Actor.setStance(self, types.Actor.STANCE.Spell)
-                    -- If we had any spell selected but were in the nothing stance, switch to spell stance
-                elseif hadSpellSelected then
-                    types.Actor.setStance(self, types.Actor.STANCE.Spell)
-                end
-
-                -- Allow a small delay for the game state to update before redrawing the UI
-                async:newUnsavableSimulationTimer(0.05, function()
-                    if I.QuickSelect_Hotbar then
-                        I.QuickSelect_Hotbar.drawHotbar()
-                    else
-                        Debug.error("QuickSelect_p", "QuickSelect_Hotbar interface not available")
-                    end
-                end)
-
-                return
+            if I.QuickSelect_Hotbar then
+                log("QuickSelect_Hotbar interface is available, resetting fade", "info")
+                I.QuickSelect_Hotbar.resetFade()
+                -- Force update the hotbar when a slot is activated
+                lastHotbarUpdateTime = os.time()
+                I.QuickSelect_Hotbar.drawHotbar()
             end
-        end
 
-        -- Let equipSlot handle all other interactions
-        if itemData then
-            I.QuickSelect_Storage.equipSlot(actualSlot)
+            -- Process item data if available
+            if itemData then
+                log("Item data found for slot " .. actualSlot, "info")
+
+                -- Handle spells
+                if itemData.spell and not itemData.enchantId then
+                    log("Processing spell in slot " .. actualSlot, "info")
+
+                    local selectedSpell = types.Actor.getSelectedSpell(self)
+                    if selectedSpell and selectedSpell.id == itemData.spell then
+                        -- Toggle spell stance if the same spell is already selected
+                        local currentStance = types.Actor.getStance(self)
+                        if currentStance == types.Actor.STANCE.Spell then
+                            types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                        else
+                            types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                        end
+
+                        -- Update the hotbar UI to reflect the spell change
+                        if I.QuickSelect_Hotbar then
+                            lastHotbarUpdateTime = os.time()
+                            I.QuickSelect_Hotbar.drawHotbar()
+                        end
+                    else
+                        -- If a different spell is selected, handle spell stance
+                        local currentStance = types.Actor.getStance(self)
+                        local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
+                        local hadSpellSelected = (selectedSpell ~= nil)
+
+                        -- Change to the new spell
+                        types.Actor.setSelectedSpell(self, itemData.spell)
+
+                        -- Maintain stance if appropriate
+                        if wasSpellStance or hadSpellSelected then
+                            types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                        end
+
+                        -- Update UI after a small delay
+                        async:newUnsavableSimulationTimer(0.05, function()
+                            if I.QuickSelect_Hotbar then
+                                lastHotbarUpdateTime = os.time()
+                                I.QuickSelect_Hotbar.drawHotbar()
+                            end
+                        end)
+                    end
+                else
+                    -- Handle other item types
+                    log("Equipping slot " .. actualSlot, "info")
+                    I.QuickSelect_Storage.equipSlot(actualSlot)
+                end
+            else
+                log("No item data for slot " .. actualSlot, "info")
+            end
+        else
+            log("QuickSelect_Storage interface not available", "warning")
         end
     end
 end
-return {
 
+-- Register our interface immediately
+return {
     interfaceName = "QuickSelect",
     interface = {
         drawHotbar = drawHotbar,
-        getSelectedPage = function()
-            return selectedPage
-        end,
-        setSelectedPage = function(num)
-            selectedPage = num
-        end,
+        getSelectedPage = function() return selectedPage end,
+        setSelectedPage = function(num) selectedPage = num end
     },
     engineHandlers = {
         onInputAction = onInputAction,
         onLoad = function()
-            -- Initialize the QuickSelect system
-            Debug.quickSelect("Initializing QuickSelect system")
+            log("Initializing QuickSelect system", "info")
 
             -- Initialize with page 0 selected
             selectedPage = 0
-            interfacesReady = false
-            interfaceCheckAttempts = 0
+            lastHotbarUpdateTime = os.time()
+            initialHotbarDrawn = false
 
-            -- Use a timer to check when other interfaces become available
-            local function checkAndInitialize()
-                interfaceCheckAttempts = interfaceCheckAttempts + 1
-
-                if checkInterfaces() then
-                    interfacesReady = true
-                    Debug.quickSelect("All required interfaces are available")
-
-                    -- Try to draw the hotbar once all interfaces are available
-                    if I.QuickSelect_Hotbar then
-                        I.QuickSelect_Hotbar.drawHotbar()
-                    end
+            -- Draw the hotbar when interfaces are ready (no waiting/checking needed)
+            async:newUnsavableSimulationTimer(1.0, function()
+                log("Delayed initialization complete", "info")
+                if I.QuickSelect_Hotbar and not initialHotbarDrawn then
+                    log("Drawing initial hotbar", "info")
+                    lastHotbarUpdateTime = os.time()
+                    initialHotbarDrawn = true
+                    I.QuickSelect_Hotbar.drawHotbar()
                 else
-                    if interfaceCheckAttempts >= MAX_INTERFACE_CHECK_ATTEMPTS then
-                        Debug.error("QuickSelect_p",
-                            "Failed to initialize interfaces after " .. MAX_INTERFACE_CHECK_ATTEMPTS .. " attempts")
-                        return
-                    end
-
-                    -- Check again in 0.5 seconds
-                    async:newUnsavableSimulationTimer(0.5, checkAndInitialize)
+                    log("QuickSelect_Hotbar not available for initial draw", "warning")
                 end
+            end)
+        end,
+        onUpdate = function(dt)
+            -- COMPLETELY DISABLE automatic updates
+            -- Only draw hotbar on user action or other explicit triggers
+        end,
+        onSave = function()
+            log("Saving QuickSelect state", "info")
+            return {
+                selectedPage = selectedPage,
+                initialHotbarDrawn = initialHotbarDrawn
+            }
+        end,
+        onLoad = function(data)
+            log("Loading QuickSelect state", "info")
+            if data then
+                selectedPage = data.selectedPage or 0
+                initialHotbarDrawn = data.initialHotbarDrawn or false
+            else
+                initialHotbarDrawn = false
             end
-
-            -- Start checking for interfaces
-            checkAndInitialize()
+            lastHotbarUpdateTime = os.time()
         end
     }
 }

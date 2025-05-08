@@ -4,6 +4,9 @@ param(
     [switch]$resetSettings
 )
 
+# Clear the console
+Clear-Host
+
 # Copy mod files to ModOrganizer folder
 $sourceDir = Get-Location
 $modDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\voshond's Quick Select (OpenMW)"
@@ -120,7 +123,9 @@ public class Win32FocusHelper {
         
         # Start OpenMW
         $openmwExe = "D:\Games\Morrowind\OpenMW current\openmw.exe"
-        $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Vorythn_Indarys\testing.omwsave`""
+        $openmwArgs = "--script-verbose --skip-menu"
+        # $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Vorythn_Indarys\testing.omwsave`""
+
 
         if (Test-Path $openmwExe) {
             Write-Host "Starting OpenMW..."
@@ -162,7 +167,8 @@ elseif (-not $focus) {
 
     # Start OpenMW
     $openmwExe = "D:\Games\Morrowind\OpenMW current\openmw.exe"
-    $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Vorythn_Indarys\testing.omwsave`""
+    $openmwArgs = "--script-verbose --skip-menu"
+    # $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Vorythn_Indarys\testing.omwsave`""
 
     if (Test-Path $openmwExe) {
         Write-Host "Starting OpenMW..."

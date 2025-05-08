@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.8 (2025-05-08)
+
+Fix for not hidden bars when hiding all UI, had to remove when debugging the blank char rendering issue.
+
+
 ## Version 1.0.7 (2025-05-08)
 
 Another Hotfix for Enchantment Spells and Tooltip Layer
@@ -42,6 +47,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

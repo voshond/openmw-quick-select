@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.6 (2025-05-08)
+
+Fixed Hotbar not loading on fresh char, Debugging & Fade Improvements
+
+
 ## Version 1.0.5 (2025-05-08)
 
 Introduce Fading Bars
@@ -32,6 +37,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

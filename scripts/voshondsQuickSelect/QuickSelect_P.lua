@@ -136,10 +136,8 @@ local function onInputAction(action)
                         -- Change to the new spell
                         types.Actor.setSelectedSpell(self, itemData.spell)
 
-                        -- Maintain stance if appropriate
-                        if wasSpellStance or hadSpellSelected then
-                            types.Actor.setStance(self, types.Actor.STANCE.Spell)
-                        end
+                        -- Always set stance to Spell when selecting a new spell
+                        types.Actor.setStance(self, types.Actor.STANCE.Spell)
 
                         -- Update UI after a small delay
                         async:newUnsavableSimulationTimer(0.05, function()
@@ -150,9 +148,51 @@ local function onInputAction(action)
                         end)
                     end
                 else
-                    -- Handle other item types
-                    log("Equipping slot " .. actualSlot, "info")
-                    I.QuickSelect_Storage.equipSlot(actualSlot)
+                    -- Handle enchanted items
+                    if itemData.enchantId then
+                        log("Processing enchanted item in slot " .. actualSlot, "info")
+                        local enchantedItem = types.Actor.getSelectedEnchantedItem(self)
+                        local realItem = types.Actor.inventory(self):find(itemData.itemId)
+
+                        -- Only proceed if the item exists in inventory
+                        if realItem then
+                            -- Check if the same enchanted item is already selected
+                            if enchantedItem and enchantedItem.recordId == realItem.recordId then
+                                -- Toggle enchanted item stance if already selected
+                                local currentStance = types.Actor.getStance(self)
+                                if currentStance == types.Actor.STANCE.Spell then
+                                    types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                                else
+                                    types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                                end
+                            else
+                                -- If a different enchanted item or no item is selected
+                                local currentStance = types.Actor.getStance(self)
+                                local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
+                                local hadEnchantedItemSelected = (enchantedItem ~= nil)
+
+                                -- Set the new enchanted item
+                                types.Actor.setSelectedEnchantedItem(self, realItem)
+
+                                -- Always set stance to Spell when selecting a new enchanted item
+                                types.Actor.setStance(self, types.Actor.STANCE.Spell)
+                            end
+
+                            -- Update UI after selection
+                            async:newUnsavableSimulationTimer(0.05, function()
+                                if I.QuickSelect_Hotbar then
+                                    lastHotbarUpdateTime = os.time()
+                                    I.QuickSelect_Hotbar.drawHotbar()
+                                end
+                            end)
+                        else
+                            log("Enchanted item not found in inventory: " .. tostring(itemData.itemId), "warning")
+                        end
+                    else
+                        -- Handle other item types
+                        log("Equipping slot " .. actualSlot, "info")
+                        I.QuickSelect_Storage.equipSlot(actualSlot)
+                    end
                 end
             else
                 log("No item data for slot " .. actualSlot, "info")

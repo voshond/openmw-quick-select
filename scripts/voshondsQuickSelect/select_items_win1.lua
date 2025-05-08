@@ -16,6 +16,7 @@ local function initTooltipLayer()
     for i, layer in ipairs(ui.layers) do
         if layer.name == "TooltipLayer" then
             tooltipLayerExists = true
+            Debug.log("SelectItemsWin", "TooltipLayer already exists, skipping creation")
             break
         end
     end
@@ -25,7 +26,7 @@ local function initTooltipLayer()
         -- we'll try to append it to the end of the layers list which ensures it's on top
 
         -- Wrap layer creation in pcall to catch errors
-        local success = pcall(function()
+        local success, err = pcall(function()
             local layerCount = #ui.layers
             if layerCount > 0 then
                 -- Add it after the topmost existing layer
@@ -43,22 +44,27 @@ local function initTooltipLayer()
 
         -- If it failed, the layer might have been created by another script in the meantime
         if not success then
+            Debug.warning("SelectItemsWin", "TooltipLayer creation failed: " .. tostring(err))
             -- Let's check if the layer exists now after the error
             for i, layer in ipairs(ui.layers) do
                 if layer.name == "TooltipLayer" then
                     -- Layer exists now, we can proceed
+                    Debug.log("SelectItemsWin", "TooltipLayer created by another script, continuing")
                     return
                 end
             end
             -- If we get here, something else went wrong, but we'll continue without the layer
-            -- The tooltips will just use whatever layer is specified in the drawListMenu calls
+            Debug.warning("SelectItemsWin", "Continuing without TooltipLayer, will use HUD instead")
+        else
+            Debug.log("SelectItemsWin", "Successfully created TooltipLayer")
         end
     end
 end
 
--- Initialize the tooltip layer on script load
-initTooltipLayer()
+-- Comment out the immediate initialization to prevent race conditions with other scripts
+-- initTooltipLayer()
 
+-- We'll initialize the tooltip layer in onLoad instead
 local utility = require("scripts.voshondsquickselect.qs_utility")
 local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
 local messageBoxUtil = require("scripts.voshondsquickselect.messagebox")
@@ -803,6 +809,19 @@ return {
         ButtonClicked = ButtonClicked,
     },
     engineHandlers = {
+        onLoad = function()
+            -- Initialize TooltipLayer with a slight delay to avoid race conditions
+            -- with other scripts that might also be creating it
+            Debug.log("SelectItemsWin", "Waiting before initializing TooltipLayer")
+            async:newUnsavableSimulationTimer(0.5, function()
+                local success, err = pcall(function()
+                    initTooltipLayer()
+                end)
+                if not success then
+                    Debug.warning("SelectItemsWin", "Failed to initialize TooltipLayer: " .. tostring(err))
+                end
+            end)
+        end,
         onKeyPress = onKeyPress,
         onControllerButtonPress = onControllerButtonPress,
         onMouseWheel = function(vert)

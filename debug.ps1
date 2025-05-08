@@ -123,8 +123,8 @@ public class Win32FocusHelper {
         
         # Start OpenMW
         $openmwExe = "D:\Games\Morrowind\OpenMW current\openmw.exe"
-        $openmwArgs = "--script-verbose --skip-menu"
-        # $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Vorythn_Indarys\testing.omwsave`""
+        # $openmwArgs = "--script-verbose --skip-menu"
+        $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Volel_Indarys\Testing.omwsave`""
 
 
         if (Test-Path $openmwExe) {
@@ -167,8 +167,8 @@ elseif (-not $focus) {
 
     # Start OpenMW
     $openmwExe = "D:\Games\Morrowind\OpenMW current\openmw.exe"
-    $openmwArgs = "--script-verbose --skip-menu"
-    # $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Vorythn_Indarys\testing.omwsave`""
+    # $openmwArgs = "--script-verbose --skip-menu"
+    $openmwArgs = "--script-verbose --skip-menu --load `"C:\Users\Martin\Documents\My Games\OpenMW\saves\Volel_Indarys\Testing.omwsave`""
 
     if (Test-Path $openmwExe) {
         Write-Host "Starting OpenMW..."

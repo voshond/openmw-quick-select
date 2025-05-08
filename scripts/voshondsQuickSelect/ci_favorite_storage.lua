@@ -196,12 +196,17 @@ local function equipSlot(slot)
         if item.spell and not item.enchantId then
             types.Actor.clearSelectedCastable(self)
             types.Actor.setSelectedSpell(self, item.spell)
+            -- Always set stance to Spell when selecting a spell
+            types.Actor.setStance(self, types.Actor.STANCE.Spell)
             Debug.storage("Set selected spell to " .. tostring(item.spell))
         elseif item.enchantId then
-            local equip = types.Actor.equipment(self)
+            -- This is now handled in QuickSelect_P.lua's onInputAction function
+            -- This code is kept for compatibility with other parts of the code that may call equipSlot directly
             local realItem = types.Actor.inventory(self):find(item.itemId)
             if not realItem then return end
             types.Actor.setSelectedEnchantedItem(self, realItem)
+            -- Always set stance to Spell when selecting an enchanted item
+            types.Actor.setStance(self, types.Actor.STANCE.Spell)
             Debug.storage("Set selected enchanted item to " .. tostring(item.itemId))
         elseif item.item then
             local realItem = types.Actor.inventory(self):find(item.item)

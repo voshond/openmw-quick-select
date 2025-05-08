@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.7 (2025-05-08)
+
+Another Hotfix for Enchantment Spells and Tooltip Layer
+
+
 ## Version 1.0.6 (2025-05-08)
 
 Fixed Hotbar not loading on fresh char, Debugging & Fade Improvements
@@ -37,6 +42,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

@@ -6,7 +6,7 @@ param(
 
 # Copy mod files to ModOrganizer folder
 $sourceDir = Get-Location
-$modDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\voshondsQuickSelect"
+$modDir = "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\voshond's Quick Select (OpenMW)"
 $scriptsDir = "$modDir\scripts\voshondsQuickSelect"
 
 # Check if target directory exists, create if not

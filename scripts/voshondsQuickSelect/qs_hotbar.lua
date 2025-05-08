@@ -59,13 +59,16 @@ local hotBarElement
 local tooltipElement
 local num = 1
 local enableHotbar = false       --True if we are showing the hotbar
-
 local pickSlotMode = false       --True if we are picking a slot for saving
-
 local controllerPickMode = false --True if we are picking a slot for equipping OR saving
-
 local selectedNum = 1
 local HOTBAR_ITEMS_PER_ROW = 10
+
+-- Fade-related variables
+local fadeTimer = 0
+local isFading = false
+local fadeDuration = 2.0 -- 2 seconds fade duration
+local fadeAlpha = 1.0
 
 -- Remove the early initialization code
 -- Let's initialize in onLoad instead
@@ -361,6 +364,12 @@ local function drawHotbar()
         tooltipElement:destroy()
         tooltipElement = nil
     end
+
+    -- Reset fade state when drawing new hotbar
+    fadeTimer = 0
+    isFading = false
+    fadeAlpha = 1.0
+
     if not enableHotbar then
         log("Hotbar disabled, exiting")
         log("==== END drawHotbar ====")
@@ -535,6 +544,7 @@ local function drawHotbar()
             relativePosition = relativePosition,
             arrange = ui.ALIGNMENT.Center,
             align = ui.ALIGNMENT.Center,
+            alpha = fadeAlpha -- Add alpha property for fading
         },
         content = ui.content {
             {
@@ -554,6 +564,60 @@ local function drawHotbar()
 
     log("==== END drawHotbar ====")
 end
+
+-- Add a new function to handle fading
+local function updateFade(dt)
+    if not settings:get("enableFadingBars") then
+        return
+    end
+
+    if not enableHotbar then
+        return
+    end
+
+    -- Check if hotBarElement exists before proceeding
+    if not hotBarElement then
+        return
+    end
+
+    if not isFading then
+        fadeTimer = fadeTimer + dt
+        if fadeTimer >= fadeDuration then
+            isFading = true
+            fadeTimer = 0
+            log("Starting fade out")
+        end
+    else
+        fadeTimer = fadeTimer + dt
+        fadeAlpha = math.max(0, 1 - (fadeTimer / 0.5)) -- 0.5 second fade out
+
+        -- Check if hotBarElement still exists before updating
+        if hotBarElement and hotBarElement.props then
+            hotBarElement.props.alpha = fadeAlpha
+            hotBarElement:update()
+            log("Fade alpha: " .. fadeAlpha)
+        end
+
+        if fadeAlpha <= 0 then
+            enableHotbar = false
+            if hotBarElement then
+                hotBarElement:destroy()
+                hotBarElement = nil
+                log("Hotbar destroyed after fade")
+            end
+        end
+    end
+end
+
+-- Add a function to reset fade state
+local function resetFade()
+    fadeTimer = 0
+    isFading = false
+    fadeAlpha = 1.0
+    enableHotbar = true
+    log("Fade state reset")
+end
+
 local data
 local function selectSlot(item, spell, enchant)
     enableHotbar = true
@@ -691,12 +755,11 @@ return {
     interfaceName = "QuickSelect_Hotbar",
     interface = {
         drawHotbar = drawHotbar,
-        selectSlot = selectSlot,
-        isHotbarEnabled = function()
-            return enableHotbar
-        end,
+        startPickingMode = startPickingMode,
         endPickingMode = endPickingMode,
-        startPickingMode = startPickingMode
+        selectSlot = selectSlot,
+        saveSlot = saveSlot,
+        resetFade = resetFade,
     },
     eventHandlers = {
         UiModeChanged = UiModeChanged,
@@ -725,6 +788,9 @@ return {
             end)
         end,
         onUpdate = onUpdate,
+        onFrame = function(dt)
+            updateFade(dt)
+        end,
         onKeyPress = function(key)
             if core.isWorldPaused() and not controllerPickMode then
                 return
@@ -751,7 +817,6 @@ return {
                 selectNextOrPrevHotKey("next")
             elseif btn == input.CONTROLLER_BUTTON.DPadDown and controllerPickMode then
                 selectNextOrPrevHotBar("next")
-                --  Debug.hotbar("Down action")
             elseif btn == input.CONTROLLER_BUTTON.DPadUp and controllerPickMode then
                 if not enableHotbar then
                     return
@@ -766,7 +831,6 @@ return {
                     I.QuickSelect_Hotbar.drawHotbar()
                     return
                 end
-                --  Debug.hotbar("Equipping item")
                 I.QuickSelect_Storage.equipSlot(selectedNum + (I.QuickSelect.getSelectedPage() * 10))
                 endPickingMode()
             elseif btn == input.CONTROLLER_BUTTON.B then

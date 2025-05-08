@@ -120,42 +120,47 @@ local function equipSlot(slot)
         if item.spell and not item.enchantId then
             types.Actor.clearSelectedCastable(self)
             types.Actor.setSelectedSpell(self, item.spell)
-
-            async:newUnsavableSimulationTimer(0.3, function()
-                if types.Actor.getStance(self) ~= types.Actor.STANCE.Spell then
-                    types.Actor.setStance(self, types.Actor.STANCE.Spell)
-                end
-            end)
         elseif item.enchantId then
             local equip = types.Actor.equipment(self)
             local realItem = types.Actor.inventory(self):find(item.itemId)
             if not realItem then return end
             types.Actor.setSelectedEnchantedItem(self, realItem)
-
-            async:newUnsavableSimulationTimer(0.1, function()
-                if types.Actor.getStance(self) ~= types.Actor.STANCE.Spell then
-                    types.Actor.setStance(self, types.Actor.STANCE.Spell)
-                end
-            end)
         elseif item.item then
             local realItem = types.Actor.inventory(self):find(item.item)
             if not realItem then return end
             local equipped = getEquipped(realItem)
+
             if not equipped then
+                -- Equip the item
                 core.sendGlobalEvent('UseItem', { object = realItem, actor = self })
 
-                if realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe or realItem.type == types.Light then
+                if realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe then
                     async:newUnsavableSimulationTimer(0.1, function()
-                        if types.Actor.getStance(self) ~= types.Actor.STANCE.Weapon then
-                            types.Actor.setStance(self, types.Actor.STANCE.Weapon)
-                        end
+                        types.Actor.setStance(self, types.Actor.STANCE.Weapon)
                     end)
                 end
-            elseif settings:get("unEquipOnHotkey") then
-                local equip = types.Actor.equipment(self)
-                equip[equipped] = nil
+            else
+                -- Item is already equipped
+                if realItem.type == types.Light then
+                    -- For lights, always unequip when already equipped
+                    local equip = types.Actor.equipment(self)
+                    equip[equipped] = nil
+                    types.Actor.setEquipment(self, equip)
+                elseif realItem.type == types.Weapon or realItem.type == types.Lockpick or realItem.type == types.Probe then
+                    -- Toggle weapon stance for weapons, lockpicks, and probes
+                    if types.Actor.getStance(self) == types.Actor.STANCE.Weapon then
+                        types.Actor.setStance(self, types.Actor.STANCE.Nothing)
+                    else
+                        types.Actor.setStance(self, types.Actor.STANCE.Weapon)
+                    end
 
-                types.Actor.setEquipment(self, equip)
+                    -- If unEquipOnHotkey is enabled and we're in Nothing stance, unequip
+                    if settings:get("unEquipOnHotkey") and types.Actor.getStance(self) == types.Actor.STANCE.Nothing then
+                        local equip = types.Actor.equipment(self)
+                        equip[equipped] = nil
+                        types.Actor.setEquipment(self, equip)
+                    end
+                end
             end
         end
     end

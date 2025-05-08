@@ -98,6 +98,13 @@ I.Settings.registerGroup {
             description = "If enabled, debug print statements will be shown in the console. Useful for troubleshooting but may impact performance.",
             default = false
         },
+        {
+            key = "enableFadingBars",
+            renderer = "checkbox",
+            name = "Enable Fading Bars",
+            description = "If enabled, the hotbar will automatically hide after 2 seconds of inactivity. It will reappear when you interact with items.",
+            default = false
+        },
     },
 
 }

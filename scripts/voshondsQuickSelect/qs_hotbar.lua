@@ -809,6 +809,20 @@ local function onUpdate(dt)
         isFading = false
     end
 
+    -- Check HUD visibility and update hotbar accordingly
+    if hotBarElement then
+        local hudVisible = I.UI and I.UI.isHudVisible and I.UI.isHudVisible()
+        if hudVisible == false then
+            local success, err = pcall(function()
+                hotBarElement:destroy()
+                hotBarElement = nil
+            end)
+            if not success then
+                log("Error destroying hotbar when HUD is hidden: " .. tostring(err))
+            end
+        end
+    end
+
     -- Only update the hotbar when absolutely necessary
     local currentTime = os.time()
     if needsRedraw and (currentTime - lastUpdateTime) > UPDATE_THROTTLE then

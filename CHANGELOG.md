@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.10 (2025-05-09)
+
+Spellselect Hotfix
+
+
 ## Version 1.0.9 (2025-05-09)
 
 Ability to show/hide slot number, item count, change colour, add shadow, control transparency
@@ -52,6 +57,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

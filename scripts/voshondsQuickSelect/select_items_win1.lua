@@ -671,13 +671,19 @@ local function drawSpellSelect()
     end
     maxCount = #spellsAndIds
     for i = 1, 30, 1 do
-        if spellsAndIds[i + startOffset] then
-            table.insert(xContent,
-                utility.renderItemBold(spellsAndIds[i + startOffset].name, nil, nil, nil, true,
-                    spellsAndIds[i + startOffset], {
-                        mouseMove = async:callback(mouseMoveButton),
-                        mousePress = async:callback(mouseClick)
-                    }))
+        local entry = spellsAndIds[i + startOffset]
+        if entry then
+            -- Fallback logic: use .name, then .id, then a placeholder
+            local label = entry.name or entry.id or "<unnamed>"
+            -- Only render if we have something to show
+            if label and label ~= "" then
+                table.insert(xContent,
+                    utility.renderItemBold(label, nil, nil, nil, true,
+                        entry, {
+                            mouseMove = async:callback(mouseMoveButton),
+                            mousePress = async:callback(mouseClick)
+                        }))
+            end
         end
     end
     table.insert(content,

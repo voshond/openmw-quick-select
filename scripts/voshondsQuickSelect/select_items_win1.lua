@@ -15,7 +15,7 @@ local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 -- Function to get text appearance settings
 local function getTextStyles()
     -- Get color settings or use defaults
-    local textColor = textSettings:get("slotTextColor") or util.color.rgba(0.6, 0.8, 1.0, 1.0)
+    local textColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
     local shadowColor = textSettings:get("slotTextShadowColor") or util.color.rgba(0, 0, 0, 1.0)
 
     -- Get alpha settings (0-100) and convert to 0-1 range

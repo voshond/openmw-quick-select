@@ -158,7 +158,7 @@ I.Settings.registerGroup {
             renderer = "color",
             name = "Slot Text Color",
             description = "Controls the color of the slot numbers and item counts.",
-            default = util.color.rgba(0.6, 0.8, 1.0, 1.0), -- Light blue default
+            default = util.color.rgba(0.792, 0.647, 0.376, 1.0),
         },
         {
             key = "slotTextAlpha",

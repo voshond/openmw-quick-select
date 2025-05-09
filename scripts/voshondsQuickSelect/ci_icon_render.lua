@@ -14,6 +14,72 @@ local input = require("openmw.input")
 local async = require("openmw.async")
 local storage = require("openmw.storage")
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
+
+-- Function to get text appearance settings
+local function getTextStyles()
+    -- Get color settings or use defaults
+    local textColor = textSettings:get("slotTextColor") or util.color.rgba(0.6, 0.8, 1.0, 1.0)
+    local shadowColor = textSettings:get("slotTextShadowColor") or util.color.rgba(0, 0, 0, 1.0)
+
+    -- Get alpha settings (0-100) and convert to 0-1 range
+    local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
+    local shadowAlpha = (textSettings:get("slotTextShadowAlpha") or 100) / 100
+
+    -- Apply alpha values to colors
+    local finalTextColor = util.color.rgba(textColor.r, textColor.g, textColor.b, textAlpha)
+    local finalShadowColor = util.color.rgba(shadowColor.r, shadowColor.g, shadowColor.b, shadowAlpha)
+
+    -- Check if shadow is enabled
+    local shadowEnabled = textSettings:get("enableTextShadow")
+    if shadowEnabled == nil then shadowEnabled = true end -- Default to true if not set
+
+    -- Check if slot numbers and item counts should be shown
+    local showSlotNumbers = textSettings:get("showSlotNumbers")
+    if showSlotNumbers == nil then showSlotNumbers = true end -- Default to true if not set
+
+    local showItemCounts = textSettings:get("showItemCounts")
+    if showItemCounts == nil then showItemCounts = true end -- Default to true if not set
+
+    -- Get text sizes
+    local slotNumberTextSize = textSettings:get("slotNumberTextSize") or 14
+    local itemCountTextSize = textSettings:get("itemCountTextSize") or 12
+
+    return {
+        textColor = finalTextColor,
+        shadowColor = finalShadowColor,
+        shadowEnabled = shadowEnabled,
+        showSlotNumbers = showSlotNumbers,
+        showItemCounts = showItemCounts,
+        slotNumberTextSize = slotNumberTextSize,
+        itemCountTextSize = itemCountTextSize
+    }
+end
+
+-- Define reusable text style variables
+local TEXT_COLORS = {
+    itemCount = nil, -- Will be set dynamically
+    slotNumber = nil -- Will be set dynamically
+}
+
+local TEXT_SHADOWS = {
+    enabled = true, -- Will be set dynamically
+    color = nil     -- Will be set dynamically
+}
+
+-- Function to refresh text style settings
+local function refreshTextStyles()
+    local styles = getTextStyles()
+
+    TEXT_COLORS.itemCount = styles.textColor
+    TEXT_COLORS.slotNumber = styles.textColor
+
+    TEXT_SHADOWS.enabled = styles.shadowEnabled
+    TEXT_SHADOWS.color = styles.shadowColor
+end
+
+-- Initialize text styles
+refreshTextStyles()
 
 local function getIconSize()
     return settings:get("iconSize") or 40
@@ -21,14 +87,30 @@ end
 
 local savedTextures = {}
 local function textContent(text)
+    if not text or text == "" then
+        return {}
+    end
+
+    -- Refresh text styles to ensure we have the latest settings
+    refreshTextStyles()
+
+    -- Don't show item counts if disabled
+    if not getTextStyles().showItemCounts then
+        return {}
+    end
+
+    local styles = getTextStyles()
     return {
         type = ui.TYPE.Text,
-        template = I.MWUI.templates.textHeader,
+        template = I.MWUI.templates.textNormal,
         props = {
-            text = tostring(text),
-            textSize = 10 * 1,
-            arrange = ui.ALIGNMENT.Start,
-            align = ui.ALIGNMENT.Start
+            text = text,
+            textSize = styles.itemCountTextSize,
+            relativePosition = util.vector2(0.1, 0.1),
+            anchor = util.vector2(0.1, 0.1),
+            textShadow = TEXT_SHADOWS.enabled,
+            textShadowColor = TEXT_SHADOWS.color,
+            textColor = TEXT_COLORS.itemCount
         }
     }
 end
@@ -141,24 +223,38 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
         slotText = slotPosition
     end
 
+    -- Refresh text styles to ensure we have the latest settings
+    refreshTextStyles()
+
+    -- Create slot number content only if enabled
+    local slotNumberContent = {}
+    local styles = getTextStyles()
+
+    if styles.showSlotNumbers and slotNumber then
+        slotNumberContent = {
+            type = ui.TYPE.Text,
+            template = I.MWUI.templates.textNormal,
+            props = {
+                text = tostring(slotText),
+                textSize = styles.slotNumberTextSize,
+                relativePosition = util.vector2(0.85, 0.9),
+                anchor = util.vector2(0.85, 0.9),
+                arrange = ui.ALIGNMENT.End,
+                align = ui.ALIGNMENT.End,
+                textShadow = TEXT_SHADOWS.enabled,
+                textShadowColor = TEXT_SHADOWS.color,
+                textColor = TEXT_COLORS.slotNumber
+            }
+        }
+    end
+
     local context = ui.content {
         selectedContent,
         imageContent(magicIcon, half, magicIconOpacity),
         imageContent(itemIcon, half),
         itemCountText,
-        -- Add slot number to bottom right if we have it
-        slotNumber and {
-            type = ui.TYPE.Text,
-            template = I.MWUI.templates.textNormal,
-            props = {
-                text = tostring(slotText),
-                textSize = 14,                             -- Smaller size for the slot number
-                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
-                anchor = util.vector2(0.9, 0.9),
-                arrange = ui.ALIGNMENT.End,
-                align = ui.ALIGNMENT.End,
-            }
-        }
+        -- Add slot number to bottom right if we have it and it's enabled
+        slotNumberContent
     }
 
     return context
@@ -190,22 +286,36 @@ local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
         slotText = slotPosition
     end
 
-    local context = ui.content {
-        imageContent(itemIcon, half),
-        selectedContent,
-        -- Add slot number to bottom right if we have it
-        slotNumber and {
+    -- Refresh text styles to ensure we have the latest settings
+    refreshTextStyles()
+
+    -- Create slot number content only if enabled
+    local slotNumberContent = {}
+    local styles = getTextStyles()
+
+    if styles.showSlotNumbers and slotNumber then
+        slotNumberContent = {
             type = ui.TYPE.Text,
             template = I.MWUI.templates.textNormal,
             props = {
                 text = tostring(slotText),
-                textSize = 14,                             -- Smaller size for the slot number
-                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
-                anchor = util.vector2(0.9, 0.9),
+                textSize = styles.slotNumberTextSize,
+                relativePosition = util.vector2(0.85, 0.9),
+                anchor = util.vector2(0.85, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
+                textShadow = TEXT_SHADOWS.enabled,
+                textShadowColor = TEXT_SHADOWS.color,
+                textColor = TEXT_COLORS.slotNumber
             }
         }
+    end
+
+    local context = ui.content {
+        imageContent(itemIcon, half),
+        selectedContent,
+        -- Add slot number to bottom right if we have it and it's enabled
+        slotNumberContent
     }
 
     return context
@@ -240,6 +350,15 @@ local function getEmptyIcon(half, num, selected, useNumber, slotPrefix)
         textSize = textSize / 1.5
     end
 
+    -- Refresh text styles to ensure we have the latest settings
+    refreshTextStyles()
+
+    -- Only show number if slot numbers are enabled
+    local styles = getTextStyles()
+    if not styles.showSlotNumbers then
+        return ui.content { selectedContent }
+    end
+
     return ui.content {
         selectedContent,
         {
@@ -247,11 +366,14 @@ local function getEmptyIcon(half, num, selected, useNumber, slotPrefix)
             template = I.MWUI.templates.textNormal,
             props = {
                 text = tostring(text),
-                textSize = textSize,
-                relativePosition = util.vector2(0.9, 0.9), -- Bottom right position
-                anchor = util.vector2(0.9, 0.9),
+                textSize = styles.slotNumberTextSize,
+                relativePosition = util.vector2(0.85, 0.9),
+                anchor = util.vector2(0.85, 0.9),
                 arrange = ui.ALIGNMENT.End,
                 align = ui.ALIGNMENT.End,
+                textShadow = TEXT_SHADOWS.enabled,
+                textShadowColor = TEXT_SHADOWS.color,
+                textColor = TEXT_COLORS.slotNumber
             },
             num = num,
             events = {
@@ -268,9 +390,15 @@ return {
         getItemIcon = getItemIcon,
         getSpellIcon = getSpellIcon,
         getEmptyIcon = getEmptyIcon,
+        refreshTextStyles = refreshTextStyles -- Export this so it can be called when settings change
     },
     eventHandlers = {
     },
     engineHandlers = {
+        onFrame = function()
+            -- Check for settings changes periodically
+            -- This is a lightweight operation since we're just fetching stored values
+            refreshTextStyles()
+        end
     }
 }

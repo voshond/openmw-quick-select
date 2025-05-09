@@ -8,6 +8,74 @@ local util = require("openmw.util")
 local types = require("openmw.types")
 local input = require("openmw.input")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
+local storage = require('openmw.storage')
+local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
+
+-- Function to get text appearance settings
+local function getTextStyles()
+    -- Get color settings or use defaults
+    local textColor = textSettings:get("slotTextColor") or util.color.rgba(0.6, 0.8, 1.0, 1.0)
+    local shadowColor = textSettings:get("slotTextShadowColor") or util.color.rgba(0, 0, 0, 1.0)
+
+    -- Get alpha settings (0-100) and convert to 0-1 range
+    local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
+    local shadowAlpha = (textSettings:get("slotTextShadowAlpha") or 100) / 100
+
+    -- Apply alpha values to colors
+    local finalTextColor = util.color.rgba(textColor.r, textColor.g, textColor.b, textAlpha)
+    local finalShadowColor = util.color.rgba(shadowColor.r, shadowColor.g, shadowColor.b, shadowAlpha)
+
+    -- Check if shadow is enabled
+    local shadowEnabled = textSettings:get("enableTextShadow")
+    if shadowEnabled == nil then shadowEnabled = true end -- Default to true if not set
+
+    -- Check if slot numbers and item counts should be shown
+    local showSlotNumbers = textSettings:get("showSlotNumbers")
+    if showSlotNumbers == nil then showSlotNumbers = true end -- Default to true if not set
+
+    local showItemCounts = textSettings:get("showItemCounts")
+    if showItemCounts == nil then showItemCounts = true end -- Default to true if not set
+
+    -- Get text sizes
+    local slotNumberTextSize = textSettings:get("slotNumberTextSize") or 14
+    local itemCountTextSize = textSettings:get("itemCountTextSize") or 12
+
+    return {
+        textColor = finalTextColor,
+        shadowColor = finalShadowColor,
+        shadowEnabled = shadowEnabled,
+        showSlotNumbers = showSlotNumbers,
+        showItemCounts = showItemCounts,
+        slotNumberTextSize = slotNumberTextSize,
+        itemCountTextSize = itemCountTextSize
+    }
+end
+
+-- Define reusable text style variables
+local TEXT_COLORS = {
+    itemCount = nil, -- Will be set dynamically
+    slotNumber = nil -- Will be set dynamically
+}
+
+local TEXT_SHADOWS = {
+    enabled = true, -- Will be set dynamically
+    color = nil     -- Will be set dynamically
+}
+
+-- Function to refresh text style settings
+local function refreshTextStyles()
+    local styles = getTextStyles()
+
+    TEXT_COLORS.itemCount = styles.textColor
+    TEXT_COLORS.slotNumber = styles.textColor
+
+    TEXT_SHADOWS.enabled = styles.shadowEnabled
+    TEXT_SHADOWS.color = styles.shadowColor
+end
+
+-- Initialize text styles
+refreshTextStyles()
 
 -- Create a dedicated tooltip layer on top of everything else
 local function initTooltipLayer()
@@ -282,19 +350,27 @@ local function createCustomIcon(item, xicon, num, prefix)
 
         table.insert(iconContent, content)
 
-        -- Include count text if applicable
-        if item.count > 1 then
+        -- Include count text if applicable and enabled
+        local styles = getTextStyles()
+        if item.count > 1 and styles.showItemCounts then
             icon = ui.content(iconContent)
+
+            -- Refresh text styles to ensure we have the latest settings
+            refreshTextStyles()
+
             table.insert(icon, {
                 type = ui.TYPE.Text,
                 template = I.MWUI.templates.textHeader,
                 props = {
                     text = tostring(item.count),
-                    textSize = 14,
+                    textSize = styles.itemCountTextSize,
                     relativePosition = util.vector2(0.1, 0.1),
                     anchor = util.vector2(0.1, 0.1),
                     arrange = ui.ALIGNMENT.Start,
                     align = ui.ALIGNMENT.Start,
+                    textShadow = TEXT_SHADOWS.enabled,
+                    textShadowColor = TEXT_SHADOWS.color,
+                    textColor = TEXT_COLORS.itemCount
                 }
             })
         else
@@ -344,25 +420,35 @@ local function createHotbarItem(item, xicon, num, data)
     elseif xicon then
         icon = createCustomIcon(nil, xicon, num, prefix)
     elseif num then
-        icon = ui.content {
-            {
-                type = ui.TYPE.Text,
-                template = I.MWUI.templates.textNormal,
-                props = {
-                    text = prefix .. tostring(displayNum),
-                    textSize = 20 * scale,
-                    relativePosition = util.vector2(0.5, 0.5),
-                    anchor = util.vector2(0.5, 0.5),
-                    arrange = ui.ALIGNMENT.Center,
-                    align = ui.ALIGNMENT.Center,
-                },
-                item = item,
-                num = num,
-                events = {
-                    --          mouseMove = async:callback(mouseMove),
-                },
+        -- Only create number text if slot numbers are enabled
+        local styles = getTextStyles()
+        if styles.showSlotNumbers then
+            icon = ui.content {
+                {
+                    type = ui.TYPE.Text,
+                    template = I.MWUI.templates.textNormal,
+                    props = {
+                        text = prefix .. tostring(displayNum),
+                        textSize = styles.slotNumberTextSize,
+                        relativePosition = util.vector2(0.85, 0.9),
+                        anchor = util.vector2(0.85, 0.9),
+                        arrange = ui.ALIGNMENT.End,
+                        align = ui.ALIGNMENT.End,
+                        textShadow = TEXT_SHADOWS.enabled,
+                        textShadowColor = TEXT_SHADOWS.color,
+                        textColor = TEXT_COLORS.slotNumber
+                    },
+                    item = item,
+                    num = num,
+                    events = {
+                        --          mouseMove = async:callback(mouseMove),
+                    },
+                }
             }
-        }
+        else
+            -- Create empty content if slot numbers are disabled
+            icon = ui.content {}
+        end
     end
 
     -- Use fixed icon size

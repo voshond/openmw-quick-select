@@ -250,10 +250,37 @@ return {
             if data then
                 selectedPage = data.selectedPage or 0
                 initialHotbarDrawn = data.initialHotbarDrawn or false
-            else
-                initialHotbarDrawn = false
             end
-            lastHotbarUpdateTime = os.time()
+        end
+    },
+    eventHandlers = {
+        -- Respond to settings changes
+        settingsChanged = function(data)
+            log("Settings changed: " .. tostring(data.key), "info")
+
+            -- If text appearance settings changed, refresh styles and redraw UI
+            if (data.page == "SettingsVoshondsQuickSelect" and
+                    data.group == "SettingsVoshondsQuickSelectText") or
+                (data.key == "slotTextColor" or
+                    data.key == "slotTextAlpha" or
+                    data.key == "slotTextShadowColor" or
+                    data.key == "slotTextShadowAlpha" or
+                    data.key == "enableTextShadow" or
+                    data.key == "showSlotNumbers" or
+                    data.key == "showItemCounts") then
+                -- Refresh text styles in the icon controller
+                if I.Controller_Icon_QS and I.Controller_Icon_QS.refreshTextStyles then
+                    log("Refreshing text styles", "info")
+                    I.Controller_Icon_QS.refreshTextStyles()
+                end
+
+                -- Force redraw the hotbar to apply changes
+                if I.QuickSelect_Hotbar then
+                    log("Redrawing hotbar to apply text style changes", "info")
+                    lastHotbarUpdateTime = os.time()
+                    I.QuickSelect_Hotbar.drawHotbar()
+                end
+            end
         end
     }
 }

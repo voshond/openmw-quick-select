@@ -106,7 +106,98 @@ I.Settings.registerGroup {
             default = false
         },
     },
-
 }
+
+-- Register text appearance settings group
+I.Settings.registerGroup {
+    key = "SettingsVoshondsQuickSelectText",
+    page = "SettingsVoshondsQuickSelect",
+    l10n = "SettingsVoshondsQuickSelect",
+    name = "Text Appearance",
+    permanentStorage = true,
+    description = "These settings control the appearance of text in the QuickSelect interface.",
+    settings = {
+        {
+            key = "showSlotNumbers",
+            renderer = "checkbox",
+            name = "Show Slot Numbers",
+            description = "If enabled, slot numbers will be displayed in the bottom right of each item.",
+            default = true
+        },
+        {
+            key = "showItemCounts",
+            renderer = "checkbox",
+            name = "Show Item Counts",
+            description = "If enabled, the count of stackable items will be displayed in the top left of each item.",
+            default = true
+        },
+        {
+            key = "slotNumberTextSize",
+            renderer = "number",
+            name = "Slot Number Text Size",
+            description = "Controls the font size of the slot number text.",
+            default = 14,
+            argument = {
+                min = 6,
+                max = 32,
+            },
+        },
+        {
+            key = "itemCountTextSize",
+            renderer = "number",
+            name = "Item Count Text Size",
+            description = "Controls the font size of the item count text.",
+            default = 12,
+            argument = {
+                min = 6,
+                max = 32,
+            },
+        },
+        {
+            key = "slotTextColor",
+            renderer = "color",
+            name = "Slot Text Color",
+            description = "Controls the color of the slot numbers and item counts.",
+            default = util.color.rgba(0.6, 0.8, 1.0, 1.0), -- Light blue default
+        },
+        {
+            key = "slotTextAlpha",
+            renderer = "number",
+            name = "Slot Text Opacity",
+            description = "Controls the transparency of the slot text. Higher values make the text more opaque.",
+            default = 100,
+            argument = {
+                min = 0,
+                max = 100,
+            },
+        },
+        {
+            key = "slotTextShadowColor",
+            renderer = "color",
+            name = "Text Shadow Color",
+            description = "Controls the color of the shadow behind slot numbers and item counts.",
+            default = util.color.rgba(0, 0, 0, 1.0), -- Black default
+        },
+        {
+            key = "slotTextShadowAlpha",
+            renderer = "number",
+            name = "Text Shadow Opacity",
+            description = "Controls the transparency of the text shadow. Higher values make the shadow more visible.",
+            default = 100,
+            argument = {
+                min = 0,
+                max = 100,
+            },
+        },
+        {
+            key = "enableTextShadow",
+            renderer = "checkbox",
+            name = "Enable Text Shadow",
+            description = "If enabled, text will have a shadow effect to improve readability.",
+            default = true
+        },
+    },
+}
+
 settings:get("unEquipOnHotkey")
 return settings

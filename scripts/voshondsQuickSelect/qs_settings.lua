@@ -196,6 +196,35 @@ I.Settings.registerGroup {
             description = "If enabled, text will have a shadow effect to improve readability.",
             default = true
         },
+        {
+            key = "enableQuantityThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Item Quantity Threshold Colour",
+            description = "If enabled, item counts will change color based on quantity thresholds.",
+            default = false
+        },
+        {
+            key = "quantityCriticalThreshold",
+            renderer = "number",
+            name = "Critical Quantity Threshold",
+            description = "Item counts at or below this value will be shown in red.",
+            default = 1,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        {
+            key = "quantityWarningThreshold",
+            renderer = "number",
+            name = "Warning Quantity Threshold",
+            description = "Item counts at or below this value (but above critical) will be shown in orange.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
     },
 }
 

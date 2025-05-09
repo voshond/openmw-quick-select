@@ -86,20 +86,48 @@ local function getIconSize()
 end
 
 local savedTextures = {}
+local function getThresholdItemCountColor(count)
+    local enable = textSettings:get("enableQuantityThresholdColor")
+    if not enable then
+        return getTextStyles().textColor
+    end
+    local critical = textSettings:get("quantityCriticalThreshold") or 1
+    local warning = textSettings:get("quantityWarningThreshold") or 5
+    local baseColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
+    local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
+    -- Red and orange for thresholds
+    local warningColor = util.color.rgba(0.95, 0.15, 0.0, textAlpha) -- even deeper orange
+    local criticalColor = util.color.rgba(1.0, 0.1, 0.1, textAlpha)  -- red
+    if count <= critical then
+        return criticalColor
+    elseif count <= warning then
+        -- Fade between orange and base color
+        local t = (count - critical) / math.max(1, (warning - critical))
+        return util.color.rgba(
+            warningColor.r * (1 - t) + baseColor.r * t,
+            warningColor.g * (1 - t) + baseColor.g * t,
+            warningColor.b * (1 - t) + baseColor.b * t,
+            textAlpha
+        )
+    else
+        return baseColor
+    end
+end
+
 local function textContent(text)
     if not text or text == "" then
         return {}
     end
-
-    -- Refresh text styles to ensure we have the latest settings
     refreshTextStyles()
-
-    -- Don't show item counts if disabled
     if not getTextStyles().showItemCounts then
         return {}
     end
-
     local styles = getTextStyles()
+    local count = tonumber(text)
+    local color = styles.textColor
+    if count then
+        color = getThresholdItemCountColor(count)
+    end
     return {
         type = ui.TYPE.Text,
         template = I.MWUI.templates.textNormal,
@@ -110,10 +138,11 @@ local function textContent(text)
             anchor = util.vector2(0.1, 0.1),
             textShadow = TEXT_SHADOWS.enabled,
             textShadowColor = TEXT_SHADOWS.color,
-            textColor = TEXT_COLORS.itemCount
+            textColor = color
         }
     }
 end
+
 local function imageContent(resource, half, customOpacity)
     local size = getIconSize()
     local opacity = customOpacity or 1

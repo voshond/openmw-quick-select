@@ -18,6 +18,143 @@ local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
 local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
 
+-- Simple cache for last known charges
+local enchantmentChargeCache = {}
+
+-- Variables for periodic UI refresh
+local lastRefreshTime = 0
+local REFRESH_INTERVAL = 2.0    -- Refresh every 1 second
+local needsRefresh = false      -- Flag to indicate UI needs refreshing
+local activeEnchantedItems = {} -- Track active enchanted items in hotbar
+
+
+-- Helper function to get item charge (called directly when needed)
+local function getItemCharge(item)
+    if not item or not item.type or not item.recordId then
+        return nil
+    end
+
+    local record = item.type.records[item.recordId]
+    local enchantmentId = record and record.enchant
+
+    if not enchantmentId or enchantmentId == "" then
+        return nil
+    end
+
+    local charge = nil
+
+    -- Try to get charge using the proper API method
+    if types.Item.getEnchantmentCharge then
+        charge = types.Item.getEnchantmentCharge(item)
+        -- Fallback to older methods
+    elseif types.Item.itemData and types.Item.itemData(item) and types.Item.itemData(item).charge ~= nil then
+        charge = types.Item.itemData(item).charge
+    elseif types.Item.charge then
+        charge = types.Item.charge(item)
+    end
+
+    if charge ~= nil then
+        -- Store in cache for future reference
+        local itemKey = item.recordId .. "_" .. (item.id or "")
+        local oldCharge = enchantmentChargeCache[itemKey]
+        local newCharge = math.floor(charge)
+        enchantmentChargeCache[itemKey] = newCharge
+
+        -- If charge changed, flag for UI refresh
+        if oldCharge ~= newCharge then
+            Debug.frameLog("EnchantCharge", "Charge changed for " .. item.recordId .. ": " ..
+                tostring(oldCharge) .. " -> " .. tostring(newCharge))
+            needsRefresh = true
+            return charge
+        end
+    end
+
+    return charge
+end
+
+-- Function to register an enchanted item for periodic updates
+local function registerEnchantedItem(item, slotNumber)
+    if item and item.type and item.recordId then
+        local record = item.type.records[item.recordId]
+        local enchantmentId = record and record.enchant
+
+        if enchantmentId and enchantmentId ~= "" then
+            local enchantment = core.magic.enchantments.records[enchantmentId]
+
+            if enchantment then
+                local usesCharge = (
+                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnUse or
+                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnStrike or
+                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnce
+                )
+
+                if usesCharge then
+                    -- Add to active enchanted items list
+                    activeEnchantedItems[slotNumber] = {
+                        item = item,
+                        enchantmentId = enchantmentId
+                    }
+                    Debug.frameLog("EnchantCharge", "Registered enchanted item in slot " ..
+                        tostring(slotNumber) .. ": " .. item.recordId)
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- Function to check if UI refresh is needed
+local function checkForRefresh()
+    local currentTime = core.getGameTime()
+    if currentTime - lastRefreshTime < REFRESH_INTERVAL then
+        return false
+    end
+
+    lastRefreshTime = currentTime
+    return true
+end
+
+-- Function to force UI refresh for enchanted items
+local function refreshEnchantedItems()
+    if not checkForRefresh() then
+        return
+    end
+
+    Debug.frameLog("EnchantCharge", "Checking enchanted items for updates...")
+    local updatedCount = 0
+
+    for slotNumber, data in pairs(activeEnchantedItems) do
+        local item = data.item
+        if item then
+            local charge = getItemCharge(item)
+            if charge then
+                updatedCount = updatedCount + 1
+            end
+        end
+    end
+
+    if updatedCount > 0 or needsRefresh then
+        Debug.frameLog("EnchantCharge", "Updated " .. updatedCount .. " enchanted items, requesting UI refresh")
+
+        -- Use the QuickSelect_Hotbar interface to trigger a UI refresh
+        if I.QuickSelect_Hotbar then
+            Debug.frameLog("EnchantCharge", "Calling QuickSelect_Hotbar.drawHotbar()")
+            local success, err = pcall(function()
+                I.QuickSelect_Hotbar.drawHotbar()
+            end)
+            if not success then
+                Debug.error("EnchantCharge", "Error refreshing UI: " .. tostring(err))
+            end
+        else
+            Debug.error("EnchantCharge", "QuickSelect_Hotbar interface not available")
+        end
+
+        -- Reset the refresh flag
+        needsRefresh = false
+    end
+end
+
 -- Function to get text appearance settings
 local function getTextStyles()
     -- Get color settings or use defaults
@@ -306,25 +443,20 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                 "Found enchantmentId: " .. tostring(enchantmentId) .. " for item: " .. tostring(item.recordId))
             local enchantment = core.magic.enchantments.records[enchantmentId]
 
-            -- First try to get charge from item data
-            local charge = nil
-            local itemData = types.Item.itemData and types.Item.itemData(item)
+            -- Register this enchanted item for periodic updates
+            registerEnchantedItem(item, slotNumber)
 
-            -- Use the proper API method: getEnchantmentCharge
-            if types.Item.getEnchantmentCharge then
-                charge = types.Item.getEnchantmentCharge(item)
-                Debug.log("QuickSelect", "Got charge from types.Item.getEnchantmentCharge: " .. tostring(charge))
-                -- Fallback to older methods
-            elseif itemData and itemData.charge ~= nil then
-                charge = itemData.charge
-                Debug.log("QuickSelect", "Got charge from itemData.charge: " .. tostring(charge))
-            elseif types.Item.charge then
-                charge = types.Item.charge(item)
-                Debug.log("QuickSelect", "Got charge from types.Item.charge: " .. tostring(charge))
-                -- Use stored charge from slot data if available
-            elseif slotData and slotData.lastKnownCharge then
-                charge = slotData.lastKnownCharge
-                Debug.log("QuickSelect", "Using stored charge from slot data: " .. tostring(charge))
+            -- Get charge directly when rendering the item
+            local charge = getItemCharge(item)
+
+            -- If direct charge retrieval failed, try to use cached or slot data value
+            if charge == nil then
+                local itemKey = item.recordId .. "_" .. (item.id or "")
+                if enchantmentChargeCache[itemKey] then
+                    charge = enchantmentChargeCache[itemKey]
+                elseif slotData and slotData.lastKnownCharge then
+                    charge = slotData.lastKnownCharge
+                end
             end
 
             Debug.log("QuickSelect", "Final charge value: " .. tostring(charge))
@@ -350,6 +482,11 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                     chargeText = textContent(tostring(charge), true, maxCharge)
                     Debug.log("QuickSelect",
                         "chargeText from textContent: " .. tostring(chargeText.props and chargeText.props.text))
+
+                    -- Update slotData with the current charge for future reference
+                    if slotData then
+                        slotData.lastKnownCharge = charge
+                    end
                 elseif usesCharge and charge == nil then
                     Debug.log("QuickSelect",
                         "Enchanted item has no charge property (even after fallback): " .. tostring(item.recordId))
@@ -553,15 +690,18 @@ return {
         getItemIcon = getItemIcon,
         getSpellIcon = getSpellIcon,
         getEmptyIcon = getEmptyIcon,
-        refreshTextStyles = refreshTextStyles -- Export this so it can be called when settings change
+        refreshTextStyles = refreshTextStyles,        -- Export this so it can be called when settings change
+        refreshEnchantedItems = refreshEnchantedItems -- Export the refresh function
     },
     eventHandlers = {
     },
     engineHandlers = {
         onFrame = function()
             -- Check for settings changes periodically
-            -- This is a lightweight operation since we're just fetching stored values
             refreshTextStyles()
+
+            -- Periodically refresh enchanted items
+            refreshEnchantedItems()
         end
     }
 }

@@ -99,6 +99,13 @@ I.Settings.registerGroup {
             default = false
         },
         {
+            key = "enableFrameLogging",
+            renderer = "checkbox",
+            name = "Enable Frame Logging",
+            description = "If enabled, logs high-frequency updates like UI refreshes and animations. Warning: Can be extremely verbose!",
+            default = false
+        },
+        {
             key = "enableFadingBars",
             renderer = "checkbox",
             name = "Enable Fading Bars",

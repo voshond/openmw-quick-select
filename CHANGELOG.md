@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.9 (2025-05-09)
+
+Ability to show/hide slot number, item count, change colour, add shadow, control transparency
+
+
 ## Version 1.0.8 (2025-05-08)
 
 Fix for not hidden bars when hiding all UI, had to remove when debugging the blank char rendering issue.
@@ -47,6 +52,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

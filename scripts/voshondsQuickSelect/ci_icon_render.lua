@@ -16,6 +16,7 @@ local storage = require("openmw.storage")
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
+local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
 
 -- Function to get text appearance settings
 local function getTextStyles()
@@ -115,14 +116,33 @@ local function getThresholdItemCountColor(count)
     end
 end
 
-local function textContent(text, isCharge)
+local function getMagicChargeStyles()
+    local showMagicCharges = magicChargeSettings:get("showMagicCharges")
+    if showMagicCharges == nil then showMagicCharges = true end
+    local showMaxMagicCharges = magicChargeSettings:get("showMaxMagicCharges")
+    if showMaxMagicCharges == nil then showMaxMagicCharges = true end
+    local textSize = magicChargeSettings:get("magicChargeTextSize") or 14
+    local textColor = magicChargeSettings:get("magicChargeTextColor") or util.color.rgba(0.2, 0.6, 1, 1)
+    local textAlpha = (magicChargeSettings:get("magicChargeTextAlpha") or 100) / 100
+    local finalTextColor = util.color.rgba(textColor.r, textColor.g, textColor.b, textAlpha)
+    local shadowEnabled = magicChargeSettings:get("magicChargeTextShadow")
+    if shadowEnabled == nil then shadowEnabled = true end
+    local shadowColor = magicChargeSettings:get("magicChargeTextShadowColor") or util.color.rgba(0, 0, 0, 1.0)
+    return {
+        showMagicCharges = showMagicCharges,
+        showMaxMagicCharges = showMaxMagicCharges,
+        textSize = textSize,
+        textColor = finalTextColor,
+        shadowEnabled = shadowEnabled,
+        shadowColor = shadowColor
+    }
+end
+
+local function textContent(text, isCharge, maxCharge)
     if not text or text == "" then
         return {}
     end
     refreshTextStyles()
-
-    Debug.log("QuickSelect", "!!!!!!!!!!!!!isCharge " .. tostring(text) .. ", isCharge: " .. tostring(isCharge))
-
     -- Always show charge values for enchanted items, only check showItemCounts for regular item counts
     local styles = getTextStyles()
     if not isCharge and not styles.showItemCounts then
@@ -130,15 +150,36 @@ local function textContent(text, isCharge)
     end
     local count = tonumber(text)
     local color = styles.textColor
-    local position = util.vector2(0.1, 0.1) -- Default position (upper left)
+    local position = util.vector2(0.1, 0.05) -- Default position (upper left)
     -- Special handling for charge values
     if isCharge then
-        Debug.log("QuickSelect", "!!!!!!!!!!!!!isCharge " .. tostring(text) .. ", isCharge: " .. tostring(isCharge))
-        color = util.color.rgba(0.2, 0.6, 1, 1) -- blue
+        local magicStyles = getMagicChargeStyles()
+        if not magicStyles.showMagicCharges then
+            return {}
+        end
+        color = magicStyles.textColor
+        local displayText = text
+        if maxCharge and magicStyles.showMaxMagicCharges then
+            displayText = tostring(text) .. "/" .. tostring(maxCharge)
+        end
+        return {
+            type = ui.TYPE.Text,
+            template = I.MWUI.templates.textNormal,
+            props = {
+                text = displayText,
+                textSize = magicStyles.textSize,
+                relativePosition = position,
+                anchor = position,
+                arrange = ui.ALIGNMENT.Start,
+                align = ui.ALIGNMENT.Start,
+                textShadow = magicStyles.shadowEnabled,
+                textShadowColor = magicStyles.shadowColor,
+                textColor = color
+            }
+        }
     elseif count then
         color = getThresholdItemCountColor(count)
     end
-    Debug.log("QuickSelect", "!!!!!!!!!!!!!isCharge " .. tostring(text) .. ", isCharge: " .. tostring(isCharge))
     return {
         type = ui.TYPE.Text,
         template = I.MWUI.templates.textNormal,
@@ -306,7 +347,7 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                     Debug.log("QuickSelect",
                         "Displaying charge: " ..
                         tostring(charge) .. "/" .. tostring(maxCharge) .. " for item: " .. tostring(item.recordId))
-                    chargeText = textContent(tostring(charge) .. "/" .. tostring(maxCharge), true)
+                    chargeText = textContent(tostring(charge), true, maxCharge)
                     Debug.log("QuickSelect",
                         "chargeText from textContent: " .. tostring(chargeText.props and chargeText.props.text))
                 elseif usesCharge and charge == nil then

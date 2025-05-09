@@ -228,5 +228,73 @@ I.Settings.registerGroup {
     },
 }
 
+I.Settings.registerGroup {
+    key = "SettingsVoshondsQuickSelectMagicCharges",
+    page = "SettingsVoshondsQuickSelect",
+    l10n = "SettingsVoshondsQuickSelect",
+    name = "Magic Charges",
+    permanentStorage = true,
+    description = "These settings control the appearance and behavior of magic charge displays for enchanted items in the QuickSelect interface.",
+    settings = {
+        {
+            key = "showMagicCharges",
+            renderer = "checkbox",
+            name = "Show Magic Charges",
+            description = "If enabled, the current charge of enchanted items will be displayed.",
+            default = true
+        },
+        {
+            key = "showMaxMagicCharges",
+            renderer = "checkbox",
+            name = "Show Max Charges",
+            description = "If enabled, the maximum charge value will be shown alongside the current charge (e.g. 20/100).",
+            default = true
+        },
+        {
+            key = "magicChargeTextSize",
+            renderer = "number",
+            name = "Magic Charge Text Size",
+            description = "Controls the font size of the magic charge text.",
+            default = 14,
+            argument = {
+                min = 6,
+                max = 32,
+            },
+        },
+        {
+            key = "magicChargeTextColor",
+            renderer = "color",
+            name = "Magic Charge Text Color",
+            description = "Controls the color of the magic charge text.",
+            default = util.color.rgba(0.2, 0.6, 1, 1), -- blue default
+        },
+        {
+            key = "magicChargeTextAlpha",
+            renderer = "number",
+            name = "Magic Charge Text Opacity",
+            description = "Controls the transparency of the magic charge text. Higher values make the text more opaque.",
+            default = 100,
+            argument = {
+                min = 0,
+                max = 100,
+            },
+        },
+        {
+            key = "magicChargeTextShadow",
+            renderer = "checkbox",
+            name = "Enable Magic Charge Text Shadow",
+            description = "If enabled, a shadow will be drawn behind the magic charge text.",
+            default = true
+        },
+        {
+            key = "magicChargeTextShadowColor",
+            renderer = "color",
+            name = "Magic Charge Text Shadow Color",
+            description = "Controls the color of the shadow behind the magic charge text.",
+            default = util.color.rgba(0, 0, 0, 1.0), -- Black default
+        },
+    },
+}
+
 settings:get("unEquipOnHotkey")
 return settings

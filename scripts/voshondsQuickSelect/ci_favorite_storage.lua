@@ -87,6 +87,41 @@ local function saveStoredItemData(id, slot)
     deleteStoredItemData(slot)
     storedItems[slot].item = id
 
+    -- Check if the item is in the inventory and has an enchantment
+    local realItem = types.Actor.inventory(self):find(id)
+    if realItem then
+        -- Store record ID for future reference
+        storedItems[slot].recordId = realItem.recordId
+
+        -- Check if item has an enchantment
+        local record = realItem.type.records[realItem.recordId]
+        if record and record.enchant and record.enchant ~= "" then
+            -- Store enchantment ID for future reference
+            storedItems[slot].itemEnchantId = record.enchant
+
+            -- Try to store charge information if available
+            if types.Item.getEnchantmentCharge then
+                local charge = types.Item.getEnchantmentCharge(realItem)
+                if charge then
+                    Debug.storage("Stored charge information from types.Item.getEnchantmentCharge: " .. tostring(charge))
+                    storedItems[slot].lastKnownCharge = charge
+                end
+            elseif types.Item.itemData and types.Item.itemData(realItem) then
+                local itemData = types.Item.itemData(realItem)
+                if itemData and itemData.charge then
+                    Debug.storage("Stored charge information: " .. tostring(itemData.charge))
+                    storedItems[slot].lastKnownCharge = itemData.charge
+                end
+            elseif types.Item.charge then
+                local charge = types.Item.charge(realItem)
+                if charge then
+                    Debug.storage("Stored charge information from types.Item.charge: " .. tostring(charge))
+                    storedItems[slot].lastKnownCharge = charge
+                end
+            end
+        end
+    end
+
     triggerHotbarRedraw()
 end
 local function saveStoredSpellData(spellId, spellType, slot)

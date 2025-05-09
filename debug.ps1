@@ -1,7 +1,6 @@
 param(
     [switch]$noLog,
-    [switch]$focus,
-    [switch]$resetSettings
+    [switch]$focus
 )
 
 # Clear the console
@@ -34,20 +33,6 @@ Copy-Item -Path "$sourceDir\scripts\voshondsQuickSelect\*" -Destination $scripts
 Copy-Item -Path "$sourceDir\icons" -Destination $modDir -Recurse -Force
 Copy-Item -Path "$sourceDir\voshondsQuickSelect.omwscripts" -Destination $modDir -Force
 Write-Host "Copied all mod files to $modDir"
-
-# Reset settings if requested
-if ($resetSettings) {
-    $settingsPath = "$env:USERPROFILE\Documents\My Games\OpenMW\settings-default.cfg"
-    $jsonPath = "$env:USERPROFILE\Documents\My Games\OpenMW\player-SettingsVoshondsQuickSelect.json"
-    
-    # Delete settings JSON if it exists to reset mod settings
-    if (Test-Path $jsonPath) {
-        Remove-Item -Path $jsonPath -Force
-        Write-Host "Reset mod settings by removing $jsonPath"
-    }
-    
-    Write-Host "Settings have been reset. The mod will use default settings on next game launch."
-}
 
 # Find the main OpenMW process - get all processes and filter for the game window
 $openmwProcesses = Get-Process -Name "openmw" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne "" }

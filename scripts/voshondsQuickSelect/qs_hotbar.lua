@@ -211,7 +211,7 @@ local function createHotbarItem(item, xicon, num, data, half)
 
     -- Instead of using metatables, we'll pass the slot number directly with appropriate prefix
     if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState, num, slotPrefix)
+        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState, num, slotPrefix, data)
     elseif xicon then
         icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState, num, slotPrefix)
     elseif num then

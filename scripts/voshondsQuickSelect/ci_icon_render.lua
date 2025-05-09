@@ -15,6 +15,7 @@ local async = require("openmw.async")
 local storage = require("openmw.storage")
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
+local Debug = require("scripts.voshondsquickselect.qs_debug")
 
 -- Function to get text appearance settings
 local function getTextStyles()
@@ -114,28 +115,40 @@ local function getThresholdItemCountColor(count)
     end
 end
 
-local function textContent(text)
+local function textContent(text, isCharge)
     if not text or text == "" then
         return {}
     end
     refreshTextStyles()
-    if not getTextStyles().showItemCounts then
+
+    Debug.log("QuickSelect", "!!!!!!!!!!!!!isCharge " .. tostring(text) .. ", isCharge: " .. tostring(isCharge))
+
+    -- Always show charge values for enchanted items, only check showItemCounts for regular item counts
+    local styles = getTextStyles()
+    if not isCharge and not styles.showItemCounts then
         return {}
     end
-    local styles = getTextStyles()
     local count = tonumber(text)
     local color = styles.textColor
-    if count then
+    local position = util.vector2(0.1, 0.1) -- Default position (upper left)
+    -- Special handling for charge values
+    if isCharge then
+        Debug.log("QuickSelect", "!!!!!!!!!!!!!isCharge " .. tostring(text) .. ", isCharge: " .. tostring(isCharge))
+        color = util.color.rgba(0.2, 0.6, 1, 1) -- blue
+    elseif count then
         color = getThresholdItemCountColor(count)
     end
+    Debug.log("QuickSelect", "!!!!!!!!!!!!!isCharge " .. tostring(text) .. ", isCharge: " .. tostring(isCharge))
     return {
         type = ui.TYPE.Text,
         template = I.MWUI.templates.textNormal,
         props = {
             text = text,
             textSize = styles.itemCountTextSize,
-            relativePosition = util.vector2(0.1, 0.1),
-            anchor = util.vector2(0.1, 0.1),
+            relativePosition = position,
+            anchor = position,
+            arrange = ui.ALIGNMENT.Start,
+            align = ui.ALIGNMENT.Start,
             textShadow = TEXT_SHADOWS.enabled,
             textShadowColor = TEXT_SHADOWS.color,
             textColor = color
@@ -206,7 +219,21 @@ local function FindEnchant(item)
     return item.type.records[item.recordId].enchant
 end
 
-local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
+-- Helper to check if a table is empty
+local function isEmptyTable(t)
+    return type(t) == 'table' and next(t) == nil
+end
+
+local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotData)
+    Debug.log("QuickSelect",
+        "getItemIcon called for item: " ..
+        tostring(item) ..
+        ", type: " .. tostring(item and item.type) .. ", recordId: " .. tostring(item and item.recordId))
+    if item and item.type and item.recordId then
+        local record = item.type.records[item.recordId]
+        Debug.log("QuickSelect",
+            "Item record: " .. tostring(record and record.id) .. ", enchant: " .. tostring(record and record.enchant))
+    end
     local itemIcon = nil
 
     local selectionResource
@@ -217,18 +244,77 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
     local magicIconOpacity = 0.3
     local magicIcon = FindEnchant(item) and FindEnchant(item) ~= "" and getTexture("textures\\menu_icon_magic_mini.dds")
     local text = ""
+    local chargeText = {}    -- Ensure chargeText is always defined
+    local itemCountText = {} -- Ensure itemCountText is always defined
     if item and item.type then
         local record = item.type.records[item.recordId]
+        local enchantmentId = record and record.enchant
         if not record then
-            -- Debug.error("ci_icon_render", "No record for " .. item.recordId)
+            Debug.error("ci_icon_render", "No record for " .. item.recordId)
         else
-            -- Debug.log("ci_icon_render", "Icon: " .. tostring(record.icon))
+            Debug.log("ci_icon_render", "Icon: " .. tostring(record.icon))
         end
         if item.count > 1 then
             text = formatNumber(item.count)
         end
-
         itemIcon = getTexture(record.icon)
+
+        -- Add enchanted item charge display (upper left, replaces item count if enchanted)
+        if enchantmentId and enchantmentId ~= "" then
+            Debug.log("QuickSelect",
+                "Found enchantmentId: " .. tostring(enchantmentId) .. " for item: " .. tostring(item.recordId))
+            local enchantment = core.magic.enchantments.records[enchantmentId]
+
+            -- First try to get charge from item data
+            local charge = nil
+            local itemData = types.Item.itemData and types.Item.itemData(item)
+
+            -- Use the proper API method: getEnchantmentCharge
+            if types.Item.getEnchantmentCharge then
+                charge = types.Item.getEnchantmentCharge(item)
+                Debug.log("QuickSelect", "Got charge from types.Item.getEnchantmentCharge: " .. tostring(charge))
+                -- Fallback to older methods
+            elseif itemData and itemData.charge ~= nil then
+                charge = itemData.charge
+                Debug.log("QuickSelect", "Got charge from itemData.charge: " .. tostring(charge))
+            elseif types.Item.charge then
+                charge = types.Item.charge(item)
+                Debug.log("QuickSelect", "Got charge from types.Item.charge: " .. tostring(charge))
+                -- Use stored charge from slot data if available
+            elseif slotData and slotData.lastKnownCharge then
+                charge = slotData.lastKnownCharge
+                Debug.log("QuickSelect", "Using stored charge from slot data: " .. tostring(charge))
+            end
+
+            Debug.log("QuickSelect", "Final charge value: " .. tostring(charge))
+
+            if enchantment then
+                Debug.log("QuickSelect", "Enchantment type: " .. tostring(enchantment.type))
+
+                -- Only show charge for enchantments that use charges
+                local usesCharge = (
+                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnUse or
+                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnStrike or
+                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnce
+                )
+
+                Debug.log("QuickSelect", "usesCharge: " .. tostring(usesCharge) .. ", charge: " .. tostring(charge))
+
+                if usesCharge and charge ~= nil then
+                    charge = math.floor(charge)
+                    local maxCharge = enchantment and enchantment.charge and math.floor(enchantment.charge) or "?"
+                    Debug.log("QuickSelect",
+                        "Displaying charge: " ..
+                        tostring(charge) .. "/" .. tostring(maxCharge) .. " for item: " .. tostring(item.recordId))
+                    chargeText = textContent(tostring(charge) .. "/" .. tostring(maxCharge), true)
+                    Debug.log("QuickSelect",
+                        "chargeText from textContent: " .. tostring(chargeText.props and chargeText.props.text))
+                elseif usesCharge and charge == nil then
+                    Debug.log("QuickSelect",
+                        "Enchanted item has no charge property (even after fallback): " .. tostring(item.recordId))
+                end
+            end
+        end
     end
 
     local selectedContent = {}
@@ -237,7 +323,7 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
     end
 
     -- Save item count text for the upper left
-    local itemCountText = textContent(tostring(text))
+    itemCountText = textContent(tostring(text), false)
 
     -- Format the slot number with the prefix if available
     local slotText = slotNumber
@@ -277,16 +363,23 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix)
         }
     end
 
-    local context = ui.content {
-        selectedContent,
-        imageContent(magicIcon, half, magicIconOpacity),
-        imageContent(itemIcon, half),
-        itemCountText,
-        -- Add slot number to bottom right if we have it and it's enabled
-        slotNumberContent
-    }
-
-    return context
+    -- Compose UI content
+    local uiContent = { selectedContent, imageContent(magicIcon, half, magicIconOpacity), imageContent(itemIcon, half) }
+    -- Insert chargeText if present, otherwise itemCountText
+    if not isEmptyTable(chargeText) then
+        Debug.log("QuickSelect",
+            "Inserting chargeText into UI content array: " .. tostring(chargeText.props and chargeText.props.text))
+        table.insert(uiContent, chargeText)
+    elseif not isEmptyTable(itemCountText) then
+        table.insert(uiContent, itemCountText)
+    end
+    -- Render the slot number as before
+    --[[ if slotNumberContent and not isEmptyTable(slotNumberContent) then
+        table.insert(uiContent, slotNumberContent)
+    end ]] --
+    Debug.log("QuickSelect",
+        "Final UI content: " .. tostring(#uiContent) .. " elements, content: " .. tostring(uiContent))
+    return ui.content(uiContent)
 end
 local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
     local itemIcon = nil

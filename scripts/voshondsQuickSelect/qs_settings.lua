@@ -258,6 +258,13 @@ I.Settings.registerGroup {
             default = true
         },
         {
+            key = "enableChargeThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Charge Thresholds",
+            description = "If enabled, enchantment charges will be color-coded based on their percentage of maximum charge. Red for ≤10%, orange for ≤30%.",
+            default = true
+        },
+        {
             key = "magicChargeTextSize",
             renderer = "number",
             name = "Magic Charge Text Size",

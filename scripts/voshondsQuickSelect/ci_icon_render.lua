@@ -283,6 +283,42 @@ local function getMagicChargeStyles()
     }
 end
 
+local function getEnchantmentChargeColor(charge, maxCharge)
+    local enableThresholdColor = magicChargeSettings:get("enableChargeThresholdColor")
+    Debug.log("EnchantCharge", "getEnchantmentChargeColor called - charge: " .. tostring(charge) ..
+        ", maxCharge: " .. tostring(maxCharge) ..
+        ", enableThresholdColor: " .. tostring(enableThresholdColor))
+
+    if not enableThresholdColor or not charge or not maxCharge or maxCharge <= 0 then
+        Debug.log("EnchantCharge", "Using default color: thresholds disabled or invalid charge values")
+        return getMagicChargeStyles().textColor
+    end
+
+    local textAlpha = (magicChargeSettings:get("magicChargeTextAlpha") or 100) / 100
+    local baseColor = magicChargeSettings:get("magicChargeTextColor") or util.color.rgba(0.2, 0.6, 1, 1)
+    local baseColorWithAlpha = util.color.rgba(baseColor.r, baseColor.g, baseColor.b, textAlpha)
+
+    -- Critical threshold (10% or less)
+    local criticalColor = util.color.rgba(1.0, 0.1, 0.1, textAlpha) -- red
+
+    -- Warning threshold (30% or less)
+    local warningColor = util.color.rgba(0.95, 0.65, 0.0, textAlpha) -- orange
+
+    local percentage = charge / maxCharge
+    Debug.log("EnchantCharge", "Charge percentage: " .. tostring(percentage * 100) .. "%")
+
+    if percentage <= 0.1 then
+        Debug.log("EnchantCharge", "Using critical color (<=10%)")
+        return criticalColor
+    elseif percentage <= 0.3 then
+        Debug.log("EnchantCharge", "Using warning color (<=30%)")
+        return warningColor
+    else
+        Debug.log("EnchantCharge", "Using normal color (>30%)")
+        return baseColorWithAlpha
+    end
+end
+
 local function textContent(text, isCharge, maxCharge)
     if not text or text == "" then
         return {}
@@ -302,7 +338,14 @@ local function textContent(text, isCharge, maxCharge)
         if not magicStyles.showMagicCharges then
             return {}
         end
-        color = magicStyles.textColor
+
+        -- Determine color based on charge percentage if maxCharge is available
+        if maxCharge and tonumber(text) and tonumber(maxCharge) then
+            color = getEnchantmentChargeColor(tonumber(text), tonumber(maxCharge))
+        else
+            color = magicStyles.textColor
+        end
+
         local displayText = text
         if maxCharge and magicStyles.showMaxMagicCharges then
             displayText = tostring(text) .. "/" .. tostring(maxCharge)

@@ -603,9 +603,9 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         table.insert(uiContent, itemCountText)
     end
     -- Render the slot number as before
-    --[[ if slotNumberContent and not isEmptyTable(slotNumberContent) then
+    if slotNumberContent and not isEmptyTable(slotNumberContent) then
         table.insert(uiContent, slotNumberContent)
-    end ]] --
+    end
     Debug.log("QuickSelect",
         "Final UI content: " .. tostring(#uiContent) .. " elements, content: " .. tostring(uiContent))
     return ui.content(uiContent)

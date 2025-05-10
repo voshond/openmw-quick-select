@@ -1,16 +1,20 @@
-Item Count for Lockpicks/of that type
-Charge counter for probes, lockpicks, repair shit
-Add repair shit in the first place
-Configurable thresholds by item category
-Configurable thresholds for charge level colouring
-refactor to actionbars
-refactor rendering
-new screenshots
-move magic settings
-trigger cast of spell?
-equip triangle instead of bar bottom left corner OR change border colour
-flash or permanent last activated thing text above bar
-item condition text?
+### Todos
+
+- Item Count for Lockpicks/of that type
+- Charge counter for probes, lockpicks, repair shit
+- Add repair shit in the first place
+- Configurable thresholds by item category
+- Configurable thresholds for charge level colouring
+- refactor to actionbars
+- refactor rendering
+- new screenshots
+- move magic settings down
+- trigger cast of spell?
+- equip triangle instead of bar bottom left corner OR change border colour
+- flash or permanent last activated thing text above bar
+- item condition text?
+
+### Hints
 
 ```lua Colour Blending
     local textAlpha = (magicChargeSettings:get("magicChargeTextAlpha") or 100) / 100

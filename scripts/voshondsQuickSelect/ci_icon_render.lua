@@ -18,15 +18,16 @@ local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
 local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
 
--- Simple cache for last known charges
-local enchantmentChargeCache = {}
-
 -- Variables for periodic UI refresh
-local lastRefreshTime = 0
-local REFRESH_INTERVAL = 2.0    -- Refresh every 1 second
-local needsRefresh = false      -- Flag to indicate UI needs refreshing
-local activeEnchantedItems = {} -- Track active enchanted items in hotbar
+local REFRESH_INTERVAL = 0.5       -- Refresh every 0.5 seconds
+local activeEnchantedItems = {}    -- Track active enchanted items in hotbar
+local enchantmentChargeCache = {}  -- Simple cache for last known charges
+local lastTextStyleRefreshTime = 0 -- Track when text styles were last refreshed
+local refreshTimerActive = false   -- Flag to prevent multiple timers
 
+-- Forward declarations
+local startRefreshTimer
+local refreshEnchantedItems
 
 -- Helper function to get item charge (called directly when needed)
 local function getItemCharge(item)
@@ -58,14 +59,12 @@ local function getItemCharge(item)
         local itemKey = item.recordId .. "_" .. (item.id or "")
         local oldCharge = enchantmentChargeCache[itemKey]
         local newCharge = math.floor(charge)
-        enchantmentChargeCache[itemKey] = newCharge
 
-        -- If charge changed, flag for UI refresh
+        -- Only update cache if charge actually changed
         if oldCharge ~= newCharge then
+            enchantmentChargeCache[itemKey] = newCharge
             Debug.frameLog("EnchantCharge", "Charge changed for " .. item.recordId .. ": " ..
                 tostring(oldCharge) .. " -> " .. tostring(newCharge))
-            needsRefresh = true
-            return charge
         end
     end
 
@@ -96,6 +95,10 @@ local function registerEnchantedItem(item, slotNumber)
                     }
                     Debug.frameLog("EnchantCharge", "Registered enchanted item in slot " ..
                         tostring(slotNumber) .. ": " .. item.recordId)
+
+                    -- Start the refresh timer if not already running
+                    startRefreshTimer()
+
                     return true
                 end
             end
@@ -104,29 +107,35 @@ local function registerEnchantedItem(item, slotNumber)
     return false
 end
 
--- Function to check if UI refresh is needed
-local function checkForRefresh()
-    local currentTime = core.getGameTime()
-    if currentTime - lastRefreshTime < REFRESH_INTERVAL then
-        return false
+-- Function to start the refresh timer
+startRefreshTimer = function()
+    if refreshTimerActive then
+        return -- Timer already running
     end
 
-    lastRefreshTime = currentTime
-    return true
+    refreshTimerActive = true
+
+    -- Create a timer that runs every REFRESH_INTERVAL seconds
+    async:newUnsavableSimulationTimer(REFRESH_INTERVAL, function()
+        refreshEnchantedItems()
+
+        -- Always restart the timer to ensure continuous updates
+        refreshTimerActive = false
+        startRefreshTimer()
+    end)
 end
 
--- Function to force UI refresh for enchanted items
-local function refreshEnchantedItems()
-    if not checkForRefresh() then
-        return
-    end
-
+-- Function to refresh enchanted items
+refreshEnchantedItems = function()
     Debug.frameLog("EnchantCharge", "Checking enchanted items for updates...")
     local updatedCount = 0
+    local anyEnchantedItems = false
 
+    -- Check all active enchanted items for charge updates
     for slotNumber, data in pairs(activeEnchantedItems) do
         local item = data.item
         if item then
+            anyEnchantedItems = true
             local charge = getItemCharge(item)
             if charge then
                 updatedCount = updatedCount + 1
@@ -134,8 +143,10 @@ local function refreshEnchantedItems()
         end
     end
 
-    if updatedCount > 0 or needsRefresh then
-        Debug.frameLog("EnchantCharge", "Updated " .. updatedCount .. " enchanted items, requesting UI refresh")
+    -- If we have any enchanted items, always refresh the UI at the specified interval
+    -- This ensures continuous updates for enchanted items
+    if anyEnchantedItems then
+        Debug.frameLog("EnchantCharge", "Found " .. updatedCount .. " enchanted items, refreshing UI")
 
         -- Use the QuickSelect_Hotbar interface to trigger a UI refresh
         if I.QuickSelect_Hotbar then
@@ -149,9 +160,6 @@ local function refreshEnchantedItems()
         else
             Debug.error("EnchantCharge", "QuickSelect_Hotbar interface not available")
         end
-
-        -- Reset the refresh flag
-        needsRefresh = false
     end
 end
 
@@ -696,12 +704,30 @@ return {
     eventHandlers = {
     },
     engineHandlers = {
-        onFrame = function()
-            -- Check for settings changes periodically
-            refreshTextStyles()
+        onInit = function()
+            -- Initialize the timer system
+            Debug.log("EnchantCharge", "Initializing enchantment charge tracking system")
 
-            -- Periodically refresh enchanted items
-            refreshEnchantedItems()
+            -- Start with a clean state
+            activeEnchantedItems = {}
+            enchantmentChargeCache = {}
+            refreshTimerActive = false
+
+            -- Start the refresh timer after a short delay to allow other systems to initialize
+            async:newUnsavableSimulationTimer(1.0, function()
+                startRefreshTimer()
+            end)
+        end,
+        onFrame = function()
+            -- Only refresh text styles once per second at most
+            local currentTime = core.getGameTime()
+            if not lastTextStyleRefreshTime or currentTime - lastTextStyleRefreshTime >= 1.0 then
+                refreshTextStyles()
+                lastTextStyleRefreshTime = currentTime
+            end
+
+            -- We no longer refresh enchanted items every frame
+            -- Instead, we use a timer that runs every REFRESH_INTERVAL seconds
         end
     }
 }

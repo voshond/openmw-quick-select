@@ -380,11 +380,10 @@ local function getHotbarItems(half)
 end
 
 -- Now define the real drawHotbar function
-drawHotbar = function()
+drawHotbar = function(resetFadeTimer)
+    if resetFadeTimer == nil then resetFadeTimer = true end
     -- Modified condition: Only skip if no redraw is explicitly needed AND UI already exists
-    -- This ensures that any explicit calls to drawHotbar from outside still trigger a redraw
     if hotBarElement and not needsRedraw and not pickSlotMode and not controllerPickMode then
-        -- Add a debug message to understand when we're skipping redraws
         log("Skipping redraw - UI exists and no changes detected")
         return
     end
@@ -414,9 +413,11 @@ drawHotbar = function()
         tooltipElement = nil
     end
 
-    -- Reset fade state when drawing new hotbar
-    fadeTimer = 0
-    isFading = false
+    -- Only reset fade state if requested (user interaction)
+    if resetFadeTimer then
+        fadeTimer = 0
+        isFading = false
+    end
 
     -- Force retrieve the latest item data from storage to ensure we have the most recent changes
     -- This is especially important when items are just saved to slots
@@ -858,14 +859,10 @@ end
 return {
     interfaceName = "QuickSelect_Hotbar",
     interface = {
-        drawHotbar = function()
-            -- When called through the interface, always set needsRedraw to true
-            -- This ensures external calls always result in a redraw
+        drawHotbar = function(resetFadeTimer)
             needsRedraw = true
-
-            -- Add a safety wrapper
             local success, err = pcall(function()
-                drawHotbar()
+                drawHotbar(resetFadeTimer)
             end)
             if not success then
                 log("Error calling drawHotbar: " .. tostring(err))
@@ -883,6 +880,9 @@ return {
             if not success then
                 log("Error calling resetFade: " .. tostring(err))
             end
+        end,
+        isHotbarVisible = function()
+            return hotBarElement ~= nil
         end,
     },
     eventHandlers = {

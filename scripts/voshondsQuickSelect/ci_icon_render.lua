@@ -149,16 +149,16 @@ refreshEnchantedItems = function()
         Debug.frameLog("EnchantCharge", "Found " .. updatedCount .. " enchanted items, refreshing UI")
 
         -- Use the QuickSelect_Hotbar interface to trigger a UI refresh
-        if I.QuickSelect_Hotbar then
-            Debug.frameLog("EnchantCharge", "Calling QuickSelect_Hotbar.drawHotbar()")
+        if I.QuickSelect_Hotbar and I.QuickSelect_Hotbar.isHotbarVisible and I.QuickSelect_Hotbar.isHotbarVisible() then
+            Debug.frameLog("EnchantCharge", "Calling QuickSelect_Hotbar.drawHotbar() (hotbar is visible)")
             local success, err = pcall(function()
-                I.QuickSelect_Hotbar.drawHotbar()
+                I.QuickSelect_Hotbar.drawHotbar(false)
             end)
             if not success then
                 Debug.error("EnchantCharge", "Error refreshing UI: " .. tostring(err))
             end
         else
-            Debug.error("EnchantCharge", "QuickSelect_Hotbar interface not available")
+            Debug.frameLog("EnchantCharge", "Hotbar not visible, skipping UI refresh")
         end
     end
 end

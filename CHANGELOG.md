@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.12 (2025-05-11)
+
+Bar Fade fixes and packing script adjustments
+
+
 ## Version 1.0.11 (2025-05-10)
 
 Add a lot of icon text customisations, charge counter, item count thresholds, charge thresholds
@@ -62,6 +67,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

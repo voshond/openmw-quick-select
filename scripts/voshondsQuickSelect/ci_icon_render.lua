@@ -464,6 +464,18 @@ local function getEquippedItemOfType(itemType)
     return nil
 end
 
+-- Helper to get the total count of items of the same type and recordId in inventory (regardless of condition)
+local function getTotalItemCount(item)
+    if not item or not item.type or not item.recordId then return 0 end
+    local total = 0
+    for _, invItem in ipairs(types.Actor.inventory(self):getAll()) do
+        if invItem.type == item.type and invItem.recordId == item.recordId then
+            total = total + (invItem.count or 1)
+        end
+    end
+    return total
+end
+
 local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotData)
     Debug.log("QuickSelect",
         "getItemIcon called for item: " ..
@@ -495,7 +507,10 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         else
             Debug.log("ci_icon_render", "Icon: " .. tostring(record.icon))
         end
-        if item.count > 1 then
+        -- Use total count for lockpicks, probes, repair items; otherwise use stack count
+        if item.type == types.Lockpick or item.type == types.Probe or item.type == types.Repair then
+            text = formatNumber(getTotalItemCount(item))
+        elseif item.count > 1 then
             text = formatNumber(item.count)
         end
         itemIcon = getTexture(record.icon)
@@ -634,8 +649,8 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
             props = {
                 text = usesText,
                 textSize = styles.itemCountTextSize,
-                relativePosition = util.vector2(0.1, 0.44), -- slightly lower than the count
-                anchor = util.vector2(0.1, 0.44),
+                relativePosition = util.vector2(0.2, 0.44), -- slightly lower than the count
+                anchor = util.vector2(0.2, 0.44),
                 arrange = ui.ALIGNMENT.Start,
                 align = ui.ALIGNMENT.Start,
                 textShadow = TEXT_SHADOWS.enabled,

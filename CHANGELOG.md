@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.13 (2025-05-12)
+
+Per-type item count thresholds (Potions, Repair, Probes, Lockpicks, Ammo). Always show counts for these types, even if only 1. Show uses/condition for equipped Lockpick/Probe/Repair. Settings consolidated for easier configuration.
+
+
 ## Version 1.0.12 (2025-05-11)
 
 Bar Fade fixes and packing script adjustments
@@ -67,6 +72,7 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
+
 
 
 

@@ -41,7 +41,7 @@ jobs:
 
                   # Copy files we want to distribute
                   Copy-Item -Path "scripts\voshondsQuickSelect" -Destination "$stagingDir\scripts\voshondsQuickSelect\" -Recurse
-                  Copy-Item -Path "icons" -Destination "$stagingDir\" -Recurse
+                  Copy-Item -Path "textures" -Destination "$stagingDir\" -Recurse
                   Copy-Item -Path "voshondsQuickSelect.omwscripts" -Destination "$stagingDir\"
 
             - name: Upload as Artifact

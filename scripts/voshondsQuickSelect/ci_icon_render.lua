@@ -453,6 +453,17 @@ local function isEmptyTable(t)
     return type(t) == 'table' and next(t) == nil
 end
 
+-- Helper to get the currently equipped item of a given type (Lockpick, Probe, Repair)
+local function getEquippedItemOfType(itemType)
+    local equip = types.Actor.equipment(self)
+    for _, equippedItem in pairs(equip) do
+        if equippedItem and equippedItem.type == itemType then
+            return equippedItem
+        end
+    end
+    return nil
+end
+
 local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotData)
     Debug.log("QuickSelect",
         "getItemIcon called for item: " ..
@@ -475,6 +486,7 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
     local text = ""
     local chargeText = {}    -- Ensure chargeText is always defined
     local itemCountText = {} -- Ensure itemCountText is always defined
+    local usesText = nil
     if item and item.type then
         local record = item.type.records[item.recordId]
         local enchantmentId = record and record.enchant
@@ -544,6 +556,18 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                 end
             end
         end
+        if item and item.type and (item.type == types.Lockpick or item.type == types.Probe or item.type == types.Repair) then
+            local equipped = getEquippedItemOfType(item.type)
+            if equipped then
+                local itemData = types.Item.itemData(equipped)
+                local currentUses = itemData and itemData.condition or nil
+                local maxUses = item.type.records[equipped.recordId] and
+                    item.type.records[equipped.recordId].maxCondition
+                if currentUses and maxUses then
+                    usesText = tostring(currentUses) .. "/" .. tostring(maxUses)
+                end
+            end
+        end
     end
 
     local selectedContent = {}
@@ -601,6 +625,24 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         table.insert(uiContent, chargeText)
     elseif not isEmptyTable(itemCountText) then
         table.insert(uiContent, itemCountText)
+    end
+    -- Add uses/condition as a second line for Lockpick, Probe, Repair
+    if usesText then
+        table.insert(uiContent, {
+            type = ui.TYPE.Text,
+            template = I.MWUI.templates.textNormal,
+            props = {
+                text = usesText,
+                textSize = styles.itemCountTextSize,
+                relativePosition = util.vector2(0.1, 0.44), -- slightly lower than the count
+                anchor = util.vector2(0.1, 0.44),
+                arrange = ui.ALIGNMENT.Start,
+                align = ui.ALIGNMENT.Start,
+                textShadow = TEXT_SHADOWS.enabled,
+                textShadowColor = TEXT_SHADOWS.color,
+                textColor = styles.textColor
+            }
+        })
     end
     -- Render the slot number as before
     if slotNumberContent and not isEmptyTable(slotNumberContent) then

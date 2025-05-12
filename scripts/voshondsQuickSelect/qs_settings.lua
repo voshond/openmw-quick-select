@@ -310,5 +310,201 @@ I.Settings.registerGroup {
     },
 }
 
+I.Settings.registerGroup {
+    key = "SettingsVoshondsQuickSelectItemCountThresholds",
+    page = "SettingsVoshondsQuickSelect",
+    l10n = "SettingsVoshondsQuickSelect",
+    name = "Item Count Thresholds",
+    permanentStorage = true,
+    description = "These settings control the appearance, display, and threshold coloring of item counts for potions, repair items, probes, lockpicks, and ammo in the QuickSelect interface.",
+    settings = {
+        -- Potions
+        {
+            key = "showPotionCounts",
+            renderer = "checkbox",
+            name = "Show Potion Counts",
+            description = "If enabled, the count of potions will be displayed.",
+            default = true
+        },
+        {
+            key = "enablePotionThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Potion Quantity Threshold Colour",
+            description = "If enabled, potion counts will change color based on quantity thresholds.",
+            default = false
+        },
+        {
+            key = "potionCriticalThreshold",
+            renderer = "number",
+            name = "Potion Critical Quantity Threshold",
+            description = "Potion counts at or below this value will be shown in red.",
+            default = 1,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        {
+            key = "potionWarningThreshold",
+            renderer = "number",
+            name = "Potion Warning Quantity Threshold",
+            description = "Potion counts at or below this value (but above critical) will be shown in orange.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        -- Repair
+        {
+            key = "showRepairCounts",
+            renderer = "checkbox",
+            name = "Show Repair Counts",
+            description = "If enabled, the count of repair items will be displayed.",
+            default = true
+        },
+        {
+            key = "enableRepairThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Repair Item Quantity Threshold Colour",
+            description = "If enabled, repair item counts will change color based on quantity thresholds.",
+            default = false
+        },
+        {
+            key = "repairCriticalThreshold",
+            renderer = "number",
+            name = "Repair Item Critical Quantity Threshold",
+            description = "Repair item counts at or below this value will be shown in red.",
+            default = 1,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        {
+            key = "repairWarningThreshold",
+            renderer = "number",
+            name = "Repair Item Warning Quantity Threshold",
+            description = "Repair item counts at or below this value (but above critical) will be shown in orange.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        -- Probes
+        {
+            key = "showProbeCounts",
+            renderer = "checkbox",
+            name = "Show Probe Counts",
+            description = "If enabled, the count of probes will be displayed.",
+            default = true
+        },
+        {
+            key = "enableProbeThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Probe Quantity Threshold Colour",
+            description = "If enabled, probe counts will change color based on quantity thresholds.",
+            default = false
+        },
+        {
+            key = "probeCriticalThreshold",
+            renderer = "number",
+            name = "Probe Critical Quantity Threshold",
+            description = "Probe counts at or below this value will be shown in red.",
+            default = 1,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        {
+            key = "probeWarningThreshold",
+            renderer = "number",
+            name = "Probe Warning Quantity Threshold",
+            description = "Probe counts at or below this value (but above critical) will be shown in orange.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        -- Lockpicks
+        {
+            key = "showLockpickCounts",
+            renderer = "checkbox",
+            name = "Show Lockpick Counts",
+            description = "If enabled, the count of lockpicks will be displayed.",
+            default = true
+        },
+        {
+            key = "enableLockpickThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Lockpick Quantity Threshold Colour",
+            description = "If enabled, lockpick counts will change color based on quantity thresholds.",
+            default = false
+        },
+        {
+            key = "lockpickCriticalThreshold",
+            renderer = "number",
+            name = "Lockpick Critical Quantity Threshold",
+            description = "Lockpick counts at or below this value will be shown in red.",
+            default = 1,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        {
+            key = "lockpickWarningThreshold",
+            renderer = "number",
+            name = "Lockpick Warning Quantity Threshold",
+            description = "Lockpick counts at or below this value (but above critical) will be shown in orange.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        -- Ammo
+        {
+            key = "showAmmoCounts",
+            renderer = "checkbox",
+            name = "Show Ammo Counts",
+            description = "If enabled, the count of ammo will be displayed.",
+            default = true
+        },
+        {
+            key = "enableAmmoThresholdColor",
+            renderer = "checkbox",
+            name = "Enable Ammo Quantity Threshold Colour",
+            description = "If enabled, ammo counts will change color based on quantity thresholds.",
+            default = false
+        },
+        {
+            key = "ammoCriticalThreshold",
+            renderer = "number",
+            name = "Ammo Critical Quantity Threshold",
+            description = "Ammo counts at or below this value will be shown in red.",
+            default = 1,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+        {
+            key = "ammoWarningThreshold",
+            renderer = "number",
+            name = "Ammo Warning Quantity Threshold",
+            description = "Ammo counts at or below this value (but above critical) will be shown in orange.",
+            default = 5,
+            argument = {
+                min = 0,
+                max = 1000,
+            },
+        },
+    },
+}
+
 settings:get("unEquipOnHotkey")
 return settings

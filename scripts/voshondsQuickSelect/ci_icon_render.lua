@@ -17,6 +17,7 @@ local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
 local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
+local itemCountThresholdSettings = storage.playerSection("SettingsVoshondsQuickSelectItemCountThresholds")
 
 -- Variables for periodic UI refresh
 local REFRESH_INTERVAL = 0.5       -- Refresh every 0.5 seconds
@@ -233,22 +234,50 @@ local function getIconSize()
 end
 
 local savedTextures = {}
-local function getThresholdItemCountColor(count)
-    local enable = textSettings:get("enableQuantityThresholdColor")
-    if not enable then
-        return getTextStyles().textColor
-    end
-    local critical = textSettings:get("quantityCriticalThreshold") or 1
-    local warning = textSettings:get("quantityWarningThreshold") or 5
-    local baseColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
+local function getPerTypeThresholdColor(itemType, count)
     local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
-    -- Red and orange for thresholds
-    local warningColor = util.color.rgba(0.95, 0.15, 0.0, textAlpha) -- even deeper orange
-    local criticalColor = util.color.rgba(1.0, 0.1, 0.1, textAlpha)  -- red
+    local baseColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
+    local warningColor = util.color.rgba(0.95, 0.15, 0.0, textAlpha)
+    local criticalColor = util.color.rgba(1.0, 0.1, 0.1, textAlpha)
+    local enable, critical, warning
+
+    if itemType == types.Potion then
+        enable = itemCountThresholdSettings:get("enablePotionThresholdColor")
+        critical = itemCountThresholdSettings:get("potionCriticalThreshold") or 1
+        warning = itemCountThresholdSettings:get("potionWarningThreshold") or 5
+    elseif itemType == types.Repair then
+        enable = itemCountThresholdSettings:get("enableRepairThresholdColor")
+        critical = itemCountThresholdSettings:get("repairCriticalThreshold") or 1
+        warning = itemCountThresholdSettings:get("repairWarningThreshold") or 5
+    elseif itemType == types.Probe then
+        enable = itemCountThresholdSettings:get("enableProbeThresholdColor")
+        critical = itemCountThresholdSettings:get("probeCriticalThreshold") or 1
+        warning = itemCountThresholdSettings:get("probeWarningThreshold") or 5
+    elseif itemType == types.Lockpick then
+        enable = itemCountThresholdSettings:get("enableLockpickThresholdColor")
+        critical = itemCountThresholdSettings:get("lockpickCriticalThreshold") or 1
+        warning = itemCountThresholdSettings:get("lockpickWarningThreshold") or 5
+    elseif itemType == types.Weapon then
+        -- Ammo: Weapon type, but only for arrows/bolts
+        -- We'll check for ammo type below
+        enable = itemCountThresholdSettings:get("enableAmmoThresholdColor")
+        critical = itemCountThresholdSettings:get("ammoCriticalThreshold") or 1
+        warning = itemCountThresholdSettings:get("ammoWarningThreshold") or 5
+    end
+
+    -- Special handling for ammo: only apply to arrows/bolts
+    if itemType == types.Weapon then
+        -- Weapon type, but only for arrows/bolts
+        -- We'll check for ammo type below
+        return nil -- handled in getThresholdItemCountColor
+    end
+
+    if not enable then
+        return baseColor
+    end
     if count <= critical then
         return criticalColor
     elseif count <= warning then
-        -- Fade between orange and base color
         local t = (count - critical) / math.max(1, (warning - critical))
         return util.color.rgba(
             warningColor.r * (1 - t) + baseColor.r * t,
@@ -259,6 +288,48 @@ local function getThresholdItemCountColor(count)
     else
         return baseColor
     end
+end
+
+-- Updated getThresholdItemCountColor to use per-type settings
+local function getThresholdItemCountColor(count, item)
+    if not item or not item.type then
+        return getTextStyles().textColor
+    end
+    -- Ammo: only color for arrows/bolts
+    if item.type == types.Weapon then
+        local record = item.type.records[item.recordId]
+        local ammoTypes = {
+            [types.Weapon.TYPE.Arrow] = true,
+            [types.Weapon.TYPE.Bolt] = true
+        }
+        if ammoTypes[record.type] then
+            local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
+            local baseColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
+            local warningColor = util.color.rgba(0.95, 0.15, 0.0, textAlpha)
+            local criticalColor = util.color.rgba(1.0, 0.1, 0.1, textAlpha)
+            local enable = itemCountThresholdSettings:get("enableAmmoThresholdColor")
+            local critical = itemCountThresholdSettings:get("ammoCriticalThreshold") or 1
+            local warning = itemCountThresholdSettings:get("ammoWarningThreshold") or 5
+            if not enable then
+                return baseColor
+            end
+            if count <= critical then
+                return criticalColor
+            elseif count <= warning then
+                local t = (count - critical) / math.max(1, (warning - critical))
+                return util.color.rgba(
+                    warningColor.r * (1 - t) + baseColor.r * t,
+                    warningColor.g * (1 - t) + baseColor.g * t,
+                    warningColor.b * (1 - t) + baseColor.b * t,
+                    textAlpha
+                )
+            else
+                return baseColor
+            end
+        end
+    end
+    -- All other types
+    return getPerTypeThresholdColor(item.type, count)
 end
 
 local function getMagicChargeStyles()
@@ -319,7 +390,7 @@ local function getEnchantmentChargeColor(charge, maxCharge)
     end
 end
 
-local function textContent(text, isCharge, maxCharge)
+local function textContent(text, isCharge, maxCharge, item)
     if not text or text == "" then
         return {}
     end
@@ -366,7 +437,7 @@ local function textContent(text, isCharge, maxCharge)
             }
         }
     elseif count then
-        color = getThresholdItemCountColor(count)
+        color = getThresholdItemCountColor(count, item)
     end
     return {
         type = ui.TYPE.Text,
@@ -507,8 +578,20 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         else
             Debug.log("ci_icon_render", "Icon: " .. tostring(record.icon))
         end
-        -- Use total count for lockpicks, probes, repair items; otherwise use stack count
-        if item.type == types.Lockpick or item.type == types.Probe or item.type == types.Repair then
+        -- Use total count for lockpicks, probes, repair items, potions, ammo; otherwise use stack count
+        local alwaysShowCount = false
+        if item.type == types.Lockpick or item.type == types.Probe or item.type == types.Repair or item.type == types.Potion then
+            alwaysShowCount = true
+        elseif item.type == types.Weapon then
+            local ammoTypes = {
+                [types.Weapon.TYPE.Arrow] = true,
+                [types.Weapon.TYPE.Bolt] = true
+            }
+            if ammoTypes[record.type] then
+                alwaysShowCount = true
+            end
+        end
+        if alwaysShowCount then
             text = formatNumber(getTotalItemCount(item))
         elseif item.count > 1 then
             text = formatNumber(item.count)
@@ -557,7 +640,7 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                     Debug.log("QuickSelect",
                         "Displaying charge: " ..
                         tostring(charge) .. "/" .. tostring(maxCharge) .. " for item: " .. tostring(item.recordId))
-                    chargeText = textContent(tostring(charge), true, maxCharge)
+                    chargeText = textContent(tostring(charge), true, maxCharge, item)
                     Debug.log("QuickSelect",
                         "chargeText from textContent: " .. tostring(chargeText.props and chargeText.props.text))
 
@@ -591,7 +674,7 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
     end
 
     -- Save item count text for the upper left
-    itemCountText = textContent(tostring(text), false)
+    itemCountText = textContent(tostring(text), false, nil, item)
 
     -- Format the slot number with the prefix if available
     local slotText = slotNumber

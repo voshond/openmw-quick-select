@@ -235,34 +235,21 @@ local function createHotbarItem(item, xicon, num, data, half)
     -- Create an equipped indicator if needed
     local iconContent
     if isEquipped then
-        -- Create a border overlay that doesn't affect layout
-        local borderTexture = ui.texture({ path = "icons\\voshondsQuickSelect\\selected.tga" })
+        -- Use the equipped indicator icon from the textures folder
+        local equippedIconTexture = ui.texture({ path = "textures/equipped_indicator.dds" })
 
-        -- Wrap the boxedIcon with a container that includes both the icon and an overlay border
+        -- Overlay the equipped icon in the bottom-left corner of the hotbar icon
         iconContent = ui.content {
             boxedIcon,
             {
-                type = ui.TYPE.Container,
+                type = ui.TYPE.Image,
                 props = {
-                    size = boxSize,
-                    position = util.vector2(0, 0),
-                    arrange = ui.ALIGNMENT.Center,
-                    align = ui.ALIGNMENT.Center,
-                },
-                content = ui.content {
-                    {
-                        type = ui.TYPE.Image,
-                        props = {
-                            resource = borderTexture,
-                            size = util.vector2(sizeX + iconPadding * 2, 3), -- Make the line thicker
-                            position = util.vector2(0, (sizeY - 2) + iconPadding * 2),
-                            arrange = ui.ALIGNMENT.End,
-                            align = ui.ALIGNMENT.End,
-                            border = 1,
-                            alpha = 1,
-                            color = util.color.rgb(0, 1, 0), -- Green highlight for equipped items
-                        }
-                    }
+                    resource = equippedIconTexture,
+                    size = util.vector2(16, 16),                              -- Adjust size as needed
+                    position = util.vector2(0, sizeY + iconPadding * 2 - 16), -- Bottom-left corner
+                    arrange = ui.ALIGNMENT.Start,
+                    align = ui.ALIGNMENT.Start,
+                    alpha = 1,
                 }
             }
         }

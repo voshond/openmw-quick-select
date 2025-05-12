@@ -29,10 +29,13 @@ if (Test-Path $scriptsDir) {
 }
 
 # Copy all relevant files
+Write-Host "========================== Copying Files =========================="
 Copy-Item -Path "$sourceDir\scripts\voshondsQuickSelect\*" -Destination $scriptsDir -Recurse -Force
-Copy-Item -Path "$sourceDir\icons" -Destination $modDir -Recurse -Force
+Copy-Item -Path "$sourceDir\textures" -Destination $modDir -Recurse -Force
 Copy-Item -Path "$sourceDir\voshondsQuickSelect.omwscripts" -Destination $modDir -Force
 Write-Host "Copied all mod files to $modDir"
+Write-Host "C:\Users\Martin\AppData\Local\ModOrganizer\Morrowind\mods\"
+Write-Host "========================== Copy Complete =========================="
 
 # Find the main OpenMW process - get all processes and filter for the game window
 $openmwProcesses = Get-Process -Name "openmw" -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne "" }

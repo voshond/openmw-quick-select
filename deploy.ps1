@@ -3,6 +3,7 @@ param(
     [string]$message = ""
 )
 
+Write-Host "========================== Starting Deploy ==========================" -ForegroundColor Cyan
 # Function to validate version format
 function Test-VersionFormat {
     param (
@@ -27,6 +28,7 @@ if ($status) {
     Write-Host "Error: You have uncommitted changes. Commit or stash them before creating a release." -ForegroundColor Red
     Write-Host "Uncommitted changes:"
     Write-Host $status
+    Write-Host "========================== Deploy Failed ==========================" -ForegroundColor Red
     exit 1
 }
 
@@ -44,6 +46,7 @@ Write-Host "Creating release v$version" -ForegroundColor Cyan
 $tagExists = git tag -l "v$version"
 if ($tagExists) {
     Write-Host "Error: Tag v$version already exists." -ForegroundColor Red
+    Write-Host "========================== Deploy Failed ==========================" -ForegroundColor Red
     exit 1
 }
 
@@ -101,4 +104,5 @@ git push origin "v$version"
 
 Write-Host "Deploy completed successfully!" -ForegroundColor Green
 Write-Host "GitHub Actions workflow will now create the release automatically." -ForegroundColor Cyan
-Write-Host "Check the progress at: https://github.com/voshond/openmw-quick-select/actions" -ForegroundColor Cyan 
+Write-Host "Check the progress at: https://github.com/voshond/openmw-quick-select/actions" -ForegroundColor Cyan
+Write-Host "========================== Deploy Complete ==========================" -ForegroundColor Cyan

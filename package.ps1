@@ -10,17 +10,23 @@ $packageDir = Join-Path $outputDir $packageName
 $zipFile = Join-Path $outputDir "$packageName.zip"
 
 # Create output directories
+Write-Host "========================== Starting Package ==========================" -ForegroundColor Yellow
 Write-Host "Creating package directories..."
 if (Test-Path $outputDir) {
-    Remove-Item $outputDir -Recurse -Force
+    Write-Host "Archiving old dist contents to $outputDir\\archive\\$version" -ForegroundColor Yellow
+    $archiveDir = Join-Path $outputDir "archive\\$version"
+    New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
+    Get-ChildItem -Path $outputDir | Where-Object { $_.Name -ne 'archive' } | Move-Item -Destination $archiveDir -Force
 }
-New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+else {
+    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+}
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
 # Define files/directories to include
 $includes = @(
     "scripts\voshondsQuickSelect",
-    "icons",
+    "textures",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -35,7 +41,9 @@ $excludes = @(
     ".git",
     ".gitattributes",
     "dist",
-    "package.ps1"
+    "package.ps1",
+    "deploy.ps1",
+    "TODO.md"
 )
 
 # Copy files to package directory
@@ -70,5 +78,6 @@ if (Test-Path $zipFile) {
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory($packageDir, $zipFile)
 
-Write-Host "Package created successfully at: $zipFile"
+Write-Host "Package created successfully at: $zipFile" -ForegroundColor Green
 Write-Host "Files are also available in: $packageDir" 
+Write-Host "========================== Package Complete ==========================" -ForegroundColor Yellow

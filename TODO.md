@@ -4,7 +4,7 @@
 -   [x] Uses counter for probes, lockpicks, repair shit
 -   [x] Add repair shit in the first place
 -   [x] Configurable thresholds by item category
--   [ ] Configurable thresholds for charge level colouring
+-   [x] Configurable thresholds for charge level colouring
 -   [ ] refactor to actionbars
 -   [ ] refactor rendering
 -   [x] new screenshots
@@ -15,6 +15,8 @@
 -   [ ] item condition text?
 -   [ ] Keep Bar hidden when loading into new cell
 -   [ ] Space out Add/Change/Delete
+-   [ ] Configurable Border thickness
+-   [ ] Configurable Border colour
 
 ### Hints
 

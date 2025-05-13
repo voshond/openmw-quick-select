@@ -1,3 +1,12 @@
+### Context
+
 This is an OpenMW (Open Morrowind) Project.
-Please use these LUA Scripting docs for reference: https://openmw.readthedocs.io/en/latest/reference/lua-scripting/index.html
-Don't ask for permission to make changes, just do it. I have version control.
+
+### Workmode
+
+Don't ask for permission/suggest to make changes, JUST MAKE THE CHANGES! I have version control.
+
+### Guidelines
+
+Apply best practive concepts like: DRY and KISS.
+Please use these LUA Scripting docs for reference: https://openmw.readthedocs.io/en/latest/reference/lua-scripting/index.html as much as you can, this is a niche project and not well known.

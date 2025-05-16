@@ -278,7 +278,7 @@ local function createSpacerElement(width, half)
     height = height + (iconPadding)
 
     -- Create a transparent texture for the spacer
-    local transparentTexture = ui.texture({ path = "icons\\voshondsQuickSelect\\selected.tga" })
+    local transparentTexture = ui.texture({ path = "textures\\voshondsQuickSelect\\selected.tga" })
 
     return {
         type = ui.TYPE.Container,

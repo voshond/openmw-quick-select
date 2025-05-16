@@ -319,7 +319,7 @@ local function createCustomIcon(item, xicon, num, prefix)
 
         if record.enchant and record.enchant ~= "" then
             hasEnchantment = true
-            magicBgIcon = ui.texture({ path = "textures\\menu_icon_magic_mini.dds" })
+            magicBgIcon = ui.texture({ path = "textures/menu_icon_magic_mini.dds" })
         end
 
         local content = {

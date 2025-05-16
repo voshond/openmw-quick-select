@@ -3,7 +3,7 @@ param(
     [string]$message = ""
 )
 
-Write-Host "========================== Starting Deploy ==========================" -ForegroundColor Purple
+Write-Host "========================== Starting Deploy ==========================" -ForegroundColor Magenta
 # Function to validate version format
 function Test-VersionFormat {
     param (
@@ -105,4 +105,4 @@ git push origin "v$version"
 Write-Host "Deploy completed successfully!" -ForegroundColor Green
 Write-Host "GitHub Actions workflow will now create the release automatically." -ForegroundColor Cyan
 Write-Host "Check the progress at: https://github.com/voshond/openmw-quick-select/actions" -ForegroundColor Cyan
-Write-Host "========================== Deploy Complete ==========================" -ForegroundColor Purple
+Write-Host "========================== Deploy Complete ==========================" -ForegroundColor Magenta

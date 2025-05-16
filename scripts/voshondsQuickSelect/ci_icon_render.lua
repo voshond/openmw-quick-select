@@ -561,11 +561,11 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
 
     local selectionResource
     local drawFavoriteStar = true
-    selectionResource = getTexture("textures\\voshondsQuickSelect\\selected.tga")
+    selectionResource = getTexture("textures/voshondsQuickSelect/selected.tga")
 
     -- Get magic icon with reduced opacity (0.7)
     local magicIconOpacity = 0.3
-    local magicIcon = FindEnchant(item) and FindEnchant(item) ~= "" and getTexture("textures\\menu_icon_magic_mini.dds")
+    local magicIcon = FindEnchant(item) and FindEnchant(item) ~= "" and getTexture("textures/menu_icon_magic_mini.dds")
     local text = ""
     local chargeText = {}    -- Ensure chargeText is always defined
     local itemCountText = {} -- Ensure itemCountText is always defined
@@ -754,7 +754,7 @@ local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
     local itemIcon = nil
 
     local selectionResource
-    selectionResource = getTexture("textures\\voshondsQuickSelect\\selected.tga")
+    selectionResource = getTexture("textures/voshondsQuickSelect/selected.tga")
 
     local selectedContent = {}
     if selected then
@@ -813,7 +813,7 @@ local function getEmptyIcon(half, num, selected, useNumber, slotPrefix)
     local size = getIconSize()
     local selectionResource
     local drawFavoriteStar = true
-    selectionResource = getTexture("textures\\voshondsQuickSelect\\selected.tga")
+    selectionResource = getTexture("textures/voshondsQuickSelect/selected.tga")
 
     local selectedContent = {}
     if selected then

@@ -1,0 +1,60 @@
+{
+  "project": {
+    "name": "voshondsQuickSelect",
+    "displayName": "Voshond's Quick Select (OpenMW)",
+    "version": "1.0.1"
+  },
+  "paths": {
+    "linux": {
+      "modDir": "/home/voshond/Documents/Morrowind/mods/Voshond's Quick Select (OpenMW)",
+      "openmwConfig": "/home/voshond/.config/openmw/openmw.cfg"
+    },
+    "windows": {
+      "modDir": "C:\\Users\\Martin\\AppData\\Local\\ModOrganizer\\Morrowind\\mods\\voshond's Quick Select (OpenMW)",
+      "openmwConfig": "C:\\Users\\Martin\\Documents\\My Games\\OpenMW\\openmw.cfg"
+    }
+  },
+  "openmw": {
+    "linux": {
+      "native": "openmw",
+      "flatpak": "org.openmw.OpenMW"
+    },
+    "windows": {
+      "executable": "D:\\Games\\Morrowind\\OpenMW current\\openmw.exe",
+      "arguments": "--script-verbose --skip-menu --load \"C:\\Users\\Martin\\Documents\\My Games\\OpenMW\\saves\\Volel_Indarys\\Testing.omwsave\""
+    }
+  },
+  "packaging": {
+    "includes": [
+      "scripts/voshondsQuickSelect",
+      "textures",
+      "README.md",
+      "CHANGELOG.md",
+      "LICENSE",
+      "voshondsQuickSelect.omwscripts"
+    ],
+    "excludes": [
+      "config.json",
+      ".cursorrules",
+      "debug.*",
+      "deploy.*",
+      "package.*",
+      ".git",
+      ".gitattributes",
+      "dist",
+      "TODO.md",
+      "*.ps1",
+      "*.sh"
+    ]
+  },
+  "colors": {
+    "red": "\u001b[31m",
+    "green": "\u001b[32m",
+    "yellow": "\u001b[33m",
+    "blue": "\u001b[34m",
+    "magenta": "\u001b[35m",
+    "cyan": "\u001b[36m",
+    "white": "\u001b[37m",
+    "reset": "\u001b[0m"
+  }
+}

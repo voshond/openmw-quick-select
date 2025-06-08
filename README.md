@@ -10,18 +10,18 @@ This mod is basically a fork of ZackHasaCat's [Quickselect](https://gitlab.com/m
 
 #### A quick summary of the features
 
--   Adds up to 3 Hotbars to the game
--   Allows the player to bind items, spells and enchantments to the hotbars
--   Gives the player direct access to these by pressing 1-0, shift 1-0 or ctrl 1-0
--   Allows for customisation of the icon size, spacing between and the number of bars shown
+- Adds up to 3 Hotbars to the game
+- Allows the player to bind items, spells and enchantments to the hotbars
+- Gives the player direct access to these by pressing 1-0, shift 1-0 or ctrl 1-0
+- Allows for customisation of the icon size, spacing between and the number of bars shown
 
 #### Noteable modifications from the original
 
--   Managing bars does not "switch" the bar, but instead the player can directly access the bar by using shift/ctrl - this is probably the most noteable diviation, as it seems quickselect was more built with an controller in mind (i don't really do that)
--   Activating a weapon/spell that is already equipped will simply "unready" that weapon/spell
--   If you do not have the spell/weapon equipped, the player simply readies the activated spell
--   If the user has a spell ready, and simply switches to another spell, the stance is maintained
--   Same goes when switchting to a torch/probe/lockpick
+- Managing bars does not "switch" the bar, but instead the player can directly access the bar by using shift/ctrl - this is probably the most noteable diviation, as it seems quickselect was more built with an controller in mind (i don't really do that)
+- Activating a weapon/spell that is already equipped will simply "unready" that weapon/spell
+- If you do not have the spell/weapon equipped, the player simply readies the activated spell
+- If the user has a spell ready, and simply switches to another spell, the stance is maintained
+- Same goes when switchting to a torch/probe/lockpick
 
 ### Original Notes
 
@@ -67,23 +67,58 @@ Original Author of QuickSelect: ZackHasaCat
 
 If you've found an issue with this mod, or if you simply have a question, please use one of the following ways to reach out:
 
--   [Open an issue on Github](https://github.com/voshond/openmw-quick-select/issues)
+- [Open an issue on Github](https://github.com/voshond/openmw-quick-select/issues)
 
 ### For Developers
+
+#### Development Scripts
+
+All development scripts are now organized in the `dev-scripts/` directory and can be accessed through proxy scripts in the root:
+
+**Linux/macOS:**
+
+```bash
+./dev.sh <command> [options]
+```
+
+**Windows:**
+
+```powershell
+.\dev.ps1 <command> [options]
+```
+
+Available commands:
+
+- `debug` - Debug the mod (copy files and restart OpenMW)
+- `deploy` - Deploy a new version (create tag and release)
+- `package` - Package the mod for distribution
+
+#### Examples
+
+```bash
+# Debug the mod with focus on existing OpenMW window
+./dev.sh debug -focus
+
+# Deploy a new version
+./dev.sh deploy -v 1.2.3 -m "Bug fixes and improvements"
+
+# Package the mod
+./dev.sh package -v 1.2.3
+```
 
 #### Deployment
 
 To create a new release:
 
 1. Make sure all your changes are committed
-2. Run the deployment script: `.\deploy.ps1`
+2. Run the deployment script: `./dev.sh deploy` (Linux/macOS) or `.\dev.ps1 deploy` (Windows)
 3. Enter the version number when prompted (format: x.y.z)
 4. Enter release notes when prompted (optional)
 5. The script will:
-    - Update the CHANGELOG.md
-    - Package the mod
-    - Create a Git tag
-    - Push changes to GitHub
-    - Trigger the GitHub Actions workflow to create a release
+   - Update the CHANGELOG.md
+   - Package the mod
+   - Create a Git tag
+   - Push changes to GitHub
+   - Trigger the GitHub Actions workflow to create a release
 
-You can also run the script with parameters: `.\deploy.ps1 -version "1.2.3" -message "Release notes here"`
+You can also run the script with parameters: `./dev.sh deploy -v "1.2.3" -m "Release notes here"`

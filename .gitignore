@@ -1,6 +1,7 @@
 # Distribution / packaging
 dist/
 scripts/Example/
+examples/
 
 # IDE and editor files
 .idea/

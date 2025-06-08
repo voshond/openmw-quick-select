@@ -1,5 +1,11 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.19 (2025-06-08)
+
+Fix packaging
+
+
+
 ## Version 1.0.18 (2025-06-08)
 
 Fix packaging

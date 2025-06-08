@@ -1,5 +1,11 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.17 (2025-06-08)
+
+Mouse 4 + 5 as alternatives to ctrl and shift modifiers. Dev Script refactor
+
+
+
 ## Version 1.0.16 (2025-05-16)
 
 Fix textures path and move all custom textures into separated folder
@@ -87,19 +93,3 @@ Storage Fixes, Debug message options, Cleanups
 Initial version of the mod.
 
 <!--[Download Link](https://github.com/voshond/openmw-quick-select/releases)-->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

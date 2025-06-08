@@ -69,15 +69,28 @@ local function onInputAction(action)
     if action >= input.ACTION.QuickKey1 and action <= input.ACTION.QuickKey10 then
         local slot = action - input.ACTION.QuickKey1 + 1
 
+        -- Debug: Check all modifier states
+        local shiftPressed = input.isShiftPressed()
+        local ctrlPressed = input.isCtrlPressed()
+        local mouse4Pressed = input.isMouseButtonPressed(4)
+        local mouse5Pressed = input.isMouseButtonPressed(5)
+        
+        log("Input debug - Shift: " .. tostring(shiftPressed) .. ", Ctrl: " .. tostring(ctrlPressed) .. 
+            ", Mouse4: " .. tostring(mouse4Pressed) .. ", Mouse5: " .. tostring(mouse5Pressed), "info")
+
         -- Direct hotbar selection:
         -- Default: Keys 1-0 select slots from the first hotbar (page 0)
-        -- Shift: Shift+1-0 select slots from the second hotbar (page 1)
-        -- Ctrl: Ctrl+1-0 select slots from the third hotbar (page 2)
+        -- Shift OR Mouse4: Shift+1-0 or Mouse4+1-0 select slots from the second hotbar (page 1)
+        -- Ctrl OR Mouse5: Ctrl+1-0 or Mouse5+1-0 select slots from the third hotbar (page 2)
         local targetPage = 0
-        if input.isShiftPressed() then
+        if shiftPressed or mouse4Pressed then
             targetPage = 1
-        elseif input.isCtrlPressed() then
+            log("Target page set to 1 (Shift: " .. tostring(shiftPressed) .. ", Mouse4: " .. tostring(mouse4Pressed) .. ")", "info")
+        elseif ctrlPressed or mouse5Pressed then
             targetPage = 2
+            log("Target page set to 2 (Ctrl: " .. tostring(ctrlPressed) .. ", Mouse5: " .. tostring(mouse5Pressed) .. ")", "info")
+        else
+            log("Target page set to 0 (default)", "info")
         end
 
         -- If we're on a different page than the target, switch to it
@@ -88,7 +101,7 @@ local function onInputAction(action)
 
         -- Calculate the actual slot number based on the page
         local actualSlot = slot + (targetPage * 10)
-        log("Activated slot " .. actualSlot, "info")
+        log("Activated slot " .. actualSlot .. " (slot " .. slot .. " on page " .. targetPage .. ")", "info")
 
         -- Now that interfaces might be available, try to use them
         if I.QuickSelect_Storage then
@@ -237,6 +250,13 @@ return {
         onUpdate = function(dt)
             -- COMPLETELY DISABLE automatic updates
             -- Only draw hotbar on user action or other explicit triggers
+            
+            -- Debug: Test mouse button detection (remove this after testing)
+            local mouse4 = input.isMouseButtonPressed(5)
+            local mouse5 = input.isMouseButtonPressed(4)
+            if mouse4 or mouse5 then
+                log("Mouse button test - Mouse4: " .. tostring(mouse4) .. ", Mouse5: " .. tostring(mouse5), "info")
+            end
         end,
         onSave = function()
             log("Saving QuickSelect state", "info")

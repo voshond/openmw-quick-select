@@ -71,14 +71,22 @@ if [ -f "$zip_file" ]; then
     rm -f "$zip_file"
 fi
 
-# Check if zip command is available
+# Check for available compression utilities
 if command_exists zip; then
     cd "$DIST_DIR"
     zip -r "$package_name.zip" "$package_name"
     cd "$SCRIPT_DIR"
-    print_success "Zip archive created successfully"
+    print_success "Zip archive created successfully using zip"
+elif command_exists 7z; then
+    cd "$DIST_DIR"
+    7z a "$package_name.zip" "$package_name"
+    cd "$SCRIPT_DIR"
+    print_success "Zip archive created successfully using 7z"
 else
-    print_error "zip command not found. Please install zip utility."
+    print_error "No compression utility found. Please install either 'zip' or '7z'."
+    print_info "  Ubuntu/Debian: sudo apt install zip  OR  sudo apt install p7zip-full"
+    print_info "  Fedora/RHEL: sudo dnf install zip  OR  sudo dnf install p7zip"
+    print_info "  Arch: sudo pacman -S zip  OR  sudo pacman -S p7zip"
     exit 1
 fi
 

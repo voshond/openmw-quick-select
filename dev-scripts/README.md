@@ -30,8 +30,10 @@ Available commands:
   - Ubuntu/Debian: `sudo apt install jq`
   - Fedora/RHEL: `sudo dnf install jq`
   - Arch: `sudo pacman -S jq`
-- **zip**: Required for packaging
-  - Ubuntu/Debian: `sudo apt install zip`
+- **zip or 7z**: Required for packaging
+  - Ubuntu/Debian: `sudo apt install zip` OR `sudo apt install p7zip-full`
+  - Fedora/RHEL: `sudo dnf install zip` OR `sudo dnf install p7zip`
+  - Arch: `sudo pacman -S zip` OR `sudo pacman -S p7zip`
 - **git**: Required for deployment
 - **wmctrl**: Optional, for window focusing
   - Ubuntu/Debian: `sudo apt install wmctrl`

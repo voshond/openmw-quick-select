@@ -75,8 +75,33 @@ if (Test-Path $zipFile) {
     Remove-Item $zipFile -Force
 }
 
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::CreateFromDirectory($packageDir, $zipFile)
+# Try .NET compression first, then fallback to 7z
+try {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($packageDir, $zipFile)
+    Write-Host "Zip archive created successfully using .NET compression" -ForegroundColor Green
+}
+catch {
+    Write-Host "Warning: .NET compression failed, trying 7z..." -ForegroundColor Yellow
+    
+    # Check if 7z is available
+    $7zPath = Get-Command "7z" -ErrorAction SilentlyContinue
+    if ($7zPath) {
+        Push-Location $outputDir
+        & 7z a "$packageName.zip" $packageName
+        Pop-Location
+        Write-Host "Zip archive created successfully using 7z" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Error: No compression utility found. Please install 7-Zip." -ForegroundColor Red
+        Write-Host "Download from: https://www.7-zip.org/" -ForegroundColor Cyan
+        Write-Host "Or install via package manager:" -ForegroundColor Cyan
+        Write-Host "  Chocolatey: choco install 7zip" -ForegroundColor Cyan
+        Write-Host "  Scoop: scoop install 7zip" -ForegroundColor Cyan
+        Write-Host "  Winget: winget install 7zip.7zip" -ForegroundColor Cyan
+        exit 1
+    }
+}
 
 Write-Host "Package created successfully at: $zipFile" -ForegroundColor Green
 Write-Host "Files are also available in: $packageDir" 

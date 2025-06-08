@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Utility functions for OpenMW Quick Select mod scripts
-# Source this file in other scripts: source "$(dirname "$0")/scripts/utils.sh"
+# Source this file in other scripts: source "$(dirname "$0")/utils.sh"
 
 # Initialize configuration
 init_config() {

@@ -67,8 +67,8 @@ update_changelog "$version" "$message" "$SCRIPT_DIR"
 
 # Package the mod
 print_info "Packaging the mod..."
-if [ -f "$SCRIPT_DIR/package.sh" ]; then
-    bash "$SCRIPT_DIR/package.sh" --version "$version"
+if [ -f "$(dirname "$0")/package.sh" ]; then
+    bash "$(dirname "$0")/package.sh" --version "$version"
 else
     print_warning "package.sh not found, skipping packaging step"
 fi

@@ -1,12 +1,12 @@
 {
   "project": {
     "name": "voshondsQuickSelect",
-    "displayName": "Voshond's Quick Select (OpenMW)",
+    "displayName": "voshond's Quick Select (OpenMW)",
     "version": "1.0.1"
   },
   "paths": {
     "linux": {
-      "modDir": "/home/voshond/Documents/Morrowind/mods/Voshond's Quick Select (OpenMW)",
+      "modDir": "/home/voshond/Documents/Morrowind/mods/voshond's Quick Select (OpenMW)",
       "openmwConfig": "/home/voshond/.config/openmw/openmw.cfg"
     },
     "windows": {

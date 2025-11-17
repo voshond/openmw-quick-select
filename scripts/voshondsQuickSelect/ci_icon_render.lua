@@ -464,8 +464,9 @@ local function imageContent(resource, half, customOpacity)
     end
 
     -- Create a consistent size for all images
-    local sizeX = size
-    local sizeY = size
+    -- Reduce by 2 pixels to prevent cropping on edges
+    local sizeX = size - 0.1
+    local sizeY = size - 0.1
 
     if half then
         sizeY = sizeY / 2

@@ -3,12 +3,14 @@
 ## Project Setup
 
 ### New Branch Structure
+
 - Branch: `refactor/v2-modernization`
 - New folder: `scripts/voshondsHotbars/` (clean slate)
 - Keep old `scripts/voshondsQuickSelect/` intact on main branch
 - New mod file: `voshondsHotbars.omwscripts`
 
 ### Goals
+
 1. **Full modernization** using Zerkish example patterns
 2. **Code quality first** - readable, maintainable, well-organized
 3. **Component-based architecture** - reusable UI components
@@ -21,6 +23,7 @@
 ## Phase 1: Foundation & Core Architecture (Week 1)
 
 ### 1.1 Project Structure
+
 ```
 scripts/voshondsHotbars/
 ├── core/
@@ -53,7 +56,9 @@ scripts/voshondsHotbars/
 ```
 
 ### 1.2 Core Constants (`core/constants.lua`) ✅
+
 Centralize all magic numbers:
+
 - Hotbar configuration (slots per bar, total bars)
 - UI sizing (icon sizes, padding, spacing)
 - Update intervals (refresh rates, throttle times)
@@ -62,6 +67,7 @@ Centralize all magic numbers:
 - **Includes utility functions:** `getSlotNumber()`, `formatSlotNumber()`, `isValidSlot()`
 
 ### 1.3 Data Layer (`data/storage.lua` + `data/schemas.lua`) ✅
+
 - Clean data schema definitions
 - Validation functions for all operations
 - Type-safe slot access (1-30 bounds checking)
@@ -70,6 +76,7 @@ Centralize all magic numbers:
 - **Migration support:** Automatically converts old storage format to new schema
 
 **Schema Example:**
+
 ```lua
 -- Slot data types:
 -- Item: {type = "item", recordId = string}
@@ -85,6 +92,7 @@ Centralize all magic numbers:
 ### 2.1 Adopt Zerkish Component Patterns
 
 **Icon Component (`ui/components/Icon.lua`):**
+
 - Single unified icon creator
 - Parameters: item/spell data, size, options
 - Handles: equipped indicator, charges, count, slot numbers
@@ -92,19 +100,23 @@ Centralize all magic numbers:
 - Built-in texture caching
 
 **Slot Component (`ui/components/Slot.lua`):**
+
 - Wrapper for icon with container
 - Handles: positioning, sizing, interaction
 - Click handlers
 - Hover states
 
 **Tooltip Component (`ui/components/Tooltip.lua`):**
+
 - Single tooltip layer initialization
 - Reusable tooltip creation
 - Position calculation
 - Content generation
 
 ### 2.2 Texture Caching System (`utils/icons.lua`)
+
 Based on Zerkish pattern:
+
 ```lua
 local textureCache = {}
 function getCachedTexture(props)
@@ -117,6 +129,7 @@ end
 ```
 
 ### 2.3 Text Style Management (`utils/text_styles.lua`)
+
 - Single source of truth for all text styling
 - Export pre-configured styles
 - Settings-driven customization
@@ -127,7 +140,9 @@ end
 ## Phase 3: Smart Update System (Week 2-3)
 
 ### 3.1 Update Manager (`systems/update_manager.lua`)
+
 Based on Zerkish smart gating:
+
 - **State change detection** - only update when data actually changes
 - **Visibility gating** - skip updates when UI hidden
 - **Throttling** - configurable minimum interval between updates
@@ -135,6 +150,7 @@ Based on Zerkish smart gating:
 - **Batch operations** - combine multiple changes into single redraw
 
 **API:**
+
 ```lua
 UpdateManager.markDirty(reason)  -- Flag for update
 UpdateManager.forceUpdate()      -- Immediate full redraw
@@ -143,13 +159,16 @@ UpdateManager.shouldUpdate()     -- Check if update needed
 ```
 
 ### 3.2 Enchantment Tracking
+
 - Configurable refresh interval (setting)
 - Delta detection (only update if charges changed)
 - Visibility check (don't update hidden hotbar)
 - Batch charge updates for multiple items
 
 ### 3.3 Single Redraw Trigger
+
 Replace triple-redraw with smart single update:
+
 ```lua
 function triggerUpdate(immediate)
     UpdateManager.markDirty("storage_change")
@@ -164,12 +183,14 @@ end
 ## Phase 4: Core Functionality (Week 3)
 
 ### 4.1 Input System (`systems/input.lua`)
+
 - Clean hotkey mapping (1-0, Shift+1-0, Ctrl+1-0, Mouse4/5+1-0)
 - Slot number calculation
 - Input validation
 - Modifier key state tracking
 
 ### 4.2 Equipment System (`systems/equip.lua`)
+
 - Toggle behavior (unequip if already equipped)
 - Stance preservation (magic stance when switching spells)
 - Equipment slot resolution
@@ -177,12 +198,15 @@ end
 - Clean separation from UI
 
 ### 4.3 Spell & Item Helpers
+
 **`utils/spells.lua`:**
+
 - `getSpellIcon(spellData)` - unified spell icon resolution
 - `getEnchantmentData(enchantId)` - enchantment lookup
 - `isSpellEquipped(spellId)` - equipped state check
 
 **`utils/items.lua`:**
+
 - `shouldShowCount(item)` - count display logic
 - `getItemCharges(item)` - charge calculation
 - `findItemInInventory(recordId)` - inventory search
@@ -193,12 +217,14 @@ end
 ## Phase 5: Hotbar UI (Week 3-4)
 
 ### 5.1 Hotbar Layout (`ui/hotbar.lua`)
+
 - Component-based construction (use Icon, Slot components)
 - Clean layout logic (positioning, sizing, spacing)
 - Fade system integration
 - State management (expanded, visible, fade timer)
 
 ### 5.2 Selection Window (`ui/selection_window.lua`)
+
 - Reuse same components as hotbar
 - Grid layout for items/spells
 - Filter system (items, spells, enchantments)
@@ -206,6 +232,7 @@ end
 - Clean assignment logic
 
 ### 5.3 Settings (`systems/settings.lua`)
+
 - All existing settings preserved
 - Add new settings:
   - Enchantment refresh interval
@@ -219,6 +246,7 @@ end
 ## Phase 6: Feature Parity (Week 4)
 
 ### 6.1 Complete Feature Checklist
+
 - ✓ 3 hotbars (30 slots total)
 - ✓ Direct access via 1-0 + modifiers
 - ✓ Items, spells, enchantments support
@@ -233,6 +261,7 @@ end
 - ✓ Selection window
 
 ### 6.2 Migration Considerations
+
 - Old settings stored under `voshondsQuickSelect` namespace
 - New settings under `voshondsHotbars` namespace
 - Users can switch between versions without conflict
@@ -243,12 +272,14 @@ end
 ## Phase 7: Polish & Testing (Week 5)
 
 ### 7.1 Performance Validation
+
 - Compare update frequency (before vs after)
 - Memory usage testing
 - CPU profiling with 30 enchanted items
 - Verify texture caching effectiveness
 
 ### 7.2 Testing Matrix
+
 - Empty hotbar
 - Mixed content (items, spells, enchants)
 - All 30 slots filled with enchanted items
@@ -258,6 +289,7 @@ end
 - Multiple hotbar switching
 
 ### 7.3 Code Quality
+
 - Remove any remaining duplication
 - Ensure consistent patterns throughout
 - Verify all modules follow structure
@@ -269,6 +301,7 @@ end
 ## Implementation Guidelines
 
 ### Code Style
+
 - Clear variable names (no abbreviations unless obvious)
 - Functions do one thing well
 - Max function length: ~50 lines (extract helpers)
@@ -276,6 +309,7 @@ end
 - Prefer composition over inheritance
 
 ### OpenMW Patterns to Document
+
 - Interface registration & communication
 - Storage persistence (playerSection)
 - Async timer usage
@@ -283,6 +317,7 @@ end
 - Event handling patterns
 
 ### Error Handling
+
 - Validate at boundaries (user input, external data)
 - Fail fast for programmer errors
 - Use pcall only for genuinely risky operations
@@ -290,6 +325,7 @@ end
 - No silent failures
 
 ### Performance Rules
+
 - Cache textures and heavy computations
 - Gate updates with visibility/state checks
 - Batch UI updates when possible
@@ -301,17 +337,20 @@ end
 ## Success Metrics
 
 ### Code Quality
+
 - **LoC Reduction:** Target 30-40% fewer lines vs original (~800 LoC vs ~1200 LoC)
 - **Duplication:** Zero duplicated functions
 - **Module Cohesion:** Each module has single clear responsibility
 
 ### Performance
+
 - **Redraw Frequency:** 90% reduction in full redraws
 - **Update Gating:** UI updates only on state changes
 - **Memory:** Similar or better than original
 - **Responsiveness:** No noticeable lag on hotkey press
 
 ### Maintainability
+
 - **Clear structure:** Easy to find where functionality lives
 - **Reusable components:** Add new features by composing existing components
 - **Documented patterns:** Critical OpenMW usage explained
@@ -333,6 +372,7 @@ end
 ## Migration Path (Future)
 
 Once v2 is stable and tested:
+
 1. Release as new mod version (v2.0.0)
 2. Update CHANGELOG with breaking changes notice
 3. Optional: Deprecate old version or maintain both
@@ -344,6 +384,7 @@ Once v2 is stable and tested:
 ## Progress Tracking
 
 ### ✅ Phase 1: Foundation & Core Architecture - COMPLETE
+
 - [x] Create new branch and project structure
 - [x] `core/constants.lua` - All magic numbers centralized with utility functions (195 lines)
 - [x] `data/schemas.lua` - Data validation, type definitions, and migration support (232 lines)
@@ -355,6 +396,7 @@ Once v2 is stable and tested:
 - [x] `utils/spells.lua` - Spell/enchantment helpers (380 lines)
 
 ### Phase 1 Summary
+
 - **Total lines written:** ~1,994 lines of clean, well-documented code
 - **Duplication eliminated:** 77+ lines from text styles, more to come
 - **All core utilities complete** - Ready for Phase 2 (UI Components)
@@ -363,30 +405,69 @@ Once v2 is stable and tested:
 - **Comprehensive helpers** - Items, spells, icons, debugging all covered
 
 ### Current Status
+
 **Ready to begin Phase 2: UI Component Library**
 
 ### Pending (Phase 2)
+
 - [ ] `ui/components/Tooltip.lua` - Tooltip component
 - [ ] `ui/components/Icon.lua` - Unified icon component
 - [ ] `ui/components/Slot.lua` - Hotbar slot component
 
 ### Pending (Phase 3)
+
 - [ ] `systems/update_manager.lua` - Smart update system
 - [ ] `systems/settings.lua` - Settings registration
 
 ### Pending (Phase 4)
+
 - [ ] `systems/input.lua` - Input handling
 - [ ] `systems/equip.lua` - Equipment logic
 
 ### Pending (Phase 5)
+
 - [ ] `ui/hotbar.lua` - Hotbar rendering
 - [ ] `ui/selection_window.lua` - Item selection UI
 
 ### Pending (Phase 6)
+
 - [ ] `core/main.lua` - Main entry point
 - [ ] `voshondsHotbars.omwscripts` - Mod registration
 - [ ] Update config.json
 
 ### Pending (Phase 7)
+
 - [ ] Testing and validation
 - [ ] ARCHITECTURE.md documentation
+
+Perfect! Let's dive into Phase 3. This is where we'll implement the smart update system that brings major performance improvements. Let me start with the update manager:
+Update Todos
+
+Phase 1: Foundation & Core Architecture
+
+Phase 2: UI Component Library
+
+Implement systems/update_manager.lua (smart update system)
+
+Implement systems/settings.lua (settings registration)
+
+Implement systems/input.lua (input handling)
+
+Implement systems/equip.lua (equipment logic)
+
+Implement ui/hotbar.lua (hotbar rendering)
+
+Implement ui/selection_window.lua (item selection UI)
+
+Implement core/main.lua (main player script entry point)
+
+Create voshondsHotbars.omwscripts file
+
+Update config.json with new mod paths
+
+Test basic functionality (hotbar display, input handling)
+
+Test all features for parity with original mod
+
+Create ARCHITECTURE.md documentation
+Session limit reached ∙ resets 3am

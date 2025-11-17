@@ -28,6 +28,24 @@ local function getEnchantment(id) --
     end
     return core.magic.enchantments.records[id]
 end
+
+-- Converts a path to an effect icon into the larger version (adds "b_" prefix to filename)
+-- Example: "icons/s/tx_s_fire.dds" -> "icons/s/b_tx_s_fire.dds"
+local function getSpellEffectBigIconPath(fullPath)
+    if not fullPath then return nil end
+
+    local pattern = "[%w_]+%.dds"
+
+    local b, e = string.find(fullPath, pattern)
+    if b and e then
+        local fileLocation = string.sub(fullPath, 1, b - 1)
+        local filename = string.sub(fullPath, b, e)
+        return string.format("%sb_%s", fileLocation, filename)
+    end
+
+    -- Failed to make the path, return the original
+    return fullPath
+end
 local function FindEnchantment(item)
     if (item == nil or item.type == nil or item.type.records[item.recordId] == nil or item.type.records[item.recordId].enchant == nil or item.type.records[item.recordId].enchant == "") then
         return nil
@@ -337,6 +355,7 @@ local utility = {
     renderItemLeft = renderItemLeft,
     getEnchantment = getEnchantment,
     FindEnchantment = FindEnchantment,
+    getSpellEffectBigIconPath = getSpellEffectBigIconPath,
     calculateTextScale = calculateTextScale,
     scale = scale,
     iconSize = getIconSize,

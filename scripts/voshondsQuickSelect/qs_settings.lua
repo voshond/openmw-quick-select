@@ -84,8 +84,8 @@ I.Settings.registerGroup {
             key = "iconSize",
             renderer = "number",
             name = "Icon Size",
-            description = "Controls the size of icons in the hotbar. Higher values create larger icons.",
-            default = 40,
+            description = "Controls the size of icons in the hotbar. Use multiples of 32 (native icon size) for sharpest quality: 32, 64, 96.",
+            default = 32,
             argument = {
                 min = 20,
                 max = 100,

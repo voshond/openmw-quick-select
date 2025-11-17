@@ -478,18 +478,26 @@ local function getHotbarItems()
         if data.item then
             item = types.Actor.inventory(self):find(data.item)
         elseif data.spell or data.enchantId or (data.spellType and data.spellType:lower() == "enchant") then
-            if data.spellType:lower() == "spell" then
+            if data.spellType and data.spellType:lower() == "spell" then
                 local spell = types.Actor.spells(self)[data.spell]
                 if spell then
+                    Debug.log("Spell: " .. tostring(spell))
                     effect = spell.effects[1]
-                    icon = effect.effect.icon
+                    -- Use big effect icon for better quality (adds "b_" prefix)
+                    local smallIconPath = effect.effect.icon
+                    icon = utility.getSpellEffectBigIconPath(smallIconPath)
+                    -- Alternative: Use school icon (shows Destruction, Restoration, etc.)
+                    -- local schoolId = effect.effect.school
+                    -- local schoolSkill = core.stats.Skill.records[schoolId]
+                    -- icon = schoolSkill.icon
                     --    ----print("Spell" .. data.spell)
                 end
-            elseif data.spellType:lower() == "enchant" then
+            elseif data.spellType and data.spellType:lower() == "enchant" then
                 local enchant = utility.getEnchantment(data.enchantId)
                 if enchant then
                     effect = enchant.effects[1]
-                    icon = effect.effect.icon
+                    local smallIconPath = effect.effect.icon
+                    icon = utility.getSpellEffectBigIconPath(smallIconPath)
                 end
                 item = types.Actor.inventory(self):find(data.itemId)
                 -- print(item)

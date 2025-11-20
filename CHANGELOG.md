@@ -1,5 +1,11 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.20 (2025-11-20)
+
+Better Icons
+
+
+
 ## Version 1.0.19 (2025-06-08)
 
 Fix packaging

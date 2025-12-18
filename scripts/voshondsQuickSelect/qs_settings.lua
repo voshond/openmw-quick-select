@@ -43,11 +43,19 @@ I.Settings.registerGroup {
             },
         },
         {
-            key = "unEquipOnHotkey",
+            key = "toggleEquipment",
             renderer = "checkbox",
-            name = "Unequip when selecting equipped items",
+            name = "Toggle Equipment (Armor/Clothing/Rings)",
             description =
-            "If enabled, selecting an item that is already equipped will unequip it. If disabled, selecting an item that is already equipped will do nothing.",
+            "If enabled, selecting equipped armor, clothing, or accessories (rings, amulets, belts, etc.) will unequip them. If disabled, selecting already-equipped items will do nothing.",
+            default = false
+        },
+        {
+            key = "autoUnequipSheathedWeapons",
+            renderer = "checkbox",
+            name = "Auto-Unequip Sheathed Weapons",
+            description =
+            "If enabled, sheathing a weapon (by pressing its hotkey again) will also unequip it. If disabled, sheathing keeps the weapon equipped but sheathed. Only affects weapons, lockpicks, and probes.",
             default = true
         },
         {
@@ -506,5 +514,4 @@ I.Settings.registerGroup {
     },
 }
 
-settings:get("unEquipOnHotkey")
 return settings

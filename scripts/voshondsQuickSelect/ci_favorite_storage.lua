@@ -276,12 +276,22 @@ local function equipSlot(slot)
                         types.Actor.setStance(self, types.Actor.STANCE.Weapon)
                     end
 
-                    -- If unEquipOnHotkey is enabled and we're in Nothing stance, unequip
-                    if settings:get("unEquipOnHotkey") and types.Actor.getStance(self) == types.Actor.STANCE.Nothing then
-                        Debug.storage("Unequipping item due to unEquipOnHotkey setting")
+                    -- If autoUnequipSheathedWeapons is enabled and we're in Nothing stance, unequip
+                    if settings:get("autoUnequipSheathedWeapons") and types.Actor.getStance(self) == types.Actor.STANCE.Nothing then
+                        Debug.storage("Unequipping weapon due to autoUnequipSheathedWeapons setting")
                         local equip = types.Actor.equipment(self)
                         equip[equipped] = nil
                         types.Actor.setEquipment(self, equip)
+                    end
+                elseif realItem.type == types.Armor or realItem.type == types.Clothing then
+                    -- For armor and clothing, check toggleEquipment setting
+                    if settings:get("toggleEquipment") then
+                        Debug.storage("Unequipping equipment " .. tostring(item.item) .. " due to toggleEquipment setting")
+                        local equip = types.Actor.equipment(self)
+                        equip[equipped] = nil
+                        types.Actor.setEquipment(self, equip)
+                    else
+                        Debug.storage("Equipment already equipped and toggleEquipment is disabled, doing nothing")
                     end
                 end
             end

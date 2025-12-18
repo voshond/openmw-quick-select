@@ -1,5 +1,11 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.21 (2025-12-18)
+
+Equip/Unequip Handling Fix
+
+
+
 ## Version 1.0.20 (2025-11-20)
 
 Better Icons

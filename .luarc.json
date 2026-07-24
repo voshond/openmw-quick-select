@@ -1,0 +1,7 @@
+{
+    "runtime.version": "LuaJIT",
+    "workspace.library": [
+        "/home/voshond/Documents/openmw-codex/"
+    ],
+    "runtime.plugin": "/home/voshond/Documents/openmw-codex//omw_context_plugin.lua"
+}

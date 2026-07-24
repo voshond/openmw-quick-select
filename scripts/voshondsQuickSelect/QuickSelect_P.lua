@@ -66,6 +66,13 @@ end
 
 -- Input handling
 local function onInputAction(action)
+    -- The Quick Keys window owns keyboard input while it is open.  Without
+    -- this guard, typing a number into a selector search field can also equip
+    -- the corresponding hotbar slot behind the modal.
+    if I.QuickSelect_Win1 and I.QuickSelect_Win1.isMenuOpen and I.QuickSelect_Win1.isMenuOpen() then
+        return
+    end
+
     if action >= input.ACTION.QuickKey1 and action <= input.ACTION.QuickKey10 then
         local slot = action - input.ACTION.QuickKey1 + 1
 
@@ -226,11 +233,10 @@ return {
     },
     engineHandlers = {
         onInputAction = onInputAction,
-        onLoad = function()
+        onLoad = function(data)
             log("Initializing QuickSelect system", "info")
 
-            -- Initialize with page 0 selected
-            selectedPage = 0
+            selectedPage = data and data.selectedPage or 0
             lastHotbarUpdateTime = os.time()
             initialHotbarDrawn = false
 
@@ -247,30 +253,12 @@ return {
                 end
             end)
         end,
-        onUpdate = function(dt)
-            -- COMPLETELY DISABLE automatic updates
-            -- Only draw hotbar on user action or other explicit triggers
-            
-            -- Debug: Test mouse button detection (remove this after testing)
-            local mouse4 = input.isMouseButtonPressed(5)
-            local mouse5 = input.isMouseButtonPressed(4)
-            if mouse4 or mouse5 then
-                log("Mouse button test - Mouse4: " .. tostring(mouse4) .. ", Mouse5: " .. tostring(mouse5), "info")
-            end
-        end,
         onSave = function()
             log("Saving QuickSelect state", "info")
             return {
                 selectedPage = selectedPage,
                 initialHotbarDrawn = initialHotbarDrawn
             }
-        end,
-        onLoad = function(data)
-            log("Loading QuickSelect state", "info")
-            if data then
-                selectedPage = data.selectedPage or 0
-                initialHotbarDrawn = data.initialHotbarDrawn or false
-            end
         end
     },
     eventHandlers = {

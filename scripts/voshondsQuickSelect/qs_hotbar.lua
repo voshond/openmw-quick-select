@@ -14,49 +14,15 @@ local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
 local utility = require("scripts.voshondsquickselect.qs_utility")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
+local Hotbar = require("scripts.voshondsquickselect.ui.hotbar")
+local Tooltip = require("scripts.voshondsquickselect.ui.tooltip")
 
 -- Debug logging function (using the Debug module)
 local function log(message)
     Debug.hotbar(message)
 end
 
--- Create a dedicated tooltip layer on top of everything else
-local function initTooltipLayer()
-    -- Check if the layer already exists to avoid errors
-    local tooltipLayerExists = false
-    for i, layer in ipairs(ui.layers) do
-        if layer.name == "TooltipLayer" then
-            tooltipLayerExists = true
-            break
-        end
-    end
-
-    if not tooltipLayerExists then
-        -- Wrap layer creation in pcall to catch errors
-        local success, err = pcall(function()
-            -- Create TooltipLayer after Windows layer but before HUD
-            -- This ensures tooltips appear above the HUD but don't interfere with screenshots
-            if not ui.layers.indexOf("Windows") then
-                -- Create a Windows layer first if it doesn't exist
-                ui.layers.insertAfter("HUD", "Windows", { interactive = true })
-            end
-            ui.layers.insertAfter("Windows", "TooltipLayer", { interactive = false })
-        end)
-
-        -- If creation failed, log a message but continue without error
-        if not success then
-            log("TooltipLayer creation failed: " .. tostring(err))
-        end
-    else
-        log("TooltipLayer already exists, skipping creation")
-    end
-end
-
--- Don't initialize immediately, will be initialized in onLoad instead
--- initTooltipLayer()
-
 local hotBarElement
-local tooltipElement
 local num = 1
 local enableHotbar = true        -- Always enabled
 local pickSlotMode = false       --True if we are picking a slot for saving
@@ -101,59 +67,41 @@ local function getToolTipPos()
     end
 end
 local function drawToolTip()
-    if true then
-        --   return
-    end
-    local inv = types.Actor.inventory(self):getAll()
     local offset = I.QuickSelect.getSelectedPage() * 10
     local data = I.QuickSelect_Storage.getFavoriteItemData(selectedNum + offset)
 
     local item
-    local effect
-    local icon
-    local spell
+    local magicRecord
     if data.item then
         item = types.Actor.inventory(self):find(data.item)
     elseif data.itemId then
         item = types.Actor.inventory(self):find(data.itemId)
-    elseif data.spell then
-        if data.spellType:lower() == "spell" then
-            spell = types.Actor.spells(self)[data.spell]
-            if spell then
-                spell = spell.id
+    elseif data.spell or data.enchantId then
+        if data.spellType and data.spellType:lower() == "spell" then
+            local selectedSpell = types.Actor.spells(self)[data.spell]
+            if selectedSpell then
+                magicRecord = core.magic.spells.records[selectedSpell.id]
             end
-        elseif data.spellType:lower() == "enchant" then
-            local enchant = utility.getEnchantment(data.enchantId)
-            if enchant then
-                spell = enchant
-            end
+        elseif data.spellType and data.spellType:lower() == "enchant" then
+            magicRecord = utility.getEnchantment(data.enchantId)
         end
     end
 
-    -- Choose the layer to use - check if TooltipLayer exists, otherwise fall back to HUD
-    local layerToUse = "HUD"
-    local tooltipLayerExists = false
-    for i, layer in ipairs(ui.layers) do
-        if layer.name == "TooltipLayer" then
-            layerToUse = "TooltipLayer"
-            tooltipLayerExists = true
-            break
-        end
-    end
-
-    if not tooltipLayerExists then
-        log("TooltipLayer not found, using HUD layer instead")
-    end
-
+    local lines
     if item then
-        tooltipElement = utility.drawListMenu(tooltipData.genToolTips(item),
-            getToolTipPos(), nil, layerToUse)
-        -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
-    elseif spell then
-        local spellRecord = core.magic.spells.records[spell]
+        lines = tooltipData.genToolTips(item)
+    elseif magicRecord then
+        lines = tooltipData.genToolTips({ spell = magicRecord })
+    end
 
-        tooltipElement = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
-            getToolTipPos(), nil, layerToUse)
+    if lines then
+        local position = getToolTipPos()
+        Tooltip.show(lines, {
+            anchor = position.anchor,
+            relativePosition = util.vector2(position.wx, position.wy),
+        })
+    else
+        Tooltip.hide()
     end
 end
 local function createHotbarItem(item, xicon, num, data, half)
@@ -229,9 +177,6 @@ local function createHotbarItem(item, xicon, num, data, half)
         util.vector2(0.5, 0.5),
         { item = item, num = num, data = data })
 
-    -- Always use padding template to maintain consistent layout
-    local paddingTemplate = I.MWUI.templates.padding
-
     -- Create an equipped indicator if needed
     local iconContent
     if isEquipped then
@@ -260,46 +205,18 @@ local function createHotbarItem(item, xicon, num, data, half)
         iconContent = ui.content { boxedIcon }
     end
 
-    -- Create the outer padding with a fixed size - always use padding template
+    -- The bordered icon above is already the visual slot frame.  Do not add
+    -- the legacy padding-template wrapper here: it expands the drawn slot
+    -- beyond its declared size, making both width measurement and a zero
+    -- gutter inaccurate.
     local outerSize = util.vector2(sizeX + iconPadding * 2, sizeY + iconPadding * 2)
-    local padding = utility.renderItemBoxed(iconContent,
-        outerSize,
-        paddingTemplate, util.vector2(0.5, 0.5))
-    return padding
-end
-
--- Create a spacer element with the specified width
-local function createSpacerElement(width, half)
-    log("Creating spacer: width=" .. width .. ", half=" .. tostring(half))
-    local iconPadding = 0 -- Same padding as in createHotbarItem
-    local height = half and (utility.getIconSize() / 2) or utility.getIconSize()
-
-    -- Add padding to height to match the padded icons
-    height = height + (iconPadding)
-
-    -- Create a transparent texture for the spacer
-    local transparentTexture = ui.texture({ path = "textures/voshondsQuickSelect/selected.tga" })
-
     return {
-        type = ui.TYPE.Container,
-        template = I.MWUI.templates.padding, -- Add padding template to make it more visible to layout
+        type = ui.TYPE.Widget,
         props = {
-            size = util.vector2(width, height),
-            minSize = util.vector2(width, height),   -- Enforce minimum size
-            fixedSize = util.vector2(width, height), -- Try to enforce exact size
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center,
+            autoSize = false,
+            size = outerSize,
         },
-        content = ui.content {
-            {
-                type = ui.TYPE.Image,
-                props = {
-                    resource = transparentTexture,
-                    size = util.vector2(width, height),
-                    alpha = 0.01, -- Very slightly visible for testing
-                }
-            }
-        }
+        content = iconContent,
     }
 end
 
@@ -308,11 +225,9 @@ local function getHotbarItems(half)
     log("half=" .. tostring(half) .. ", num=" .. num)
 
     local items = {}
-    local inv = types.Actor.inventory(self):getAll()
     local count = num + 10
-    local gutterSize = settings:get("hotbarGutterSize") or 5
 
-    log("gutterSize=" .. gutterSize .. ", count=" .. count)
+    log("count=" .. count)
 
     local startNum = num
     while num < count do
@@ -358,16 +273,10 @@ local function getHotbarItems(half)
         log("Adding hotbar item " .. num)
         table.insert(items, createHotbarItem(item, icon, num, data, half))
 
-        -- Add spacer element if this isn't the last item
-        if num < count - 1 and gutterSize > 0 then
-            log("Adding spacer after item " .. num)
-            table.insert(items, createSpacerElement(gutterSize, half))
-        end
-
         num = num + 1
     end
 
-    log("Created " .. #items .. " elements (items + spacers)")
+    log("Created " .. #items .. " slot elements")
     log("Initial num=" .. startNum .. ", final num=" .. num)
     log("---- END getHotbarItems ----")
 
@@ -397,16 +306,7 @@ drawHotbar = function(resetFadeTimer)
         hotBarElement = nil
     end
 
-    if tooltipElement then
-        log("Destroying existing tooltip")
-        local success, err = pcall(function()
-            tooltipElement:destroy()
-        end)
-        if not success then
-            log("Error destroying tooltip: " .. tostring(err))
-        end
-        tooltipElement = nil
-    end
+    Tooltip.hide()
 
     -- Only reset fade state if requested (user interaction)
     if resetFadeTimer then
@@ -424,7 +324,7 @@ drawHotbar = function(resetFadeTimer)
     local paddedIconSize = iconSize + (iconPadding * 2)                 -- Account for padding
     local boxSize = paddedIconSize                                      -- Use padded icon size
     local gutterSize = settings:get("hotbarGutterSize") or 5            -- Get the gutter size from settings
-    local verticalSpacing = settings:get("hotbarVerticalSpacing") or 60 -- Get vertical spacing from settings
+    local verticalSpacing = settings:get("hotbarVerticalSpacing") or 12 -- Direct UI-pixel gap
     local itemsPerRow = HOTBAR_ITEMS_PER_ROW
 
     log("Config - iconSize: " ..
@@ -433,112 +333,46 @@ drawHotbar = function(resetFadeTimer)
         ", verticalSpacing: " .. verticalSpacing ..
         ", itemsPerRow: " .. itemsPerRow)
 
-    -- Calculate the width - account for items and spacers
-    local itemWidth = boxSize
-    local spacerWidth = gutterSize
-    local totalItemsWidth = itemWidth * itemsPerRow
-    local totalSpacersWidth = spacerWidth * (itemsPerRow - 1)
-    local totalWidth = totalItemsWidth + totalSpacersWidth
-    -- Use base padding plus gutter-based scaling
-    local basePadding = 80               -- Significantly increase base padding to prevent cutoff
-    local gutterPadding = gutterSize * 6 -- Additional padding based on gutter size
-    local paddingAmount = basePadding + gutterPadding
-    local hotbarWidth = totalWidth + paddingAmount
-    local hotbarHeight = boxSize + 20
+    -- A row owns exactly the size it draws.  The old renderer added arbitrary
+    -- width/height padding and then scaled child rows into that box, which is
+    -- what caused clipped slots at different icon and gutter settings.
+    local rowSize = Hotbar.measure(itemsPerRow, boxSize, boxSize, gutterSize)
+    local visibleHotbars = math.max(1, math.min(3, settings:get("visibleHotbars") or 1))
+    -- Settings are logical UI pixels.  Do not apply the old /10 conversion:
+    -- zero must mean zero, and 40 should look materially larger than 4.
+    local verticalGap = visibleHotbars > 1 and math.max(0, verticalSpacing) or 0
+    local rows = {}
 
-    log("Size - boxSize: " .. boxSize .. ", totalWidth: " .. totalWidth .. ", hotbarWidth: " .. hotbarWidth
-        .. ", padding: " .. paddingAmount .. " (base: " .. basePadding .. ", gutter-based: " .. gutterPadding .. ")")
+    log("Row size: " .. tostring(rowSize.x) .. "x" .. tostring(rowSize.y) .. ", visible: " .. tostring(visibleHotbars))
 
-    local xContent = {}
-    local content = {}
-    log("Starting page: " .. I.QuickSelect.getSelectedPage())
+    local function addBar(page)
+        num = 1 + (itemsPerRow * page)
+        local items = getHotbarItems()
+        table.insert(rows, Hotbar.create({
+            slots = items,
+            slotSize = boxSize,
+            gap = gutterSize,
+            size = rowSize,
+            -- The row itself is centred by the HUD root.  Its slots must
+            -- start at x=0 so an exact zero gap stays exact.
+            align = ui.ALIGNMENT.Start,
+            arrange = ui.ALIGNMENT.Start,
+        }))
+    end
 
-    local visibleHotbars = settings:get("visibleHotbars")
-    log("Visible hotbars: " .. tostring(visibleHotbars))
-
-    if visibleHotbars > 1 then
-        -- Render multiple bars stacked in reverse order based on visibleHotbars setting
-        -- Scale bar height based on vertical spacing setting
-        local heightScale = math.max(0.1, verticalSpacing / 100) -- Convert to percentage, min 10%
-
-        -- Calculate margin height based on vertical spacing (lower = less margin)
-        local marginHeight = math.max(1, math.floor(verticalSpacing / 10))
-
-        -- Bar 3 (top) - Only shown when visibleHotbars is 3
-        if visibleHotbars == 3 then
-            num = 1 + (itemsPerRow * 2) -- Page 2 (third bar)
-            log("Adding bar 3 (top)")
-            local bar3Items = getHotbarItems()
-            log("Bar 3 items count: " .. #bar3Items)
-
-            table.insert(content,
-                utility.renderItemBoxed(
-                    utility.flexedItems(bar3Items, true, util.vector2(0.5, 0.5)),
-                    util.vector2(hotbarWidth, hotbarHeight * heightScale),
-                    I.MWUI.templates.padding,
-                    util.vector2(0.5, 0.5)))
-
-            -- Add a margin element between bar 3 and bar 2
-            if marginHeight > 1 then
-                table.insert(content, {
-                    type = ui.TYPE.Container,
-                    props = {
-                        size = util.vector2(hotbarWidth, marginHeight),
-                        minSize = util.vector2(hotbarWidth, marginHeight),
-                        fixedSize = util.vector2(hotbarWidth, marginHeight)
-                    }
-                })
-            end
-        end
-
-        -- Bar 2 (middle) - Shown when visibleHotbars is 2 or 3
-        num = 1 + (itemsPerRow * 1) -- Page 1 (second bar)
-        log("Adding bar 2 (middle)")
-        local bar2Items = getHotbarItems()
-        log("Bar 2 items count: " .. #bar2Items)
-
-        table.insert(content,
-            utility.renderItemBoxed(
-                utility.flexedItems(bar2Items, true, util.vector2(0.5, 0.5)),
-                util.vector2(hotbarWidth, hotbarHeight * heightScale),
-                I.MWUI.templates.padding,
-                util.vector2(0.5, 0.5)))
-
-        -- Add a margin element between bar 2 and bar 1
-        if marginHeight > 1 then
-            table.insert(content, {
-                type = ui.TYPE.Container,
-                props = {
-                    size = util.vector2(hotbarWidth, marginHeight),
-                    minSize = util.vector2(hotbarWidth, marginHeight),
-                    fixedSize = util.vector2(hotbarWidth, marginHeight)
-                }
+    -- Page three is visually above page two, which is above the default page.
+    for page = visibleHotbars - 1, 0, -1 do
+        addBar(page)
+        if page > 0 then
+            table.insert(rows, {
+                type = ui.TYPE.Widget,
+                props = { autoSize = false, size = util.vector2(rowSize.x, verticalGap) },
             })
         end
     end
 
-    -- Bar 1 (bottom) - Always show current bar
-    num = 1 + (itemsPerRow * 0) -- Page 0 (first bar)
-    log("Adding bar 1 (bottom)")
-    local bar1Items = getHotbarItems()
-    log("Bar 1 items count: " .. #bar1Items)
-
-    -- Apply the same height scaling to the main bar when vertical spacing is low
-    local mainBarHeight = hotbarHeight
-    if visibleHotbars > 1 and verticalSpacing < 70 then
-        local heightScale = math.max(0.1, verticalSpacing / 100) -- Use the same scale as other bars
-        mainBarHeight = hotbarHeight * heightScale
-    end
-
-    table.insert(content,
-        utility.renderItemBoxed(
-            utility.flexedItems(bar1Items, true, util.vector2(0.5, 0.5)),
-            util.vector2(hotbarWidth, mainBarHeight),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-
-    content = ui.content(content)
-    log("Content elements count: " .. #content)
+    local totalHeight = boxSize * visibleHotbars + verticalGap * (visibleHotbars - 1)
+    local content = ui.content(rows)
 
     local anchor = util.vector2(0.5, 1)
     local relativePosition = util.vector2(0.5, 1)
@@ -552,31 +386,6 @@ drawHotbar = function(resetFadeTimer)
     end
 
     log("Creating hotbar UI")
-
-    -- Calculate total height based on how many bars are showing
-    local totalHeight = hotbarHeight
-    if visibleHotbars > 1 then
-        -- Calculate height based on vertical spacing setting
-        local heightScale = math.max(0.1, verticalSpacing / 100) -- Convert to percentage, min 10%
-
-        -- Calculate margin height based on vertical spacing
-        local marginHeight = math.max(1, math.floor(verticalSpacing / 10))
-
-        -- Use scaled height for all bars when vertical spacing is low
-        if verticalSpacing < 70 then
-            -- Calculate based on number of visible hotbars
-            totalHeight = (hotbarHeight * heightScale * visibleHotbars) + (marginHeight * (visibleHotbars - 1))
-        else
-            -- For bar 1 use full height, for additional bars use scaled height
-            totalHeight = hotbarHeight + (hotbarHeight * heightScale * (visibleHotbars - 1)) +
-                (marginHeight * (visibleHotbars - 1))
-        end
-
-        -- Create a smaller container when vertical spacing is very low
-        if verticalSpacing < 30 then
-            totalHeight = totalHeight * 0.9
-        end
-    end
 
     hotBarElement = ui.create {
         layer = "HUD",
@@ -595,9 +404,8 @@ drawHotbar = function(resetFadeTimer)
                     horizontal = false,
                     align = ui.ALIGNMENT.Center,
                     arrange = ui.ALIGNMENT.Center,
-                    size = util.vector2(hotbarWidth, totalHeight),
-                    minSize = util.vector2(hotbarWidth, totalHeight),   -- Enforce minimum size
-                    fixedSize = util.vector2(hotbarWidth, totalHeight), -- Try to enforce fixed size
+                    autoSize = false,
+                    size = util.vector2(rowSize.x, totalHeight),
                 }
             }
         }
@@ -719,11 +527,7 @@ local function UiModeChanged(data)
         if pickSlotMode then
             -- Keep the hotbar open
         else
-            -- Still destroy visible tooltips
-            if tooltipElement then
-                tooltipElement:destroy()
-                tooltipElement = nil
-            end
+            Tooltip.hide()
         end
     end
 end
@@ -773,6 +577,12 @@ end
 
 local function getPrevKey()
     return "-"
+end
+
+local function isQuickKeysMenuOpen()
+    return I.QuickSelect_Win1
+        and I.QuickSelect_Win1.isMenuOpen
+        and I.QuickSelect_Win1.isMenuOpen()
 end
 
 -- Create a settings update callback function
@@ -885,9 +695,8 @@ return {
     },
     engineHandlers = {
         onLoad = function()
-            -- Initialize tooltip layer on load
             log("==== Initializing QuickSelect_Hotbar ====")
-            initTooltipLayer()
+            Tooltip.ensureLayer()
 
             -- Initialize settings if they don't exist
             if settings:get("disableIconShrinking") == nil then
@@ -920,6 +729,9 @@ return {
             end
         end,
         onKeyPress = function(key)
+            if isQuickKeysMenuOpen() then
+                return
+            end
             if core.isWorldPaused() and not controllerPickMode then
                 return
             end
@@ -936,6 +748,9 @@ return {
             end
         end,
         onControllerButtonPress = function(btn)
+            if isQuickKeysMenuOpen() then
+                return
+            end
             if core.isWorldPaused() and not controllerPickMode then
                 return
             end

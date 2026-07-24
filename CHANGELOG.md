@@ -1,5 +1,11 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.22 (2026-07-25)
+
+UI Refactoring & QoL Improvements
+
+
+
 ## Version 1.0.21 (2025-12-18)
 
 Equip/Unequip Handling Fix

@@ -18,6 +18,7 @@ local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
 local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
 local itemCountThresholdSettings = storage.playerSection("SettingsVoshondsQuickSelectItemCountThresholds")
+local Icon = require("scripts.voshondsquickselect.ui.icon")
 
 -- Variables for periodic UI refresh
 local REFRESH_INTERVAL = 0.5       -- Refresh every 0.5 seconds
@@ -233,7 +234,6 @@ local function getIconSize()
     return settings:get("iconSize") or 40
 end
 
-local savedTextures = {}
 local function getPerTypeThresholdColor(itemType, count)
     local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
     local baseColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
@@ -476,22 +476,16 @@ local function imageContent(resource, half, customOpacity)
         return {}
     end
 
-    return {
-        type = ui.TYPE.Image,
-        props = {
-            resource = resource,
-            size = util.vector2(sizeX, sizeY),
-            alpha = opacity,
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center
-        }
-    }
+    local content = Icon.content({
+        resource = resource,
+        width = sizeX,
+        height = sizeY,
+        alpha = opacity,
+    })
+    return content[1] or {}
 end
 local function getTexture(path)
-    if not savedTextures[path] and path then
-        savedTextures[path] = ui.texture({ path = path })
-    end
-    return savedTextures[path]
+    return Icon.texture(path)
 end
 local function formatNumber(num)
     local threshold = 1000

@@ -1,950 +1,889 @@
-local I = require("openmw.interfaces")
-local ambient = require('openmw.ambient')
 local async = require("openmw.async")
 local core = require("openmw.core")
+local I = require("openmw.interfaces")
+local input = require("openmw.input")
 local self = require("openmw.self")
+local storage = require("openmw.storage")
+local types = require("openmw.types")
 local ui = require("openmw.ui")
 local util = require("openmw.util")
-local types = require("openmw.types")
-local input = require("openmw.input")
+
+local Catalog = require("scripts.voshondsquickselect.qs_item_catalog")
 local Debug = require("scripts.voshondsquickselect.qs_debug")
-local storage = require('openmw.storage')
+local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
+local Button = require("scripts.voshondsquickselect.ui.button")
+local Hotbar = require("scripts.voshondsquickselect.ui.hotbar")
+local Icon = require("scripts.voshondsquickselect.ui.icon")
+local Modal = require("scripts.voshondsquickselect.ui.modal")
+local ScrollView = require("scripts.voshondsquickselect.ui.scroll_view")
+local SearchBar = require("scripts.voshondsquickselect.ui.search_bar")
+local Tooltip = require("scripts.voshondsquickselect.ui.tooltip")
+local utility = require("scripts.voshondsquickselect.qs_utility")
+
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+local selectionSettings = storage.playerSection("SettingsVoshondsQuickSelectSelection")
 local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
 
--- Function to get text appearance settings
-local function getTextStyles()
-    -- Get color settings or use defaults
-    local textColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
-    local shadowColor = textSettings:get("slotTextShadowColor") or util.color.rgba(0, 0, 0, 1.0)
+local VIEW = {
+    Hotbars = "hotbars",
+    SlotActions = "slotActions",
+    Inventory = "inventory",
+    Magic = "magic",
+}
 
-    -- Get alpha settings (0-100) and convert to 0-1 range
+local window
+local scrollView
+local currentView = VIEW.Hotbars
+local slotToSave
+local query = ""
+local searchHasFocus = false
+local menuIsOpen = false
+local catalogEntries = {}
+local tooltipTarget
+local selectorListHost
+local selectorSummary
+local selectorSearchInput
+local selectorMetrics
+
+local drawQuickSelect
+local drawSlotActions
+local drawSelector
+
+local function textStyles()
+    local color = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1)
+    local shadowColor = textSettings:get("slotTextShadowColor") or util.color.rgba(0, 0, 0, 1)
     local textAlpha = (textSettings:get("slotTextAlpha") or 100) / 100
     local shadowAlpha = (textSettings:get("slotTextShadowAlpha") or 100) / 100
-
-    -- Apply alpha values to colors
-    local finalTextColor = util.color.rgba(textColor.r, textColor.g, textColor.b, textAlpha)
-    local finalShadowColor = util.color.rgba(shadowColor.r, shadowColor.g, shadowColor.b, shadowAlpha)
-
-    -- Check if shadow is enabled
     local shadowEnabled = textSettings:get("enableTextShadow")
-    if shadowEnabled == nil then shadowEnabled = true end -- Default to true if not set
-
-    -- Check if slot numbers and item counts should be shown
-    local showSlotNumbers = textSettings:get("showSlotNumbers")
-    if showSlotNumbers == nil then showSlotNumbers = true end -- Default to true if not set
-
-    local showItemCounts = textSettings:get("showItemCounts")
-    if showItemCounts == nil then showItemCounts = true end -- Default to true if not set
-
-    -- Get text sizes
-    local slotNumberTextSize = textSettings:get("slotNumberTextSize") or 14
-    local itemCountTextSize = textSettings:get("itemCountTextSize") or 12
+    if shadowEnabled == nil then
+        shadowEnabled = true
+    end
 
     return {
-        textColor = finalTextColor,
-        shadowColor = finalShadowColor,
+        color = util.color.rgba(color.r, color.g, color.b, textAlpha),
+        shadowColor = util.color.rgba(shadowColor.r, shadowColor.g, shadowColor.b, shadowAlpha),
         shadowEnabled = shadowEnabled,
-        showSlotNumbers = showSlotNumbers,
-        showItemCounts = showItemCounts,
-        slotNumberTextSize = slotNumberTextSize,
-        itemCountTextSize = itemCountTextSize
+        itemCountSize = textSettings:get("itemCountTextSize") or 12,
     }
 end
 
--- Define reusable text style variables
-local TEXT_COLORS = {
-    itemCount = nil, -- Will be set dynamically
-    slotNumber = nil -- Will be set dynamically
-}
+local function destroyWindow()
+    Tooltip.hide()
+    tooltipTarget = nil
 
-local TEXT_SHADOWS = {
-    enabled = true, -- Will be set dynamically
-    color = nil     -- Will be set dynamically
-}
+    if window then
+        window:destroy()
+        window = nil
+    end
 
--- Function to refresh text style settings
-local function refreshTextStyles()
-    local styles = getTextStyles()
+    if scrollView then
+        ScrollView.destroy(scrollView)
+        scrollView = nil
+    end
 
-    TEXT_COLORS.itemCount = styles.textColor
-    TEXT_COLORS.slotNumber = styles.textColor
-
-    TEXT_SHADOWS.enabled = styles.shadowEnabled
-    TEXT_SHADOWS.color = styles.shadowColor
+    selectorListHost = nil
+    selectorSummary = nil
+    selectorSearchInput = nil
+    selectorMetrics = nil
 end
 
--- Initialize text styles
-refreshTextStyles()
-
--- Create a dedicated tooltip layer on top of everything else
-local function initTooltipLayer()
-    -- Check if the layer already exists to avoid errors
-    local tooltipLayerExists = false
-    for i, layer in ipairs(ui.layers) do
-        if layer.name == "TooltipLayer" then
-            tooltipLayerExists = true
-            Debug.log("SelectItemsWin", "TooltipLayer already exists, skipping creation")
-            break
-        end
-    end
-
-    if not tooltipLayerExists then
-        -- Instead of trying to insert after a specific layer which may not exist,
-        -- we'll try to append it to the end of the layers list which ensures it's on top
-
-        -- Wrap layer creation in pcall to catch errors
-        local success, err = pcall(function()
-            local layerCount = #ui.layers
-            if layerCount > 0 then
-                -- Add it after the topmost existing layer
-                local topLayerName = ui.layers[layerCount].name
-                ui.layers.insertAfter(topLayerName, "TooltipLayer", { interactive = false })
-            else
-                -- If no layers exist yet (unlikely), create a Windows layer and insert after it
-                if not ui.layers.indexOf("Windows") then
-                    -- Create a Windows layer first if it doesn't exist
-                    ui.layers.insertAfter("HUD", "Windows", { interactive = true })
-                end
-                ui.layers.insertAfter("Windows", "TooltipLayer", { interactive = false })
-            end
-        end)
-
-        -- If it failed, the layer might have been created by another script in the meantime
-        if not success then
-            Debug.warning("SelectItemsWin", "TooltipLayer creation failed: " .. tostring(err))
-            -- Let's check if the layer exists now after the error
-            for i, layer in ipairs(ui.layers) do
-                if layer.name == "TooltipLayer" then
-                    -- Layer exists now, we can proceed
-                    Debug.log("SelectItemsWin", "TooltipLayer created by another script, continuing")
-                    return
-                end
-            end
-            -- If we get here, something else went wrong, but we'll continue without the layer
-            Debug.warning("SelectItemsWin", "Continuing without TooltipLayer, will use HUD instead")
-        else
-            Debug.log("SelectItemsWin", "Successfully created TooltipLayer")
-        end
-    end
+local function resetState()
+    currentView = VIEW.Hotbars
+    slotToSave = nil
+    query = ""
+    searchHasFocus = false
+    catalogEntries = {}
+    menuIsOpen = false
 end
 
--- Comment out the immediate initialization to prevent race conditions with other scripts
--- initTooltipLayer()
-
--- We'll initialize the tooltip layer in onLoad instead
-local utility = require("scripts.voshondsquickselect.qs_utility")
-local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
-local messageBoxUtil = require("scripts.voshondsquickselect.messagebox")
-local QuickSelectWindow
-local hoveredOverId
-local spellMode = false
-local columnsAndRows = {}
-local selectedCol = 1
-local selectedRow = 1
-local startOffset = 0
-local maxCount = 0
-local num = 1
-local scale = 0.8
-local tooltip
-local lis = {}
-
-local slotToSave
-
-local ICON_SIZE = 40
-local ICON_PADDING_MULTIPLIER = 1.2
-local ITEMS_PER_ROW = 10
-
-local function mouseMove(mouseEvent, data)
-    if tooltip then
-        tooltip:destroy()
-        tooltip = nil
-    end
-
-    -- Choose the layer to use - check if TooltipLayer exists, otherwise fall back to HUD
-    local layerToUse = "HUD"
-    for i, layer in ipairs(ui.layers) do
-        if layer.name == "TooltipLayer" then
-            layerToUse = "TooltipLayer"
-            break
-        end
-    end
-
-    if data.data.item then
-        tooltip = utility.drawListMenu(tooltipData.genToolTips(data.data.item),
-            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
-        -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
-    elseif data.data.data.spell then
-        local spellRecord = core.magic.spells.records[data.data.data.spell]
-        -- Debug.items("Spell data: " .. tostring(data.data.data.spell))
-        tooltip = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
-            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
-    end
+local function clearTooltip()
+    tooltipTarget = nil
+    Tooltip.hide()
 end
-local function mouseClick(mouseEvent, data)
-    local id = data.id
-    if data.props.spellData or data.spellData then
-        local spell = data.props.spellData
 
-        if not spell.id then
-            -- Debug.items("No id found")
-        end
-        if spell.enchant then
-            I.QuickSelect_Storage.saveStoredEnchantData(spell.enchant, spell.id, slotToSave)
-            --   ui.showMessage("Saved enchant to slot " .. slotToSave)
-        else
-            I.QuickSelect_Storage.saveStoredSpellData(spell.id, "Spell", slotToSave)
-
-            --  ui.showMessage("Saved spell to slot " .. slotToSave)
-        end
-        if QuickSelectWindow then
-            QuickSelectWindow:destroy()
-            QuickSelectWindow = nil
-        end
-        if tooltip then
-            tooltip:destroy()
-            tooltip = nil
-        end
-        I.UI.setMode()
-        slotToSave = nil
-        return
-    else
-    end
-    if tooltip then
-        tooltip:destroy()
-        tooltip = nil
-    end
-    if data.data then
-        if not slotToSave then
-            messageBoxUtil.showMessageBox(nil, { core.getGMST("sQuickMenu1") },
-                { core.getGMST("sQuickMenu2"), core.getGMST("sQuickMenu3"), core.getGMST("sQuickMenu4"), core.getGMST(
-                    "sCancel") })
-            -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
-            if QuickSelectWindow then
-                QuickSelectWindow:destroy()
-                QuickSelectWindow = nil
-            end
-            if tooltip then
-                tooltip:destroy()
-                tooltip = nil
-            end
-            slotToSave = data.data.num
-        elseif data.data.item then
-            I.QuickSelect_Storage.saveStoredItemData(data.data.item.recordId, slotToSave)
-            if QuickSelectWindow then
-                QuickSelectWindow:destroy()
-                QuickSelectWindow = nil
-            end
-            if tooltip then
-                tooltip:destroy()
-                tooltip = nil
-            end
-            I.UI.setMode()
-            slotToSave = nil
-        end
-    end
+local function closeMenu()
+    destroyWindow()
+    resetState()
+    I.UI.setMode()
 end
-local function mouseMoveButton(event, data)
-    if not QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content then
-        return
-    end
-    local sdata = data.props.spellData
 
-    if tooltip then
-        tooltip:destroy()
-        tooltip = nil
-    end
-
-    -- Choose the layer to use - check if TooltipLayer exists, otherwise fall back to HUD
-    local layerToUse = "HUD"
-    for i, layer in ipairs(ui.layers) do
-        if layer.name == "TooltipLayer" then
-            layerToUse = "TooltipLayer"
-            break
-        end
-    end
-
-    if sdata.id and sdata.enchant then
-        local item = types.Actor.inventory(self):find(sdata.id)
-        -- print(item)
-        -- Debug.items("Item: " .. tostring(item))
-        tooltip = utility.drawListMenu(tooltipData.genToolTips(item),
-            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
-        -- ui.showMessage("Mouse moving over icon" .. data.item.recordId)
-    elseif sdata.id then
-        local spellRecord = core.magic.spells.records[sdata.id]
-        -- Debug.items("Spell data: " .. tostring(data.data.data.spell))
-        tooltip = utility.drawListMenu(tooltipData.genToolTips({ spell = spellRecord }),
-            utility.itemWindowLocs.BottomCenter, nil, layerToUse)
-    end
-    for index, value in ipairs(QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content) do
-        local sdata = QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1]
-            .content[1].props.spellData
-        if not sdata or not sdata.bold then
-            QuickSelectWindow.layout.content[1].content[3].content[1].content[1].content[index].content[1].content[1].template =
-                I.MWUI.templates.textNormal
-        end
-    end
-    data.template = I.MWUI.templates.textHeader
-
-    QuickSelectWindow:update()
-end
-local function renderButton(text)
-    local itemTemplate
-    itemTemplate = I.MWUI.templates.borders
-
+local function createText(text, params)
+    params = params or {}
     return {
-        type = ui.TYPE.Container,
-        --  events = {},
-        template = itemTemplate,
-        content = ui.content { utility.renderItemBold(text) },
+        type = ui.TYPE.Text,
+        template = params.template or I.MWUI.templates.textNormal,
+        props = {
+            text = text,
+            textSize = params.textSize or 16,
+            size = params.size,
+            textColor = params.textColor,
+            textAlignH = params.textAlignH,
+            textAlignV = params.textAlignV,
+        },
     }
 end
-local function getSkillBase(skillID, actor)
-    return types.NPC.stats.skills[skillID:lower()](actor).base
+
+local function resolveSlot(slot)
+    local data = I.QuickSelect_Storage.getFavoriteItemData(slot) or {}
+    local item
+    local path
+
+    if data.item then
+        item = types.Actor.inventory(self):find(data.item)
+    elseif data.itemId then
+        item = types.Actor.inventory(self):find(data.itemId)
+    end
+
+    if data.spellType and string.lower(data.spellType) == "spell" and data.spell then
+        path = Catalog.magicIcon(types.Actor.spells(self)[data.spell])
+    elseif data.enchantId then
+        path = Catalog.magicIcon(core.magic.enchantments.records[data.enchantId])
+    end
+
+    return data, item, path
 end
 
--- Add a helper function to create custom icon content with our fixed size
-local function createCustomIcon(item, xicon, num, prefix)
-    local icon
+local function showSlotTooltip(event, layout)
+    local target = "slot:" .. tostring(layout.userData.slot)
+    if tooltipTarget == target then
+        return
+    end
+    tooltipTarget = target
 
-    if item and not xicon then
-        -- Create a custom item icon with fixed size
-        local record = item.type.records[item.recordId]
-        local itemIcon = ui.texture({ path = record.icon })
+    local data, item = resolveSlot(layout.userData.slot)
+    local lines
 
-        -- Check if item has an enchantment and add magic background
-        local hasEnchantment = false
-        local magicBgIcon = nil
-
-        if record.enchant and record.enchant ~= "" then
-            hasEnchantment = true
-            magicBgIcon = ui.texture({ path = "textures/menu_icon_magic_mini.dds" })
+    if item then
+        lines = tooltipData.genToolTips(item)
+    elseif data.spell then
+        local spell = core.magic.spells.records[data.spell] or types.Actor.spells(self)[data.spell]
+        if spell then
+            lines = tooltipData.genToolTips({ spell = spell })
         end
+    end
 
-        local content = {
+    if lines then
+        Tooltip.show(lines, { position = event.position })
+    else
+        clearTooltip()
+    end
+end
+
+local function onSlotClick(_, layout)
+    clearTooltip()
+    slotToSave = layout.userData.slot
+    currentView = VIEW.SlotActions
+    drawSlotActions()
+end
+
+local function createSlot(slot, iconSize)
+    local data, item, path = resolveSlot(slot)
+    local prefix = ""
+    if slot > 20 then
+        prefix = "c"
+    elseif slot > 10 then
+        prefix = "s"
+    end
+
+    local content
+    if item then
+        content = I.Controller_Icon_QS.getItemIcon(item, false, false, slot, prefix, data)
+    elseif path then
+        content = I.Controller_Icon_QS.getSpellIcon(path, false, false, slot, prefix)
+    else
+        content = I.Controller_Icon_QS.getEmptyIcon(false, slot, false, true, prefix)
+    end
+
+    local iconPadding = 2
+    local boxSize = iconSize + iconPadding * 2
+    local boxedIcon = utility.renderItemBoxed(
+        content,
+        util.vector2(boxSize, boxSize),
+        nil,
+        util.vector2(0.5, 0.5),
+        { slot = slot }
+    )
+
+    local iconContent = ui.content({ boxedIcon })
+    if I.QuickSelect_Storage.isSlotEquipped(slot) then
+        iconContent:add({
             type = ui.TYPE.Image,
             props = {
-                resource = itemIcon,
-                size = util.vector2(ICON_SIZE, ICON_SIZE),
-                arrange = ui.ALIGNMENT.Center,
-                align = ui.ALIGNMENT.Center
-            }
-        }
-
-        -- Build the content with magic background if needed
-        local iconContent = {}
-
-        if hasEnchantment then
-            table.insert(iconContent, {
-                type = ui.TYPE.Image,
-                props = {
-                    resource = magicBgIcon,
-                    size = util.vector2(ICON_SIZE, ICON_SIZE),
-                    alpha = 0.3, -- Match the opacity used in the hotbar
-                    arrange = ui.ALIGNMENT.Center,
-                    align = ui.ALIGNMENT.Center
-                }
-            })
-        end
-
-        table.insert(iconContent, content)
-
-        -- Include count text if applicable and enabled
-        local styles = getTextStyles()
-        if item.count > 1 and styles.showItemCounts then
-            icon = ui.content(iconContent)
-
-            -- Refresh text styles to ensure we have the latest settings
-            refreshTextStyles()
-
-            table.insert(icon, {
-                type = ui.TYPE.Text,
-                template = I.MWUI.templates.textHeader,
-                props = {
-                    text = tostring(item.count),
-                    textSize = styles.itemCountTextSize,
-                    relativePosition = util.vector2(0.1, 0.1),
-                    anchor = util.vector2(0.1, 0.1),
-                    arrange = ui.ALIGNMENT.Start,
-                    align = ui.ALIGNMENT.Start,
-                    textShadow = TEXT_SHADOWS.enabled,
-                    textShadowColor = TEXT_SHADOWS.color,
-                    textColor = TEXT_COLORS.itemCount
-                }
-            })
-        else
-            icon = ui.content(iconContent)
-        end
-    elseif xicon then
-        -- Create a custom spell icon with fixed size
-        local iconTexture = ui.texture({ path = xicon })
-
-        icon = ui.content {
-            {
-                type = ui.TYPE.Image,
-                props = {
-                    resource = iconTexture,
-                    size = util.vector2(ICON_SIZE - 4, ICON_SIZE - 4), -- -4 due to padding
-                    arrange = ui.ALIGNMENT.Center,
-                    align = ui.ALIGNMENT.Center
-                }
-            }
-        }
-    end
-
-    return icon
-end
-
-local function createHotbarItem(item, xicon, num, data)
-    local icon
-    local prefix = ""
-    local displayNum = num
-
-    -- Adjust display number for different hotbars
-    if num > 20 then
-        -- Ctrl hotbar (3rd hotbar)
-        prefix = "c"
-        displayNum = num - 20
-    elseif num > 10 then
-        -- Shift hotbar (2nd hotbar)
-        prefix = "s"
-        displayNum = num - 10
-    end
-
-    -- Convert 10 to 0 for display
-    if displayNum == 10 then displayNum = 0 end
-
-    if item and not xicon then
-        icon = createCustomIcon(item, nil, num, prefix)
-    elseif xicon then
-        icon = createCustomIcon(nil, xicon, num, prefix)
-    elseif num then
-        -- Only create number text if slot numbers are enabled
-        local styles = getTextStyles()
-        if styles.showSlotNumbers then
-            icon = ui.content {
-                {
-                    type = ui.TYPE.Text,
-                    template = I.MWUI.templates.textNormal,
-                    props = {
-                        text = prefix .. tostring(displayNum),
-                        textSize = styles.slotNumberTextSize,
-                        relativePosition = util.vector2(0.85, 0.9),
-                        anchor = util.vector2(0.85, 0.9),
-                        arrange = ui.ALIGNMENT.End,
-                        align = ui.ALIGNMENT.End,
-                        textShadow = TEXT_SHADOWS.enabled,
-                        textShadowColor = TEXT_SHADOWS.color,
-                        textColor = TEXT_COLORS.slotNumber
-                    },
-                    item = item,
-                    num = num,
-                    events = {
-                        --          mouseMove = async:callback(mouseMove),
-                    },
-                }
-            }
-        else
-            -- Create empty content if slot numbers are disabled
-            icon = ui.content {}
-        end
-    end
-
-    -- Use fixed icon size
-    local iconSize = ICON_SIZE
-
-    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
-        util.vector2(0.5, 0.5),
-        { item = item, num = num, data = data }, {
-            mouseMove = async:callback(mouseMove),
-            mouseClick = async:callback(mouseClick),
+                resource = Icon.texture("textures/voshondsQuickSelect/equipped_indicator.dds"),
+                size = util.vector2(16, 16),
+                position = util.vector2(0, boxSize - 16),
+            },
         })
-
-    local padding = utility.renderItemBoxed(ui.content { boxedIcon },
-        util.vector2(iconSize * ICON_PADDING_MULTIPLIER, iconSize * ICON_PADDING_MULTIPLIER),
-        I.MWUI.templates.padding)
-    return padding
-end
-local function getHotbarItems()
-    local items = {}
-    local inv = types.Actor.inventory(self):getAll()
-    local count = num + 10
-    while num < count do
-        local data = I.QuickSelect_Storage.getFavoriteItemData(num)
-        local item
-        local effect
-        local icon
-        if data.item then
-            item = types.Actor.inventory(self):find(data.item)
-        elseif data.spell or data.enchantId or (data.spellType and data.spellType:lower() == "enchant") then
-            if data.spellType and data.spellType:lower() == "spell" then
-                local spell = types.Actor.spells(self)[data.spell]
-                if spell then
-                    Debug.log("Spell: " .. tostring(spell))
-                    effect = spell.effects[1]
-                    -- Use big effect icon for better quality (adds "b_" prefix)
-                    local smallIconPath = effect.effect.icon
-                    icon = utility.getSpellEffectBigIconPath(smallIconPath)
-                    -- Alternative: Use school icon (shows Destruction, Restoration, etc.)
-                    -- local schoolId = effect.effect.school
-                    -- local schoolSkill = core.stats.Skill.records[schoolId]
-                    -- icon = schoolSkill.icon
-                    --    ----print("Spell" .. data.spell)
-                end
-            elseif data.spellType and data.spellType:lower() == "enchant" then
-                local enchant = utility.getEnchantment(data.enchantId)
-                if enchant then
-                    effect = enchant.effects[1]
-                    local smallIconPath = effect.effect.icon
-                    icon = utility.getSpellEffectBigIconPath(smallIconPath)
-                end
-                item = types.Actor.inventory(self):find(data.itemId)
-                -- print(item)
-            elseif data.itemId then
-                item = types.Actor.inventory(self):find(data.itemId)
-            end
-        end
-        table.insert(items, createHotbarItem(item, icon, num, data))
-        num = num + 1
-    end
-    return items
-end
-local function createItemIcon(item, spell, num)
-    local icon
-    if item and not spell then
-        icon = createCustomIcon(item, nil, num)
-    else
-        return {}
     end
 
-    -- Use fixed icon size
-    local iconSize = ICON_SIZE
-
-    local boxedIcon = utility.renderItemBoxed(icon, util.vector2(iconSize, iconSize), nil,
-        util.vector2(0.5, 0.5),
-        { item = item, num = num }, {
-            mouseMove = async:callback(mouseMove),
-            mouseClick = async:callback(mouseClick),
-        })
-
-    local padding = utility.renderItemBoxed(ui.content { boxedIcon },
-        util.vector2(iconSize * ICON_PADDING_MULTIPLIER, iconSize * ICON_PADDING_MULTIPLIER),
-        I.MWUI.templates.padding)
-    return padding
-end
-
-local function getItemRow()
-    local items = {}
-    local inv = types.Actor.inventory(self):getAll()
-    local count = num + 10
-
-    maxCount = #inv
-    while num < count do
-        table.insert(items, createItemIcon(inv[num], nil, num))
-        num = num + 1
-    end
-    return items
-end
-
-local function drawItemSelect()
-    if QuickSelectWindow then
-        QuickSelectWindow:destroy()
-    end
-    local xContent       = {}
-    local content        = {}
-    num                  = 1 + startOffset
-
-    -- Calculate container width based on icon size
-    -- Each row has 10 items plus some padding
-    local containerWidth = ICON_SIZE * ICON_PADDING_MULTIPLIER * ITEMS_PER_ROW * 1.35
-
-    table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenu6")))
-    table.insert(content, utility.renderItemBold("(Use mouse wheel to scroll)", nil, nil, nil, true))
-
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getItemRow(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-
-    content = ui.content(content)
-    QuickSelectWindow = ui.create {
-        layer = "Windows",
-        template = I.MWUI.templates.boxTransparentThick,
-        props = {
-            anchor = util.vector2(0.5, 0.5),
-            relativePosition = util.vector2(0.5, 0.5),
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center,
+    -- Keep the quick-key window slot visually identical to the HUD slot.  The
+    -- bordered box is the slot frame; a second padding wrapper would make a
+    -- zero configured gutter visibly non-zero.
+    return {
+        type = ui.TYPE.Widget,
+        props = { autoSize = false, size = util.vector2(boxSize, boxSize) },
+        userData = { slot = slot },
+        events = {
+            mouseMove = async:callback(showSlotTooltip),
+            mouseLeave = async:callback(clearTooltip),
+            focusLoss = async:callback(clearTooltip),
+            mouseClick = async:callback(onSlotClick),
         },
-        content = ui.content {
-            {
-                type = ui.TYPE.Flex,
-                content = content,
-                props = {
-                    horizontal = false,
-                    align = ui.ALIGNMENT.Center,
-                    arrange = ui.ALIGNMENT.Center,
-                }
-            }
-        }
-    }
-end
-local function getAllEnchantments(actorInv, onlyCastable)
-    local ret = {}
-    for index, value in ipairs(actorInv:getAll()) do
-        local ench = utility.FindEnchantment(value)
-        if (ench and not onlyCastable) then
-            table.insert(ret, { enchantment = ench, item = value })
-        elseif ench and onlyCastable and (ench.type == core.magic.ENCHANTMENT_TYPE.CastOnUse or ench.type == core.magic.ENCHANTMENT_TYPE.CastOnce) then
-            table.insert(ret, { enchantment = ench, item = value })
-        end
-    end
-    return ret
-end
-local function compareNames(a, b)
-    return a.name < b.name
-end
-
-local function drawSpellSelect()
-    if QuickSelectWindow then
-        QuickSelectWindow:destroy()
-    end
-    local xContent = {}
-    local content  = {}
-    num            = 1
-    --local trainerRow = utility.renderItemBoxed({}, util.vector2((160 * scale) * 7, 400 * scale),
-    ---    I.MWUI.templates.padding)
-
-    table.insert(content, utility.renderItemBold(core.getGMST("sMagicSelectTitle")))
-    table.insert(content, utility.renderItemBold("(Use mouse wheel to scroll)", nil, nil, nil, true))
-    local spellsAndIds = {}
-    local spellList = {}
-    table.insert(spellsAndIds, { name = " Spells:", type = "", bold = true })
-    for index, spell in ipairs(types.Actor.spells(self)) do
-        if spell.type == core.magic.SPELL_TYPE.Power or spell.type == core.magic.SPELL_TYPE.Spell then
-            table.insert(spellList, { id = spell.id, name = spell.name, type = "Spell" })
-        end
-    end
-    table.sort(spellList, compareNames)
-    for index, value in ipairs(spellList) do
-        table.insert(spellsAndIds, value)
-    end
-    local enchL = getAllEnchantments(types.Actor.inventory(self), true)
-    table.insert(spellsAndIds, { name = "Enchantments:", type = "", bold = true })
-
-    local enchantList = {}
-    for index, ench in ipairs(enchL) do
-        -- if index > startOffset then
-        table.insert(enchantList,
-            {
-                id = ench.item.recordId,
-                name = ench.item.type.record(ench.item).name,
-                type = "Enchant",
-                enchant = ench
-                    .item.type.record(ench.item).enchant
-            })
-        -- Debug.items("Enchantment name: " .. ench.item.type.record(ench.item).name)
-        -- end
-    end
-    table.sort(enchantList, compareNames)
-    for index, value in ipairs(enchantList) do
-        table.insert(spellsAndIds, value)
-    end
-    maxCount = #spellsAndIds
-    for i = 1, 30, 1 do
-        local entry = spellsAndIds[i + startOffset]
-        if entry then
-            -- Fallback logic: use .name, then .id, then a placeholder
-            local label = entry.name or entry.id or "<unnamed>"
-            -- Only render if we have something to show
-            if label and label ~= "" then
-                table.insert(xContent,
-                    utility.renderItemBold(label, nil, nil, nil, true,
-                        entry, {
-                            mouseMove = async:callback(mouseMoveButton),
-                            mousePress = async:callback(mouseClick)
-                        }))
-            end
-        end
-    end
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(xContent, false), utility.scaledVector2(400, 800),
-            I.MWUI.templates.borders,
-            util.vector2(0.5, 0.5)))
-    content = ui.content(content)
-    QuickSelectWindow = ui.create {
-        layer = "Windows",
-        template = I.MWUI.templates.boxTransparentThick
-        ,
-        props = {
-            anchor = util.vector2(0.5, 0.5),
-            relativePosition = util.vector2(0.5, 0.5),
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center,
-        },
-        content = ui.content {
-            {
-                type = ui.TYPE.Flex,
-                content = content,
-                props = {
-                    horizontal = false,
-                    align = ui.ALIGNMENT.Center,
-                    arrange = ui.ALIGNMENT.Center,
-                    --    size = util.vector2(0, 0),
-                }
-            }
-        }
-    }
-end
-local function drawQuickSelect()
-    if QuickSelectWindow then
-        QuickSelectWindow:destroy()
-    end
-    local xContent       = {}
-    local content        = {}
-    num                  = 1
-
-    -- Calculate container width based on icon size
-    -- Each hotbar has 10 items plus some padding
-    local containerWidth = ICON_SIZE * ICON_PADDING_MULTIPLIER * ITEMS_PER_ROW * 1.35
-
-    table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenuTitle")))
-    table.insert(content, utility.renderItemBold(core.getGMST("sQuickMenuInstruc")))
-
-    table.insert(content, utility.renderItemLeft("Hotbar 1 (1-0)"))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-
-    table.insert(content, utility.renderItemLeft("Hotbar 2 (Shift 1-0)"))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-
-    table.insert(content, utility.renderItemLeft("Hotbar 3 (Ctrl 1-0)"))
-    table.insert(content,
-        utility.renderItemBoxed(utility.flexedItems(getHotbarItems(), true),
-            utility.scaledVector2(containerWidth, ICON_SIZE * 1.5),
-            I.MWUI.templates.padding,
-            util.vector2(0.5, 0.5)))
-
-    content = ui.content(content)
-    QuickSelectWindow = ui.create {
-        layer = "Windows",
-        template = I.MWUI.templates.boxTransparentThick,
-        props = {
-            anchor = util.vector2(0.5, 0.5),
-            relativePosition = util.vector2(0.5, 0.5),
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center,
-        },
-        content = ui.content {
-            {
-                type = ui.TYPE.Flex,
-                content = content,
-                props = {
-                    horizontal = false,
-                    align = ui.ALIGNMENT.Center,
-                    arrange = ui.ALIGNMENT.Center,
-                }
-            }
-        }
+        content = iconContent,
     }
 end
 
-local function openQuickSelect()
-    --I.UI.setMode("Interface", { windows = {} })
+local function hotbarRow(page, iconSize, gap)
+    local slots = {}
+    for index = 1, 10 do
+        table.insert(slots, createSlot(page * 10 + index, iconSize))
+    end
+
+    return Hotbar.create({
+        name = "hotbar" .. tostring(page + 1),
+        slots = slots,
+        slotSize = iconSize + 4,
+        gap = gap,
+        align = ui.ALIGNMENT.Start,
+        arrange = ui.ALIGNMENT.Start,
+    })
+end
+
+local function goToHotbars()
+    resetState()
     drawQuickSelect()
 end
 
-local function UiModeChanged(data)
-    if not data.newMode then
-        if QuickSelectWindow then
-            QuickSelectWindow:destroy()
-            QuickSelectWindow = nil
-        end
-        if tooltip then
-            tooltip:destroy()
-            tooltip = nil
-        end
-        if I.QuickSelect_Hotbar then
-            I.QuickSelect_Hotbar.drawHotbar()
-        else
-            -- If QuickSelect_Hotbar is not available, log a message
-            -- This prevents the error without breaking other functionality
-            Debug.error("select_items_win1", "QuickSelect_Hotbar interface not available")
-        end
-        slotToSave = nil
+drawQuickSelect = function()
+    destroyWindow()
+
+    currentView = VIEW.Hotbars
+    menuIsOpen = true
+    local iconSize = settings:get("iconSize") or 40
+    local gap = settings:get("hotbarGutterSize") or 5
+    local barSize = Hotbar.measure(10, iconSize + 4, iconSize + 4, gap)
+    local width = barSize.x + 64
+    local instructions = core.getGMST("sQuickMenuInstruc"):gsub(",%s*", ",\n")
+    local content = {}
+    local labels = {
+        "Hotbar 1 (1-0)",
+        "Hotbar 2 (Shift 1-0)",
+        "Hotbar 3 (Ctrl 1-0)",
+    }
+
+    for page = 0, 2 do
+        table.insert(content, createText(labels[page + 1], {
+            textSize = 18,
+            size = util.vector2(width, 28),
+            textAlignH = ui.ALIGNMENT.Center,
+            textAlignV = ui.ALIGNMENT.Center,
+        }))
+        table.insert(content, hotbarRow(page, iconSize, gap))
     end
+
+    window = ui.create(Modal.create({
+        width = width,
+        title = core.getGMST("sQuickMenuTitle"),
+        subtitle = instructions,
+        subtitleHeight = 48,
+        content = content,
+    }))
+end
+
+local function beginSelector(view)
+    currentView = view
+    query = ""
+    searchHasFocus = false
+    catalogEntries = view == VIEW.Inventory and Catalog.inventory() or Catalog.magic()
+    Debug.items("Built " .. view .. " catalog with " .. tostring(#catalogEntries) .. " entries")
+    drawSelector()
+end
+
+local function deleteSlot()
+    I.QuickSelect_Storage.deleteStoredItemData(slotToSave)
+    closeMenu()
+end
+
+drawSlotActions = function()
+    destroyWindow()
+
+    currentView = VIEW.SlotActions
+    local width = 380
+    local buttonSize = util.vector2(width - 48, 38)
+    local content = {
+        Button.create({
+            text = core.getGMST("sQuickMenu2"),
+            size = buttonSize,
+            onClick = function()
+                beginSelector(VIEW.Inventory)
+            end,
+        }),
+        Button.create({
+            text = core.getGMST("sQuickMenu3"),
+            size = buttonSize,
+            onClick = function()
+                beginSelector(VIEW.Magic)
+            end,
+        }),
+        Button.create({
+            text = core.getGMST("sQuickMenu4"),
+            size = buttonSize,
+            onClick = deleteSlot,
+        }),
+        Button.create({
+            text = core.getGMST("sCancel"),
+            size = buttonSize,
+            onClick = goToHotbars,
+        }),
+    }
+
+    window = ui.create(Modal.create({
+        width = width,
+        title = "Quick Key " .. tostring(slotToSave),
+        subtitle = core.getGMST("sQuickMenu1"),
+        content = content,
+    }))
+end
+
+local function entryTooltip(event, layout)
+    local entry = layout.userData.entry
+    if tooltipTarget == entry then
+        return
+    end
+    tooltipTarget = entry
+
+    local lines
+
+    if entry.item then
+        lines = tooltipData.genToolTips(entry.item)
+    elseif entry.spell then
+        local record = core.magic.spells.records[entry.id] or entry.spell
+        if record then
+            lines = tooltipData.genToolTips({ spell = record })
+        end
+    end
+
+    if lines then
+        Tooltip.show(lines, { position = event.position })
+    else
+        clearTooltip()
+    end
+end
+
+local function selectEntry(_, layout)
+    local entry = layout.userData.entry
+    clearTooltip()
+
+    if entry.kind == "item" then
+        I.QuickSelect_Storage.saveStoredItemData(entry.item.recordId, slotToSave)
+    elseif entry.kind == "spell" then
+        I.QuickSelect_Storage.saveStoredSpellData(entry.id, "Spell", slotToSave)
+    elseif entry.kind == "enchantment" then
+        I.QuickSelect_Storage.saveStoredEnchantData(entry.enchantmentId, entry.item.recordId, slotToSave)
+    end
+
+    closeMenu()
+end
+
+local function countText(entry)
+    if not entry.count or entry.count <= 1 then
+        return nil
+    end
+
+    local styles = textStyles()
+    return {
+        text = entry.count,
+        textSize = styles.itemCountSize,
+        textColor = styles.color,
+        textShadow = styles.shadowEnabled,
+        textShadowColor = styles.shadowColor,
+        relativePosition = util.vector2(0.08, 0.05),
+        anchor = util.vector2(0.08, 0.05),
+        arrange = ui.ALIGNMENT.Start,
+        align = ui.ALIGNMENT.Start,
+    }
+end
+
+local function createInventoryIcon(entry, iconSize)
+    local backgrounds = {}
+    if entry.enchanted then
+        table.insert(backgrounds, {
+            path = "textures/menu_icon_magic_mini.dds",
+            alpha = 0.3,
+        })
+    end
+
+    local texts = {}
+    local count = countText(entry)
+    if count then
+        table.insert(texts, count)
+    end
+
+    return Icon.create({
+        size = iconSize,
+        path = entry.icon,
+        backgrounds = backgrounds,
+        texts = texts,
+        userData = { entry = entry },
+        events = {
+            mouseMove = async:callback(entryTooltip),
+            mouseLeave = async:callback(clearTooltip),
+            focusLoss = async:callback(clearTooltip),
+            mouseClick = async:callback(selectEntry),
+        },
+    })
+end
+
+local function createInventoryContent(entries, iconSize, columns, gap, panelWidth)
+    local rows = {}
+    local rowHeight = iconSize + gap
+    local rowCount = math.max(1, math.ceil(#entries / columns))
+
+    if #entries == 0 then
+        table.insert(rows, createText("No matching items", {
+            size = util.vector2(panelWidth, rowHeight),
+            textAlignH = ui.ALIGNMENT.Center,
+            textAlignV = ui.ALIGNMENT.Center,
+        }))
+    else
+        for row = 1, rowCount do
+            local slots = {}
+            local first = (row - 1) * columns + 1
+            local last = math.min(#entries, first + columns - 1)
+            for index = first, last do
+                table.insert(slots, createInventoryIcon(entries[index], iconSize))
+            end
+            table.insert(rows, Hotbar.create({
+                slots = slots,
+                slotSize = iconSize,
+                gap = gap,
+                size = util.vector2(panelWidth, rowHeight),
+                align = ui.ALIGNMENT.Start,
+                arrange = ui.ALIGNMENT.Start,
+            }))
+        end
+    end
+
+    return {
+        type = ui.TYPE.Flex,
+        props = {
+            autoSize = false,
+            horizontal = false,
+            size = util.vector2(panelWidth, rowCount * rowHeight),
+            align = ui.ALIGNMENT.Start,
+        },
+        content = ui.content(rows),
+    }, rowHeight
+end
+
+local function magicCategory(name, width, height)
+    return createText(name, {
+        template = I.MWUI.templates.textHeader,
+        textSize = 17,
+        size = util.vector2(width, height),
+        textAlignH = ui.ALIGNMENT.Start,
+        textAlignV = ui.ALIGNMENT.Center,
+    })
+end
+
+local function createMagicEntry(entry, width, height)
+    return {
+        type = ui.TYPE.Container,
+        template = I.MWUI.templates.borders,
+        props = {
+            autoSize = false,
+            size = util.vector2(width, height),
+            propagateEvents = false,
+        },
+        userData = { entry = entry },
+        events = {
+            mouseMove = async:callback(entryTooltip),
+            mouseLeave = async:callback(clearTooltip),
+            focusLoss = async:callback(clearTooltip),
+            mouseClick = async:callback(selectEntry),
+        },
+        content = ui.content({
+            {
+                type = ui.TYPE.Flex,
+                props = {
+                    autoSize = false,
+                    horizontal = true,
+                    size = util.vector2(width, height),
+                    align = ui.ALIGNMENT.Start,
+                    arrange = ui.ALIGNMENT.Start,
+                },
+                content = ui.content({
+                    Icon.create({
+                        size = height - 6,
+                        path = entry.icon,
+                        template = I.MWUI.templates.padding,
+                    }),
+                    createText(entry.name, {
+                        textSize = 17,
+                        size = util.vector2(width - height, height),
+                        textAlignH = ui.ALIGNMENT.Start,
+                        textAlignV = ui.ALIGNMENT.Center,
+                    }),
+                }),
+            },
+        }),
+    }
+end
+
+local function createMagicContent(entries, panelWidth)
+    local rowHeight = selectionSettings:get("selectionMagicRowHeight") or 38
+    local rows = {}
+    local currentCategory
+
+    if #entries == 0 then
+        table.insert(rows, createText("No matching spells or enchantments", {
+            size = util.vector2(panelWidth, rowHeight),
+            textAlignH = ui.ALIGNMENT.Center,
+            textAlignV = ui.ALIGNMENT.Center,
+        }))
+    else
+        for _, entry in ipairs(entries) do
+            if entry.category ~= currentCategory then
+                currentCategory = entry.category
+                table.insert(rows, magicCategory(currentCategory, panelWidth, rowHeight))
+            end
+            table.insert(rows, createMagicEntry(entry, panelWidth, rowHeight))
+        end
+    end
+
+    return {
+        type = ui.TYPE.Flex,
+        props = {
+            autoSize = false,
+            horizontal = false,
+            size = util.vector2(panelWidth, math.max(1, #rows) * rowHeight),
+            align = ui.ALIGNMENT.Start,
+        },
+        content = ui.content(rows),
+    }, rowHeight
+end
+
+local function selectorScrollParams(entries)
+    local content
+    local itemHeight
+    if currentView == VIEW.Inventory then
+        content, itemHeight = createInventoryContent(
+            entries,
+            selectorMetrics.iconSize,
+            selectorMetrics.columns,
+            selectorMetrics.gap,
+            selectorMetrics.contentWidth
+        )
+    else
+        content, itemHeight = createMagicContent(entries, selectorMetrics.contentWidth)
+    end
+
+    return {
+        width = selectorMetrics.panelWidth,
+        height = selectorMetrics.panelHeight,
+        content = content,
+        itemHeight = itemHeight,
+    }
+end
+
+local function buildSelectorScroll(entries)
+    return ScrollView.create(selectorScrollParams(entries))
+end
+
+local function refreshSelectorResults()
+    if not window or not selectorMetrics then
+        drawSelector()
+        return
+    end
+
+    local entries = Catalog.filter(catalogEntries, query)
+    Debug.items("Rendering " .. currentView .. " selector with " .. tostring(#entries) ..
+        " results for query '" .. query .. "'")
+    -- The scroll view retains its outer Element while its content and
+    -- scrollbar are replaced.  This avoids recreating the modal and its
+    -- focused search field.
+    scrollView = ScrollView.replace(scrollView, selectorScrollParams(entries))
+    selectorSummary.props.text = tostring(#entries) .. " result" .. (#entries == 1 and "" or "s")
+    window:update()
+end
+
+local function updateSearch(value)
+    value = value or ""
+    if value == query then
+        return
+    end
+    query = value
+    -- Keep the TextEdit instance alive while results change.  Recreating it
+    -- here used to drop keyboard focus after every character.
+    refreshSelectorResults()
+end
+
+local function clearSearch()
+    if query == "" then
+        return
+    end
+    query = ""
+    SearchBar.setText(selectorSearchInput, query)
+    refreshSelectorResults()
+end
+
+drawSelector = function()
+    destroyWindow()
+
+    local iconSize = settings:get("iconSize") or 40
+    local columns = selectionSettings:get("selectionColumns") or 10
+    local visibleRows = selectionSettings:get("selectionVisibleRows") or 6
+    local magicRows = selectionSettings:get("selectionMagicVisibleRows") or 12
+    local gap = selectionSettings:get("selectionItemSpacing") or 4
+    local scrollbarWidth = 14
+    local screen = ui.screenSize()
+    local maximumContentWidth = math.max(360, screen.x - 120 - scrollbarWidth)
+    local maximumColumns = math.max(1, math.floor((maximumContentWidth + gap) / (iconSize + gap)))
+    columns = math.min(columns, maximumColumns)
+    local contentWidth = math.max(360, columns * iconSize + math.max(0, columns - 1) * gap)
+    local panelWidth = contentWidth + scrollbarWidth
+    local rowHeight = currentView == VIEW.Inventory
+        and iconSize + gap
+        or (selectionSettings:get("selectionMagicRowHeight") or 38)
+    local panelHeight
+    if currentView == VIEW.Inventory then
+        visibleRows = math.max(1, math.min(visibleRows, math.floor((screen.y - 220) / rowHeight)))
+        panelHeight = visibleRows * rowHeight
+    else
+        magicRows = math.max(1, math.min(magicRows, math.floor((screen.y - 220) / rowHeight)))
+        panelHeight = magicRows * rowHeight
+    end
+
+    selectorMetrics = {
+        iconSize = iconSize,
+        columns = columns,
+        gap = gap,
+        contentWidth = contentWidth,
+        panelWidth = panelWidth,
+        panelHeight = panelHeight,
+    }
+
+    local entries = Catalog.filter(catalogEntries, query)
+    Debug.items("Rendering " .. currentView .. " selector with " .. tostring(#entries) ..
+        " results for query '" .. query .. "'")
+    scrollView = buildSelectorScroll(entries)
+
+    local title = currentView == VIEW.Inventory and core.getGMST("sQuickMenu6") or core.getGMST("sMagicSelectTitle")
+    selectorSummary = createText(tostring(#entries) .. " result" .. (#entries == 1 and "" or "s"), {
+        size = util.vector2(panelWidth, 24),
+        textAlignH = ui.ALIGNMENT.Center,
+        textAlignV = ui.ALIGNMENT.Center,
+    })
+    local searchBar = SearchBar.create({
+        width = panelWidth,
+        text = query,
+        onChanged = updateSearch,
+        onFocusChanged = function(focused)
+            searchHasFocus = focused
+        end,
+    })
+    selectorSearchInput = SearchBar.getInput(searchBar)
+    selectorListHost = {
+        type = ui.TYPE.Container,
+        template = I.MWUI.templates.boxSolid,
+        props = {
+            autoSize = false,
+            size = util.vector2(panelWidth, panelHeight),
+        },
+        content = ui.content({ scrollView }),
+    }
+    local footer = {
+        type = ui.TYPE.Flex,
+        props = {
+            autoSize = false,
+            horizontal = true,
+            size = util.vector2(panelWidth, 42),
+            align = ui.ALIGNMENT.Center,
+            arrange = ui.ALIGNMENT.End,
+        },
+        content = ui.content({
+            Button.create({
+                text = "Clear",
+                size = util.vector2(100, 34),
+                onClick = clearSearch,
+            }),
+            Button.create({
+                text = core.getGMST("sCancel"),
+                size = util.vector2(120, 34),
+                onClick = drawSlotActions,
+            }),
+        }),
+    }
+
+    window = ui.create(Modal.create({
+        width = panelWidth,
+        title = title,
+        content = {
+            selectorSummary,
+            searchBar,
+            selectorListHost,
+            footer,
+        },
+    }))
+end
+
+local function handleSearchKey(key)
+    if currentView ~= VIEW.Inventory and currentView ~= VIEW.Magic then
+        return false
+    end
+
+    if key.code == input.KEY.Backspace then
+        -- Let a focused TextEdit process Backspace itself.  It emits
+        -- textChanged, which updates the results list without recreating the
+        -- field.  The fallback below is for keyboard/controller search before
+        -- the TextEdit has focus.
+        if searchHasFocus then
+            return false
+        end
+        if #query > 0 then
+            query = string.sub(query, 1, #query - 1)
+            SearchBar.setText(selectorSearchInput, query)
+            refreshSelectorResults()
+        end
+        return true
+    end
+
+    if searchHasFocus or key.withCtrl or key.withAlt or key.withSuper then
+        return false
+    end
+
+    if key.symbol and key.symbol ~= "" then
+        query = query .. key.symbol
+        SearchBar.setText(selectorSearchInput, query)
+        refreshSelectorResults()
+        return true
+    end
+
+    return false
 end
 
 local function onKeyPress(key)
-    if not QuickSelectWindow then return end
-
-    local nextCol = selectedCol
-    local nextRow = selectedRow
-    if key.code == input.KEY.LeftArrow then
-        nextCol = nextCol - 1
-    elseif key.code == input.KEY.RightArrow then
-        nextCol = nextCol + 1
-    elseif key.code == input.KEY.DownArrow then
-        nextRow = nextRow + 1
-    elseif key.code == input.KEY.UpArrow then
-        nextRow = nextRow - 1
+    if not window then
+        return
     end
-    if not columnsAndRows[nextCol] or not columnsAndRows[nextCol][nextRow] then
 
-    else
-        hoveredOverId = columnsAndRows[nextCol][nextRow]
-        selectedCol = nextCol
-        selectedRow = nextRow
-        drawQuickSelect()
+    if key.code == input.KEY.Escape then
+        if currentView == VIEW.Inventory or currentView == VIEW.Magic then
+            if query ~= "" then
+                clearSearch()
+            else
+                drawSlotActions()
+            end
+        elseif currentView == VIEW.SlotActions then
+            goToHotbars()
+        end
+        return
+    end
+
+    return handleSearchKey(key)
+end
+
+local function onControllerButtonPress(button)
+    if not window then
+        return
+    end
+
+    if button == input.CONTROLLER_BUTTON.B then
+        if currentView == VIEW.Inventory or currentView == VIEW.Magic then
+            drawSlotActions()
+        elseif currentView == VIEW.SlotActions then
+            goToHotbars()
+        else
+            closeMenu()
+        end
     end
 end
-local function onControllerButtonPress(id)
-    if not QuickSelectWindow then return end
 
-    local nextCol = selectedCol
-    local nextRow = selectedRow
-    if id == input.CONTROLLER_BUTTON.DPadLeft then
-        nextCol = nextCol - 1
-    elseif id == input.CONTROLLER_BUTTON.DPadRight then
-        nextCol = nextCol + 1
-    elseif id == input.CONTROLLER_BUTTON.DPadDown then
-        nextRow = nextRow + 1
-    elseif id == input.CONTROLLER_BUTTON.DPadUp then
-        nextRow = nextRow - 1
+local function onMouseWheel(vertical)
+    if not scrollView or vertical == 0 then
+        return
     end
-    if not columnsAndRows[nextCol] or not columnsAndRows[nextCol][nextRow] then
 
-    else
-        hoveredOverId = columnsAndRows[nextCol][nextRow]
-        selectedCol = nextCol
-        selectedRow = nextRow
-        drawQuickSelect()
+    local direction = vertical / math.abs(vertical)
+    ScrollView.scroll(scrollView, -direction * 3)
+end
+
+local function uiModeChanged(data)
+    if data.newMode then
+        return
+    end
+
+    destroyWindow()
+    resetState()
+    if I.QuickSelect_Hotbar then
+        I.QuickSelect_Hotbar.drawHotbar()
     end
 end
-I.UI.registerWindow(I.UI.WINDOW.QuickKeys, drawQuickSelect, function() --
-    if QuickSelectWindow then
-        QuickSelectWindow:destroy()
-        QuickSelectWindow = nil
+
+local function buttonClicked(data)
+    if not slotToSave then
+        return
     end
-    if tooltip then
-        tooltip:destroy()
-        tooltip = nil
+
+    if data.text == core.getGMST("sQuickMenu2") then
+        beginSelector(VIEW.Inventory)
+    elseif data.text == core.getGMST("sQuickMenu3") then
+        beginSelector(VIEW.Magic)
+    elseif data.text == core.getGMST("sQuickMenu4") then
+        deleteSlot()
+    elseif data.text == core.getGMST("sCancel") then
+        goToHotbars()
     end
+end
+
+I.UI.registerWindow(I.UI.WINDOW.QuickKeys, drawQuickSelect, function()
+    destroyWindow()
+    resetState()
 end)
-local function ButtonClicked(data)
-    local text = data.text
-    num = 1
-    if text == core.getGMST("sQuickMenu2") then
-        spellMode = false
-        drawItemSelect()
-    elseif text == core.getGMST("sQuickMenu3") then
-        spellMode = true
-        drawSpellSelect()
-    elseif text == core.getGMST("sQuickMenu4") then
-        --delete
-        I.QuickSelect_Storage.deleteStoredItemData(slotToSave)
-        if QuickSelectWindow then
-            QuickSelectWindow:destroy()
-            QuickSelectWindow = nil
-        end
-        I.UI.setMode()
-    elseif text == core.getGMST(
-            "sCancel") then
-        if QuickSelectWindow then
-            QuickSelectWindow:destroy()
-            QuickSelectWindow = nil
-        end
-        I.UI.setMode()
+
+local function onSettingsChanged()
+    if not window then
+        return
+    end
+
+    if currentView == VIEW.Hotbars then
+        drawQuickSelect()
+    elseif currentView == VIEW.SlotActions then
+        drawSlotActions()
+    else
+        drawSelector()
     end
 end
+
+settings:subscribe(async:callback(onSettingsChanged))
+selectionSettings:subscribe(async:callback(onSettingsChanged))
+textSettings:subscribe(async:callback(onSettingsChanged))
 
 return {
-
     interfaceName = "QuickSelect_Win1",
     interface = {
         drawQuickSelect = drawQuickSelect,
-        openQuickSelect = openQuickSelect,
+        openQuickSelect = drawQuickSelect,
         getQuickSelectWindow = function()
-            return QuickSelectWindow
+            return window
+        end,
+        isMenuOpen = function()
+            return menuIsOpen
         end,
     },
     eventHandlers = {
-        UiModeChanged = UiModeChanged,
+        UiModeChanged = uiModeChanged,
         drawQuickSelect = drawQuickSelect,
-        openQuickSelect = openQuickSelect,
-        ButtonClicked = ButtonClicked,
+        openQuickSelect = drawQuickSelect,
+        ButtonClicked = buttonClicked,
     },
     engineHandlers = {
         onLoad = function()
-            -- Initialize TooltipLayer with a slight delay to avoid race conditions
-            -- with other scripts that might also be creating it
-            Debug.log("SelectItemsWin", "Waiting before initializing TooltipLayer")
-            async:newUnsavableSimulationTimer(0.5, function()
-                local success, err = pcall(function()
-                    initTooltipLayer()
-                end)
-                if not success then
-                    Debug.warning("SelectItemsWin", "Failed to initialize TooltipLayer: " .. tostring(err))
-                end
-            end)
+            Tooltip.ensureLayer()
+            Debug.items("QuickSelect UI components initialized")
         end,
         onKeyPress = onKeyPress,
         onControllerButtonPress = onControllerButtonPress,
-        onMouseWheel = function(vert)
-            if not QuickSelectWindow then return end
-            local modifer = 10
-
-            if spellMode then
-                modifer = 1
-            end
-            if vert > 0 then
-                startOffset = startOffset - modifer
-            elseif startOffset + modifer < maxCount then
-                startOffset = startOffset + modifer
-            end
-            Debug.items("Scroll offset: " .. startOffset)
-            if startOffset < 0 then
-                startOffset = 0
-            end
-            if spellMode then
-                drawSpellSelect()
-            else
-                drawItemSelect()
-            end
-        end
-    }
+        onMouseWheel = onMouseWheel,
+    },
 }

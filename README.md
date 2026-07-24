@@ -2,7 +2,7 @@
 
 ### Requirements
 
-OpenMW build(0.49+) required
+OpenMW 0.51+ is required.
 
 ### Description
 
@@ -92,6 +92,15 @@ Available commands:
 - `debug` - Debug the mod (copy files and restart OpenMW)
 - `deploy` - Deploy a new version (create tag and release)
 - `package` - Package the mod for distribution
+
+The UI component smoke tests can be run without launching OpenMW:
+
+```bash
+lua tests/ui_components_test.lua
+```
+
+The rendering boundaries and follow-up migration slices are documented in
+[`docs/UI_RENDERING_ARCHITECTURE.md`](docs/UI_RENDERING_ARCHITECTURE.md).
 
 #### Examples
 

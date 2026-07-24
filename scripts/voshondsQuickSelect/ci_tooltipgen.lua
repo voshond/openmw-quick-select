@@ -65,7 +65,7 @@ local function genMagicTooltips(list, spellRecord, item)
                 value.duration, range)
         end
 
-        table.insert(list, { text = "   " .. line, icon = value.effect.icon })
+        table.insert(list, { text = line, icon = value.effect.icon })
     end
 end
 

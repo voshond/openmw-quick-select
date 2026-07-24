@@ -81,8 +81,8 @@ I.Settings.registerGroup {
             key = "hotbarVerticalSpacing",
             renderer = "number",
             name = "Hotbar Vertical Spacing",
-            description = "Controls the vertical spacing between stacked hotbars when multiple bars are shown. Lower values create tighter spacing.",
-            default = 60,
+            description = "Controls the vertical spacing in UI pixels between stacked hotbars. Zero makes rows touch.",
+            default = 12,
             argument = {
                 min = 0,
                 max = 100,
@@ -119,6 +119,72 @@ I.Settings.registerGroup {
             name = "Enable Fading Bars",
             description = "If enabled, the hotbar will automatically hide after 2 seconds of inactivity. It will reappear when you interact with items.",
             default = false
+        },
+    },
+}
+
+I.Settings.registerGroup {
+    key = "SettingsVoshondsQuickSelectSelection",
+    page = "SettingsVoshondsQuickSelect",
+    l10n = "SettingsVoshondsQuickSelect",
+    name = "Quick Key Selection",
+    permanentStorage = true,
+    description = "These settings control the searchable item and magic selection windows.",
+    settings = {
+        {
+            key = "selectionColumns",
+            renderer = "number",
+            name = "Inventory Columns",
+            description = "Number of item icons shown in each row of the inventory selector.",
+            default = 10,
+            argument = {
+                min = 4,
+                max = 12,
+            },
+        },
+        {
+            key = "selectionVisibleRows",
+            renderer = "number",
+            name = "Visible Inventory Rows",
+            description = "Number of item rows visible before the inventory selector scrolls.",
+            default = 6,
+            argument = {
+                min = 3,
+                max = 10,
+            },
+        },
+        {
+            key = "selectionMagicVisibleRows",
+            renderer = "number",
+            name = "Visible Magic Rows",
+            description = "Number of spell and enchantment rows visible before the magic selector scrolls.",
+            default = 12,
+            argument = {
+                min = 6,
+                max = 20,
+            },
+        },
+        {
+            key = "selectionItemSpacing",
+            renderer = "number",
+            name = "Inventory Item Spacing",
+            description = "Spacing in pixels between item icons in the inventory selector.",
+            default = 4,
+            argument = {
+                min = 0,
+                max = 12,
+            },
+        },
+        {
+            key = "selectionMagicRowHeight",
+            renderer = "number",
+            name = "Magic Row Height",
+            description = "Height in pixels of each spell or enchantment row.",
+            default = 38,
+            argument = {
+                min = 28,
+                max = 64,
+            },
         },
     },
 }

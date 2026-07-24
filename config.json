@@ -35,6 +35,7 @@
     ],
     "excludes": [
       "config.json",
+      "docs",
       ".cursorrules",
       "debug.*",
       "deploy.*",

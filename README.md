@@ -98,7 +98,6 @@ The UI component smoke tests can be run without launching OpenMW:
 ```bash
 luajit tests/ui_components_test.lua
 luajit tests/hotbar_performance_test.lua
-luajit tests/settings_migration_test.lua
 luajit tests/favorite_slots_migration_test.lua
 ```
 
@@ -106,19 +105,11 @@ The rendering boundaries and performance lifecycle are documented in
 [`docs/UI_RENDERING_ARCHITECTURE.md`](docs/UI_RENDERING_ARCHITECTURE.md) and
 [`docs/PERFORMANCE_REFACTOR_PLAN.md`](docs/PERFORMANCE_REFACTOR_PLAN.md).
 
-### Legacy settings
-
-The QuickSelect settings page includes an **Import pre-1.0.23 settings**
-button. It deliberately overwrites compatible current main-hotbar settings
-with values from the original `SettingsQuickSelect` storage section; later
-settings that did not exist in that release remain unchanged.
-
 ### Legacy quick-key assignments
 
 Loading a save created before the script reorganisation automatically imports
-its saved quick-key assignments. This is separate from the settings import:
-assignments are kept in the player script's save data, rather than the player
-settings section.
+its saved quick-key assignments. Assignments are kept in the player script's
+save data, rather than the player settings section.
 
 #### Examples
 

@@ -1,4 +1,3 @@
-MENU:scripts/voshondsQuickSelect/settings_menu.lua
 PLAYER:scripts/voshondsQuickSelect/controllers/player.lua
 PLAYER:scripts/voshondsQuickSelect/presentation/icon_renderer.lua
 PLAYER:scripts/voshondsQuickSelect/controllers/quick_keys.lua

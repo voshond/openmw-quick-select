@@ -6,8 +6,14 @@ local util = require("openmw.util")
 local SearchBar = {}
 
 local function onTextChanged(text, layout)
+    text = text or ""
+    -- TextEdit maintains an internal buffer.  Persist the value back to the
+    -- layout before refreshing the result list, otherwise Element:update()
+    -- can restore the stale value that was used when the field was created.
+    layout.props.text = text
+
     if layout.userData and layout.userData.onChanged then
-        layout.userData.onChanged(text or "")
+        layout.userData.onChanged(text)
     end
 end
 
@@ -37,6 +43,9 @@ function SearchBar.create(params)
             position = util.vector2(2, 2),
             text = params.text or "",
             textSize = params.textSize or 16,
+            -- TextEdit defaults to black text. Keep the compact, single
+            -- border below, but use the standard MWUI sand text colour.
+            textColor = I.MWUI.templates.textNormal.props and I.MWUI.templates.textNormal.props.textColor or nil,
             size = util.vector2(math.max(1, inputWidth - 4), math.max(1, height - 4)),
             multiline = false,
             wordWrap = false,

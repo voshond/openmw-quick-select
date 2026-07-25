@@ -243,6 +243,7 @@ local search = SearchBar.create({
 local inputLayout = SearchBar.getInput(search)
 inputLayout.events.textChanged("amulet", inputLayout)
 assert(changedValue == "amulet", "search field forwards text changes")
+assert(inputLayout.props.text == "amulet", "search field keeps native TextEdit changes after UI refreshes")
 SearchBar.setText(inputLayout, "ring")
 assert(inputLayout.props.text == "ring", "search field text can update without rebuilding its layout")
 

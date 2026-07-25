@@ -44,6 +44,11 @@ local pollElapsed = 0
 local fadeElapsed = 0
 local fadedHidden = false
 local wasHudVisible = true
+local frameTime = 0
+local retryAfter = 0
+local lastHudError
+
+local HUD_ERROR_RETRY_SECONDS = 1.0
 
 local metrics = {
     fullBuilds = 0,
@@ -139,7 +144,9 @@ local function drawToolTip()
 
     local item
     local magicRecord
-    if data.item then
+    if I.QuickSelect_Storage.getFavoriteItem then
+        item = I.QuickSelect_Storage.getFavoriteItem(selectedSlot())
+    elseif data.item then
         item = types.Actor.inventory(self):find(data.item)
     elseif data.itemId then
         item = types.Actor.inventory(self):find(data.itemId)
@@ -625,16 +632,32 @@ return {
             fadeElapsed = 0
             fadedHidden = false
             wasHudVisible = hudIsVisible()
+            frameTime = 0
+            retryAfter = 0
+            lastHudError = nil
             requestLayout(true)
         end,
         onUpdate = onUpdate,
         onFrame = function(dt)
+            frameTime = frameTime + (dt or 0)
+            if frameTime < retryAfter then
+                return
+            end
+
             local success, err = pcall(function()
                 updateFade(dt)
                 flushInvalidations()
             end)
             if not success then
-                Debug.error("QuickSelect_Hotbar", "HUD update failed: " .. tostring(err))
+                local message = tostring(err)
+                if message ~= lastHudError then
+                    Debug.error("QuickSelect_Hotbar", "HUD update failed: " .. message)
+                    lastHudError = message
+                end
+                retryAfter = frameTime + HUD_ERROR_RETRY_SECONDS
+            else
+                lastHudError = nil
+                retryAfter = 0
             end
         end,
         onKeyPress = function(key)

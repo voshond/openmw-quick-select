@@ -2,6 +2,9 @@
 
 This directory contains all development and deployment scripts for the OpenMW Quick Select mod. These scripts are accessed through proxy scripts in the project root.
 
+> Release publishing is handled by GitHub Actions. The PowerShell scripts are
+> legacy local tooling and are not part of the release path.
+
 ## Usage
 
 Instead of running scripts directly from this directory, use the proxy scripts in the project root:
@@ -30,10 +33,8 @@ Available commands:
   - Ubuntu/Debian: `sudo apt install jq`
   - Fedora/RHEL: `sudo dnf install jq`
   - Arch: `sudo pacman -S jq`
-- **zip or 7z**: Required for packaging
-  - Ubuntu/Debian: `sudo apt install zip` OR `sudo apt install p7zip-full`
-  - Fedora/RHEL: `sudo dnf install zip` OR `sudo dnf install p7zip`
-  - Arch: `sudo pacman -S zip` OR `sudo pacman -S p7zip`
+- **Python 3.9+**: Required for packaging. The archive uses Python's standard
+  library, so no separate ZIP utility is required.
 - **git**: Required for deployment
 - **wmctrl**: Optional, for window focusing
   - Ubuntu/Debian: `sudo apt install wmctrl`
@@ -43,9 +44,9 @@ Available commands:
 All scripts use the `config.json` file in the project root for configuration. This file contains:
 
 - Project information (name, display name, version)
-- Platform-specific paths (Linux/Windows)
+- Platform-specific debug paths
 - OpenMW executable paths
-- Packaging includes/excludes
+- Packaging include/generated manifest
 - Color codes for output
 
 ## Commands
@@ -86,7 +87,9 @@ Creates a distributable package of the mod.
 
 ### deploy
 
-Creates a new release with git tagging and automatic packaging.
+Updates release metadata, commits it, and pushes a release tag. GitHub Actions
+then tests, packages, verifies, uploads to Nexus Mods, and publishes the
+GitHub release. See [the release guide](../docs/RELEASING.md).
 
 ```bash
 # Interactive deployment (prompts for version and message)
@@ -134,17 +137,12 @@ dev-scripts/
 
 ## Platform Support
 
-Both Linux/macOS (Bash) and Windows (PowerShell) versions are available:
-
-- **Bash scripts** (`.sh`): For Linux and macOS
-- **PowerShell scripts** (`.ps1`): For Windows
-- **Proxy scripts**: Automatically call the appropriate platform-specific script
-
-The JSON configuration allows the same scripts to work across different platforms by defining platform-specific paths and executables.
+The supported release path is Bash locally and GitHub Actions for publishing.
+The PowerShell files remain as legacy local tooling only.
 
 ## Error Handling
 
-All scripts include comprehensive error handling:
+The supported Bash scripts fail immediately when a command fails:
 
 - Missing dependencies are detected and reported
 - Invalid configurations are caught early
@@ -154,7 +152,8 @@ All scripts include comprehensive error handling:
 
 ## Direct Script Access
 
-While it's recommended to use the proxy scripts, you can still run scripts directly from this directory if needed:
+While it's recommended to use the proxy scripts, you can still run supported
+Bash scripts directly from this directory if needed:
 
 ```bash
 cd dev-scripts
@@ -163,4 +162,5 @@ cd dev-scripts
 ./deploy.sh -v 1.2.3 -m "Release notes"
 ```
 
-Note: When running scripts directly, make sure you're in the project root directory or the path resolution may not work correctly.
+Note: the scripts resolve the repository root themselves, so they can be run
+from any directory.

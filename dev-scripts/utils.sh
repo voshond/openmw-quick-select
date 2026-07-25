@@ -245,7 +245,7 @@ tag_exists() {
     git tag -l "$tag" | grep -q "$tag"
 }
 
-# Update changelog
+# Update changelog. The caller is responsible for staging and committing it.
 update_changelog() {
     local version="$1"
     local message="$2"
@@ -258,34 +258,27 @@ update_changelog() {
         
         # Check if version already exists in changelog
         if echo "$changelog_content" | grep -q "## Version $version"; then
-            print_warning "Version $version already exists in CHANGELOG.md"
+            print_error "Version $version already exists in CHANGELOG.md"
+            return 1
         else
             # Add new version with timestamp
             local date=$(date +"%Y-%m-%d")
-            local new_entry="$release_header ($date)\n\n"
-            if [ -n "$message" ]; then
-                new_entry+="$message\n\n"
-            fi
-            
             # Insert after first line
             local first_line=$(head -n 1 "$changelog_path")
             local rest_of_file=$(tail -n +2 "$changelog_path")
             
             # Create updated changelog
             {
-                echo "$first_line"
-                echo ""
-                echo -e "$new_entry"
-                echo "$rest_of_file"
+                printf '%s\n\n' "$first_line"
+                printf '%s (%s)\n\n' "$release_header" "$date"
+                if [ -n "$message" ]; then
+                    printf '%s\n\n' "$message"
+                fi
+                printf '%s\n' "$rest_of_file"
             } > "$changelog_path.tmp"
             
             mv "$changelog_path.tmp" "$changelog_path"
             print_success "Updated CHANGELOG.md with new version information"
-            
-            # Commit changelog changes
-            git add "$changelog_path"
-            git commit -m "Update CHANGELOG for v$version"
-            print_success "Committed changelog changes"
         fi
     fi
-} 
+}

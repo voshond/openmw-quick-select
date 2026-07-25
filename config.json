@@ -2,7 +2,7 @@
   "project": {
     "name": "voshondsQuickSelect",
     "displayName": "voshond's Quick Select (OpenMW)",
-    "version": "1.0.1"
+    "version": "1.0.23"
   },
   "paths": {
     "linux": {

@@ -778,7 +778,7 @@ local function handleSearchKey(key)
         if #query > 0 then
             query = string.sub(query, 1, #query - 1)
             SearchBar.setText(selectorSearchInput, query)
-            refreshSelectorResults()
+            scheduleSelectorRefresh()
         end
         return true
     end
@@ -790,7 +790,7 @@ local function handleSearchKey(key)
     if key.symbol and key.symbol ~= "" then
         query = query .. key.symbol
         SearchBar.setText(selectorSearchInput, query)
-        refreshSelectorResults()
+        scheduleSelectorRefresh()
         return true
     end
 

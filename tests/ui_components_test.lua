@@ -347,9 +347,14 @@ selectorInput.events.focusGain(nil, selectorInput)
 assert(selector.engineHandlers.onKeyPress({ code = testInput.KEY.Backspace }) == false,
     "focused search lets TextEdit receive Backspace")
 selectorInput.events.focusLoss(nil, selectorInput)
+local fallbackUpdates = selectorWindow.updates
 assert(selector.engineHandlers.onKeyPress({ code = testInput.KEY.Backspace }) == true,
     "unfocused search retains the Backspace fallback")
 assert(selectorInput.props.text == "amule", "unfocused Backspace updates the visible search text")
+assert(selectorWindow.updates == fallbackUpdates, "unfocused Backspace also uses the search debounce")
+testRealTime = testRealTime + 0.12
+selector.engineHandlers.onUpdate()
+assert(selectorWindow.updates == fallbackUpdates + 1, "unfocused search refreshes after the debounce interval")
 
 local Catalog = require("scripts.voshondsquickselect.services.item_catalog")
 testSpells = {

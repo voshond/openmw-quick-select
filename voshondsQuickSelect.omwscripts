@@ -3,4 +3,5 @@ PLAYER:scripts/voshondsQuickSelect/controllers/player.lua
 PLAYER:scripts/voshondsQuickSelect/presentation/icon_renderer.lua
 PLAYER:scripts/voshondsQuickSelect/controllers/quick_keys.lua
 PLAYER:scripts/voshondsQuickSelect/services/favorite_slots.lua
+PLAYER:scripts/voshondsQuickSelect/ci_favorite_storage.lua
 PLAYER:scripts/voshondsQuickSelect/controllers/hud_hotbar.lua

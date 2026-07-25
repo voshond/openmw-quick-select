@@ -13,6 +13,7 @@ local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
 local utility = require("scripts.voshondsquickselect.legacy.utility")
 local Debug = require("scripts.voshondsquickselect.debug")
+local FavoriteSlotsMigration = require("scripts.voshondsquickselect.services.favorite_slots_migration")
 local storedItems
 
 local function getFavoriteItems()
@@ -28,6 +29,23 @@ local function getFavoriteItemData(slot)
     getFavoriteItems()
     return storedItems[slot]
 end
+
+local function importLegacyFavorites(legacySlots)
+    -- The compatibility bridge can be loaded alongside a save that already
+    -- contains data written by this module. Never replace current assignments.
+    if FavoriteSlotsMigration.hasAssignments(storedItems) then
+        return false
+    end
+
+    if not FavoriteSlotsMigration.hasAssignments(legacySlots) then
+        return false
+    end
+
+    storedItems = FavoriteSlotsMigration.copySlots(legacySlots)
+    Debug.storage("Imported quick-key assignments from the legacy storage script")
+    return true
+end
+
 local requestHotbarUpdate
 
 local function deleteStoredItemData(slot, suppressUpdate)
@@ -293,6 +311,7 @@ return {
         saveStoredEnchantData = saveStoredEnchantData,
         isSlotEquipped        = isSlotEquipped,
         deleteStoredItemData  = deleteStoredItemData,
+        importLegacyFavorites = importLegacyFavorites,
     },
     engineHandlers = {
         onSave = function()

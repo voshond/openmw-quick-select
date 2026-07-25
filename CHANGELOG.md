@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.24 (2026-07-26)
+
+Code Cleanup & Automated Release Pipeline to Nexusmods
+
+
 ## Version 1.0.23 (2026-07-25)
 
 Performance Improvements and Search Debouncing

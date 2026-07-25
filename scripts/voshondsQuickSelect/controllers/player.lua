@@ -5,6 +5,7 @@ local I = require('openmw.interfaces')
 local async = require('openmw.async')
 local settings = require("scripts.voshondsquickselect.settings")
 local Debug = require("scripts.voshondsquickselect.debug")
+local FavoriteItem = require("scripts.voshondsquickselect.services.favorite_item")
 
 -- State variables
 local selectedPage = 0
@@ -126,12 +127,17 @@ local function onInputAction(action)
                     if itemData.enchantId then
                         log("Processing enchanted item in slot " .. actualSlot, "info")
                         local enchantedItem = types.Actor.getSelectedEnchantedItem(self)
-                        local realItem = types.Actor.inventory(self):find(itemData.itemId)
+                        local realItem
+                        if I.QuickSelect_Storage.getFavoriteItem then
+                            realItem = I.QuickSelect_Storage.getFavoriteItem(actualSlot)
+                        else
+                            realItem = types.Actor.inventory(self):find(itemData.itemId)
+                        end
 
                         -- Only proceed if the item exists in inventory
                         if realItem then
                             -- Check if the same enchanted item is already selected
-                            if enchantedItem and enchantedItem.recordId == realItem.recordId then
+                            if FavoriteItem.isSameInstance(enchantedItem, realItem) then
                                 -- Toggle enchanted item stance if already selected
                                 local currentStance = types.Actor.getStance(self)
                                 if currentStance == types.Actor.STANCE.Spell then

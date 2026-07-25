@@ -2,6 +2,8 @@ local self = require("openmw.self")
 local types = require("openmw.types")
 
 local utility = require("scripts.voshondsquickselect.legacy.utility")
+local ActorEquipment = require("scripts.voshondsquickselect.services.actor_equipment")
+local FavoriteItem = require("scripts.voshondsquickselect.services.favorite_item")
 
 local Snapshot = {}
 
@@ -26,16 +28,6 @@ local function valueId(value)
         return nil
     end
     return tostring(value)
-end
-
-local function actorEquipment(actor)
-    if types.Actor.getEquipment then
-        return types.Actor.getEquipment(actor)
-    end
-    if types.Actor.equipment then
-        return types.Actor.equipment(actor)
-    end
-    return {}
 end
 
 local function actorSpell(spells, id)
@@ -68,21 +60,26 @@ local function itemCharge(item)
         return nil
     end
 
-    local charge
-    if types.Item.getEnchantmentCharge then
+    -- itemData is the current API. A nil enchantmentCharge means a full,
+    -- never-used enchantment, so derive the display value from the record
+    -- instead of treating it as an unknown charge.
+    local data = itemData(item)
+    local charge = data and data.enchantmentCharge
+    if charge == nil and types.Item.getEnchantmentCharge then
         charge = types.Item.getEnchantmentCharge(item)
-    else
-        local data = itemData(item)
-        charge = data and (data.enchantmentCharge or data.charge)
-        if charge == nil and types.Item.charge then
-            charge = types.Item.charge(item)
-        end
     end
 
-    if charge == nil then
-        return nil
+    if charge ~= nil then
+        return math.floor(charge)
     end
-    return math.floor(charge)
+
+    local record = item.type and item.type.records[item.recordId]
+    local enchantment = record and utility.getEnchantment(record.enchant)
+    if enchantment and enchantment.charge ~= nil then
+        return math.floor(enchantment.charge)
+    end
+
+    return nil
 end
 
 local function inventoryCount(context, recordId)
@@ -119,7 +116,7 @@ local function isEquipped(context, data, item)
     if data.enchantId then
         return context.selectedEnchantedItem ~= nil
             and item ~= nil
-            and context.selectedEnchantedItem.recordId == item.recordId
+            and FavoriteItem.isSameInstance(context.selectedEnchantedItem, item)
     end
 
     if not item then
@@ -160,7 +157,7 @@ function Snapshot.begin(options)
     return {
         actor = actor,
         inventory = inventory,
-        equipment = options.equipment or actorEquipment(actor),
+        equipment = options.equipment or ActorEquipment.get(actor),
         spells = options.spells or types.Actor.spells(actor),
         selectedSpell = options.selectedSpell
             or (types.Actor.getSelectedSpell and types.Actor.getSelectedSpell(actor)),
@@ -186,9 +183,9 @@ function Snapshot.capture(slot, data, context)
     }
 
     if data.item then
-        local item = context.inventory:find(data.item)
+        local item = FavoriteItem.resolve(context.inventory, data)
         snapshot.kind = "item"
-        snapshot.assignmentId = valueId(data.item)
+        snapshot.assignmentId = tostring(valueId(data.item) or "") .. ":" .. tostring(valueId(data.itemInstanceId) or "")
         snapshot.item = item
         snapshot.available = item ~= nil
         snapshot.dynamic = true
@@ -214,9 +211,9 @@ function Snapshot.capture(slot, data, context)
         snapshot.iconPath = effectIcon(spell)
     elseif data.enchantId then
         local enchantment = utility.getEnchantment(data.enchantId)
-        local item = data.itemId and context.inventory:find(data.itemId)
+        local item = FavoriteItem.resolve(context.inventory, data)
         snapshot.kind = "enchant"
-        snapshot.assignmentId = valueId(data.enchantId) .. ":" .. valueId(data.itemId)
+        snapshot.assignmentId = tostring(valueId(data.enchantId) or "") .. ":" .. tostring(valueId(data.itemId) or "") .. ":" .. tostring(valueId(data.itemInstanceId) or "")
         snapshot.item = item
         snapshot.magicRecord = enchantment
         snapshot.available = enchantment ~= nil and item ~= nil
@@ -240,6 +237,7 @@ function Snapshot.capture(slot, data, context)
         totalCount = snapshot.totalCount,
         charge = snapshot.charge,
         condition = snapshot.condition,
+        equipped = snapshot.equipped,
     }
     return snapshot
 end

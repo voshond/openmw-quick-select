@@ -130,12 +130,13 @@ end
 
 local function resolveSlot(slot)
     local data = I.QuickSelect_Storage.getFavoriteItemData(slot) or {}
-    local item
+    local hasFavoriteItemResolver = I.QuickSelect_Storage.getFavoriteItem ~= nil
+    local item = hasFavoriteItemResolver and I.QuickSelect_Storage.getFavoriteItem(slot)
     local path
 
-    if data.item then
+    if not hasFavoriteItemResolver and data.item then
         item = types.Actor.inventory(self):find(data.item)
-    elseif data.itemId then
+    elseif not hasFavoriteItemResolver and data.itemId then
         item = types.Actor.inventory(self):find(data.itemId)
     end
 
@@ -380,11 +381,11 @@ local function selectEntry(_, layout)
     clearTooltip()
 
     if entry.kind == "item" then
-        I.QuickSelect_Storage.saveStoredItemData(entry.item.recordId, slotToSave)
+        I.QuickSelect_Storage.saveStoredItemData(entry.item, slotToSave)
     elseif entry.kind == "spell" then
         I.QuickSelect_Storage.saveStoredSpellData(entry.id, "Spell", slotToSave)
     elseif entry.kind == "enchantment" then
-        I.QuickSelect_Storage.saveStoredEnchantData(entry.enchantmentId, entry.item.recordId, slotToSave)
+        I.QuickSelect_Storage.saveStoredEnchantData(entry.enchantmentId, entry.item, slotToSave)
     end
 
     closeMenu()

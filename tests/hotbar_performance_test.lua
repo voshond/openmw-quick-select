@@ -289,7 +289,7 @@ package.preload["scripts.voshondsquickselect.legacy.utility"] = function()
             return path
         end,
         getEnchantment = function()
-            return nil
+            return { charge = 100 }
         end,
         renderItemBoxed = function(iconContent, size)
             return {
@@ -354,6 +354,10 @@ assert(first.charge == 80, "snapshot captures enchantment charge")
 testCharge = 79
 local changedCharge = Snapshot.capture(1, favoriteData[1], Snapshot.begin({ actor = actor, selectedSlot = 1 }))
 assert(not Snapshot.equals(first, changedCharge), "charge changes dirty the slot snapshot")
+
+testCharge = nil
+local fullCharge = Snapshot.capture(1, favoriteData[1], Snapshot.begin({ actor = actor, selectedSlot = 1 }))
+assert(fullCharge.charge == 100, "an unused enchantment displays its full record charge")
 
 local HotbarView = require("scripts.voshondsquickselect.ui.hotbar_view")
 local standaloneView = HotbarView.create({

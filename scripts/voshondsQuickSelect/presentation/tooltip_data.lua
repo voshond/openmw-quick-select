@@ -4,6 +4,22 @@ local core = require("openmw.core")
 local I = require("openmw.interfaces")
 local Debug = require("scripts.voshondsquickselect.debug")
 
+local function itemSoul(item)
+    if types.Item.itemData then
+        local data = types.Item.itemData(item)
+        if data then
+            return data.soul
+        end
+    end
+
+    -- Compatibility fallback for older OpenMW APIs.
+    if types.Miscellaneous.getSoul then
+        return types.Miscellaneous.getSoul(item)
+    end
+
+    return nil
+end
+
 local function getWeaponTooltipType(record)
     local type = record.type
     local wt = types.Weapon.TYPE
@@ -54,7 +70,7 @@ local function genMagicTooltips(list, spellRecord, item)
         if item and item.type == types.Potion then
             range = ""
         else
-            range = " on " .. range
+            range = " on " .. (range or "")
         end
         if item and item.type == types.Ingredient then
             line = string.format("%s", name)
@@ -70,7 +86,7 @@ local function genMagicTooltips(list, spellRecord, item)
 end
 
 local function getItemNormalizedHealth(itemData, maxCondition)
-    if itemData.condition == 0 or not itemData.condition then
+    if not itemData or not maxCondition or maxCondition <= 0 or itemData.condition == 0 or not itemData.condition then
         Debug.log("ToolTipGen", "Item has no condition or condition is 0")
         return 0.0
     else
@@ -79,19 +95,10 @@ local function getItemNormalizedHealth(itemData, maxCondition)
 end
 local useSoulgemRebalance = false
 
-local function getConditionValues(item)
-    local maxCondition = 0
-    if record.health then
-        maxCondition = record.health
-    elseif record.maxCondition then
-        maxCondition = record.maxCondition
-    end
-    local itemData = types.Item.itemData(item)
-    local norm = getItemNormalizedHealth(itemData, maxCondition)
-end
 local function getConditionLine(item)
     local line = nil
-    local currentCondition = types.Item.itemData(item).condition
+    local itemData = types.Item.itemData and types.Item.itemData(item)
+    local currentCondition = itemData and itemData.condition
     if item.type == types.Light then
     elseif item.type == types.Armor or item.type == types.Weapon then
         local maxCondition = item.type.records[item.recordId].health
@@ -116,7 +123,7 @@ local function getItemValue(item, ignoreCondition)
         value = value * getItemNormalizedHealth(itemData, maxCondition)
     end
     if item.type == types.Miscellaneous then
-        local soul = types.Miscellaneous.getSoul(item)
+        local soul = itemSoul(item)
         if soul and types.Creature.record(soul) then
             local soulValue = types.Creature.record(soul).soulValue
             if useSoulgemRebalance then
@@ -186,9 +193,12 @@ local function genToolTips(item)
     end
     local record = item.type.records[item.recordId]
     local name = record.name
-    if item.type == types.Miscellaneous and types.Miscellaneous.getSoul(item) then
-        local soulName = types.Creature.record(types.Miscellaneous.getSoul(item)).name
-        name = name .. " (" .. soulName .. ")"
+    if item.type == types.Miscellaneous then
+        local soul = itemSoul(item)
+        local soulRecord = soul and types.Creature.record(soul)
+        if soulRecord then
+            name = name .. " (" .. soulRecord.name .. ")"
+        end
     end
     if item.count > 1 then
         name = name .. " (" .. tostring(item.count) .. ")"

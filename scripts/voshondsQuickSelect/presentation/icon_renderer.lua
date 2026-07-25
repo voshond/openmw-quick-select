@@ -12,6 +12,7 @@ local Debug = require("scripts.voshondsquickselect.debug")
 local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
 local itemCountThresholdSettings = storage.playerSection("SettingsVoshondsQuickSelectItemCountThresholds")
 local Icon = require("scripts.voshondsquickselect.ui.icon")
+local ActorEquipment = require("scripts.voshondsquickselect.services.actor_equipment")
 
 -- Helper function to get item charge when a caller has not already captured it.
 local function getItemCharge(item)
@@ -26,16 +27,18 @@ local function getItemCharge(item)
         return nil
     end
 
-    local charge = nil
-
-    -- Try to get charge using the proper API method
-    if types.Item.getEnchantmentCharge then
+    -- The documented ItemData field is the source of truth. The deprecated
+    -- getter returns nil for a full, never-used enchantment, so nil must not
+    -- be shown as an unknown value.
+    local itemData = types.Item.itemData and types.Item.itemData(item)
+    local charge = itemData and itemData.enchantmentCharge
+    if charge == nil and types.Item.getEnchantmentCharge then
         charge = types.Item.getEnchantmentCharge(item)
-        -- Fallback to older methods
-    elseif types.Item.itemData and types.Item.itemData(item) and types.Item.itemData(item).charge ~= nil then
-        charge = types.Item.itemData(item).charge
-    elseif types.Item.charge then
-        charge = types.Item.charge(item)
+    end
+
+    if charge == nil then
+        local enchantment = core.magic.enchantments.records[enchantmentId]
+        charge = enchantment and enchantment.charge
     end
 
     return charge
@@ -425,17 +428,6 @@ local function isEmptyTable(t)
     return type(t) == 'table' and next(t) == nil
 end
 
--- Helper to get the currently equipped item of a given type (Lockpick, Probe, Repair)
-local function getEquippedItemOfType(itemType)
-    local equip = types.Actor.equipment(self)
-    for _, equippedItem in pairs(equip) do
-        if equippedItem and equippedItem.type == itemType then
-            return equippedItem
-        end
-    end
-    return nil
-end
-
 -- Helper to get the total count of items of the same type and recordId in inventory (regardless of condition)
 local function getTotalItemCount(item)
     if not item or not item.type or not item.recordId then return 0 end
@@ -520,13 +512,6 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                 charge = getItemCharge(item)
             end
 
-            -- If direct charge retrieval failed, use the persisted fallback.
-            if charge == nil then
-                if slotData and slotData.lastKnownCharge then
-                    charge = slotData.lastKnownCharge
-                end
-            end
-
             Debug.log("QuickSelect", function()
                 return "Final charge value: " .. tostring(charge)
             end)
@@ -570,12 +555,17 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
             end
         end
         if item and item.type and (item.type == types.Lockpick or item.type == types.Probe or item.type == types.Repair) then
-            local equipped = getEquippedItemOfType(item.type)
-            if equipped then
-                local itemData = types.Item.itemData(equipped)
-                local currentUses = itemData and itemData.condition or nil
-                local maxUses = item.type.records[equipped.recordId] and
-                    item.type.records[equipped.recordId].maxCondition
+            local itemIsEquipped = renderState and renderState.equipped
+            local currentUses = renderState and renderState.condition
+
+            if renderState == nil then
+                itemIsEquipped = ActorEquipment.has(self, item)
+                local itemData = types.Item.itemData and types.Item.itemData(item)
+                currentUses = itemData and itemData.condition
+            end
+
+            if itemIsEquipped then
+                local maxUses = item.type.records[item.recordId] and item.type.records[item.recordId].maxCondition
                 if currentUses and maxUses then
                     usesText = tostring(currentUses) .. "/" .. tostring(maxUses)
                 end

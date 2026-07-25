@@ -9,13 +9,17 @@ local util = require('openmw.util')
 local ui = require('openmw.ui')
 local I = require('openmw.interfaces')
 
+local hasBuildInfo, buildInfo = pcall(require, "scripts.voshondsquickselect.build_info")
+local buildLabel = hasBuildInfo and type(buildInfo) == "table" and buildInfo.label
+    or "Development build (source checkout)"
+
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
 I.Settings.registerPage {
     key = "SettingsVoshondsQuickSelect",
     l10n = "SettingsVoshondsQuickSelect",
     name = "voshond's QuickSelect",
-    description = "These settings allow you to modify the behavior of the Quickselect bar."
+    description = "Build: " .. buildLabel .. "\n\nThese settings allow you to modify the behavior of the Quickselect bar."
 }
 I.Settings.registerGroup {
     key = "SettingsVoshondsQuickSelect",

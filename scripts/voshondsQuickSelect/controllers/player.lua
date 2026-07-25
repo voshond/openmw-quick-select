@@ -1,26 +1,13 @@
-local core = require("openmw.core")
 local self = require("openmw.self")
 local types = require('openmw.types')
-local nearby = require('openmw.nearby')
-local camera = require('openmw.camera')
-local util = require('openmw.util')
-local ui = require('openmw.ui')
 local input = require('openmw.input')
 local I = require('openmw.interfaces')
-local storage = require('openmw.storage')
 local async = require('openmw.async')
 local settings = require("scripts.voshondsquickselect.settings")
 local Debug = require("scripts.voshondsquickselect.debug")
 
--- Constants
-local MODNAME = "VoshondsQuickSelect"
-local playerSettings = storage.playerSection('SettingsPlayer' .. MODNAME)
-local HOTBAR_UPDATE_INTERVAL = 5.0 -- Update hotbar at most once per 5 seconds
-
 -- State variables
 local selectedPage = 0
-local hotbarContainer = nil
-local lastHotbarUpdateTime = 0   -- Timestamp of last hotbar update
 local initialHotbarDrawn = false -- Flag to ensure we only draw the hotbar once at startup
 
 -- Debug logging with timestamps
@@ -49,19 +36,6 @@ local function drawHotbar()
     else
         log("QuickSelect_Hotbar interface not available yet", "info")
     end
-end
-
--- Should we update the hotbar? (prevents excessive redrawing)
-local function shouldUpdateHotbar(forceUpdate)
-    if forceUpdate then return true end
-
-    local currentTime = os.time()
-    if currentTime - lastHotbarUpdateTime >= HOTBAR_UPDATE_INTERVAL then
-        lastHotbarUpdateTime = currentTime
-        return true
-    end
-
-    return false
 end
 
 -- Input handling
@@ -119,9 +93,6 @@ local function onInputAction(action)
             if I.QuickSelect_Hotbar then
                 log("QuickSelect_Hotbar interface is available, resetting fade", "info")
                 I.QuickSelect_Hotbar.resetFade()
-                -- Force update the hotbar when a slot is activated
-                lastHotbarUpdateTime = os.time()
-                I.QuickSelect_Hotbar.drawHotbar()
             end
 
             -- Process item data if available
@@ -142,30 +113,13 @@ local function onInputAction(action)
                             types.Actor.setStance(self, types.Actor.STANCE.Spell)
                         end
 
-                        -- Update the hotbar UI to reflect the spell change
-                        if I.QuickSelect_Hotbar then
-                            lastHotbarUpdateTime = os.time()
-                            I.QuickSelect_Hotbar.drawHotbar()
-                        end
                     else
-                        -- If a different spell is selected, handle spell stance
-                        local currentStance = types.Actor.getStance(self)
-                        local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
-                        local hadSpellSelected = (selectedSpell ~= nil)
-
                         -- Change to the new spell
                         types.Actor.setSelectedSpell(self, itemData.spell)
 
                         -- Always set stance to Spell when selecting a new spell
                         types.Actor.setStance(self, types.Actor.STANCE.Spell)
 
-                        -- Update UI after a small delay
-                        async:newUnsavableSimulationTimer(0.05, function()
-                            if I.QuickSelect_Hotbar then
-                                lastHotbarUpdateTime = os.time()
-                                I.QuickSelect_Hotbar.drawHotbar()
-                            end
-                        end)
                     end
                 else
                     -- Handle enchanted items
@@ -186,11 +140,6 @@ local function onInputAction(action)
                                     types.Actor.setStance(self, types.Actor.STANCE.Spell)
                                 end
                             else
-                                -- If a different enchanted item or no item is selected
-                                local currentStance = types.Actor.getStance(self)
-                                local wasSpellStance = (currentStance == types.Actor.STANCE.Spell)
-                                local hadEnchantedItemSelected = (enchantedItem ~= nil)
-
                                 -- Set the new enchanted item
                                 types.Actor.setSelectedEnchantedItem(self, realItem)
 
@@ -198,13 +147,6 @@ local function onInputAction(action)
                                 types.Actor.setStance(self, types.Actor.STANCE.Spell)
                             end
 
-                            -- Update UI after selection
-                            async:newUnsavableSimulationTimer(0.05, function()
-                                if I.QuickSelect_Hotbar then
-                                    lastHotbarUpdateTime = os.time()
-                                    I.QuickSelect_Hotbar.drawHotbar()
-                                end
-                            end)
                         else
                             log("Enchanted item not found in inventory: " .. tostring(itemData.itemId), "warning")
                         end
@@ -237,7 +179,6 @@ return {
             log("Initializing QuickSelect system", "info")
 
             selectedPage = data and data.selectedPage or 0
-            lastHotbarUpdateTime = os.time()
             initialHotbarDrawn = false
 
             -- Draw the hotbar when interfaces are ready (no waiting/checking needed)
@@ -245,7 +186,6 @@ return {
                 log("Delayed initialization complete", "info")
                 if I.QuickSelect_Hotbar and not initialHotbarDrawn then
                     log("Drawing initial hotbar", "info")
-                    lastHotbarUpdateTime = os.time()
                     initialHotbarDrawn = true
                     I.QuickSelect_Hotbar.drawHotbar()
                 else
@@ -285,7 +225,6 @@ return {
                 -- Force redraw the hotbar to apply changes
                 if I.QuickSelect_Hotbar then
                     log("Redrawing hotbar to apply text style changes", "info")
-                    lastHotbarUpdateTime = os.time()
                     I.QuickSelect_Hotbar.drawHotbar()
                 end
             end

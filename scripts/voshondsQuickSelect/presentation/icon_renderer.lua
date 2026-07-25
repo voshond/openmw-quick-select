@@ -1,17 +1,10 @@
 local ui = require("openmw.ui")
 local I = require("openmw.interfaces")
 
-local v2 = require("openmw.util").vector2
 local util = require("openmw.util")
-local cam = require("openmw.interfaces").Camera
 local core = require("openmw.core")
 local self = require("openmw.self")
-local nearby = require("openmw.nearby")
 local types = require("openmw.types")
-local Camera = require("openmw.camera")
-local camera = require("openmw.camera")
-local input = require("openmw.input")
-local async = require("openmw.async")
 local storage = require("openmw.storage")
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
@@ -20,18 +13,7 @@ local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMa
 local itemCountThresholdSettings = storage.playerSection("SettingsVoshondsQuickSelectItemCountThresholds")
 local Icon = require("scripts.voshondsquickselect.ui.icon")
 
--- Variables for periodic UI refresh
-local REFRESH_INTERVAL = 0.5       -- Refresh every 0.5 seconds
-local activeEnchantedItems = {}    -- Track active enchanted items in hotbar
-local enchantmentChargeCache = {}  -- Simple cache for last known charges
-local lastTextStyleRefreshTime = 0 -- Track when text styles were last refreshed
-local refreshTimerActive = false   -- Flag to prevent multiple timers
-
--- Forward declarations
-local startRefreshTimer
-local refreshEnchantedItems
-
--- Helper function to get item charge (called directly when needed)
+-- Helper function to get item charge when a caller has not already captured it.
 local function getItemCharge(item)
     if not item or not item.type or not item.recordId then
         return nil
@@ -56,117 +38,22 @@ local function getItemCharge(item)
         charge = types.Item.charge(item)
     end
 
-    if charge ~= nil then
-        -- Store in cache for future reference
-        local itemKey = item.recordId .. "_" .. (item.id or "")
-        local oldCharge = enchantmentChargeCache[itemKey]
-        local newCharge = math.floor(charge)
-
-        -- Only update cache if charge actually changed
-        if oldCharge ~= newCharge then
-            enchantmentChargeCache[itemKey] = newCharge
-            Debug.frameLog("EnchantCharge", "Charge changed for " .. item.recordId .. ": " ..
-                tostring(oldCharge) .. " -> " .. tostring(newCharge))
-        end
-    end
-
     return charge
 end
 
--- Function to register an enchanted item for periodic updates
-local function registerEnchantedItem(item, slotNumber)
-    if item and item.type and item.recordId then
-        local record = item.type.records[item.recordId]
-        local enchantmentId = record and record.enchant
-
-        if enchantmentId and enchantmentId ~= "" then
-            local enchantment = core.magic.enchantments.records[enchantmentId]
-
-            if enchantment then
-                local usesCharge = (
-                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnUse or
-                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnStrike or
-                    enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnce
-                )
-
-                if usesCharge then
-                    -- Add to active enchanted items list
-                    activeEnchantedItems[slotNumber] = {
-                        item = item,
-                        enchantmentId = enchantmentId
-                    }
-                    Debug.frameLog("EnchantCharge", "Registered enchanted item in slot " ..
-                        tostring(slotNumber) .. ": " .. item.recordId)
-
-                    -- Start the refresh timer if not already running
-                    startRefreshTimer()
-
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
-
--- Function to start the refresh timer
-startRefreshTimer = function()
-    if refreshTimerActive then
-        return -- Timer already running
-    end
-
-    refreshTimerActive = true
-
-    -- Create a timer that runs every REFRESH_INTERVAL seconds
-    async:newUnsavableSimulationTimer(REFRESH_INTERVAL, function()
-        refreshEnchantedItems()
-
-        -- Always restart the timer to ensure continuous updates
-        refreshTimerActive = false
-        startRefreshTimer()
-    end)
-end
-
--- Function to refresh enchanted items
-refreshEnchantedItems = function()
-    Debug.frameLog("EnchantCharge", "Checking enchanted items for updates...")
-    local updatedCount = 0
-    local anyEnchantedItems = false
-
-    -- Check all active enchanted items for charge updates
-    for slotNumber, data in pairs(activeEnchantedItems) do
-        local item = data.item
-        if item then
-            anyEnchantedItems = true
-            local charge = getItemCharge(item)
-            if charge then
-                updatedCount = updatedCount + 1
-            end
-        end
-    end
-
-    -- If we have any enchanted items, always refresh the UI at the specified interval
-    -- This ensures continuous updates for enchanted items
-    if anyEnchantedItems then
-        Debug.frameLog("EnchantCharge", "Found " .. updatedCount .. " enchanted items, refreshing UI")
-
-        -- Use the QuickSelect_Hotbar interface to trigger a UI refresh
-        if I.QuickSelect_Hotbar and I.QuickSelect_Hotbar.isHotbarVisible and I.QuickSelect_Hotbar.isHotbarVisible() then
-            Debug.frameLog("EnchantCharge", "Calling QuickSelect_Hotbar.drawHotbar() (hotbar is visible)")
-            local success, err = pcall(function()
-                I.QuickSelect_Hotbar.drawHotbar(false)
-            end)
-            if not success then
-                Debug.error("EnchantCharge", "Error refreshing UI: " .. tostring(err))
-            end
-        else
-            Debug.frameLog("EnchantCharge", "Hotbar not visible, skipping UI refresh")
-        end
+-- Kept for compatibility with the existing public icon interface. Dynamic
+-- polling now belongs to the HUD controller, which can diff and update only
+-- the affected slot instead of rebuilding the complete hotbar.
+local function refreshEnchantedItems()
+    if I.QuickSelect_Hotbar and I.QuickSelect_Hotbar.invalidateDynamic then
+        I.QuickSelect_Hotbar.invalidateDynamic("icon renderer compatibility refresh")
     end
 end
 
--- Function to get text appearance settings
-local function getTextStyles()
+local cachedTextStyles
+local cachedMagicChargeStyles
+
+local function readTextStyles()
     -- Get color settings or use defaults
     local textColor = textSettings:get("slotTextColor") or util.color.rgba(0.792, 0.647, 0.376, 1.0)
     local shadowColor = textSettings:get("slotTextShadowColor") or util.color.rgba(0, 0, 0, 1.0)
@@ -205,6 +92,13 @@ local function getTextStyles()
     }
 end
 
+local function getTextStyles()
+    if not cachedTextStyles then
+        cachedTextStyles = readTextStyles()
+    end
+    return cachedTextStyles
+end
+
 -- Define reusable text style variables
 local TEXT_COLORS = {
     itemCount = nil, -- Will be set dynamically
@@ -218,7 +112,9 @@ local TEXT_SHADOWS = {
 
 -- Function to refresh text style settings
 local function refreshTextStyles()
-    local styles = getTextStyles()
+    cachedTextStyles = readTextStyles()
+    cachedMagicChargeStyles = nil
+    local styles = cachedTextStyles
 
     TEXT_COLORS.itemCount = styles.textColor
     TEXT_COLORS.slotNumber = styles.textColor
@@ -332,7 +228,7 @@ local function getThresholdItemCountColor(count, item)
     return getPerTypeThresholdColor(item.type, count)
 end
 
-local function getMagicChargeStyles()
+local function readMagicChargeStyles()
     local showMagicCharges = magicChargeSettings:get("showMagicCharges")
     if showMagicCharges == nil then showMagicCharges = true end
     local showMaxMagicCharges = magicChargeSettings:get("showMaxMagicCharges")
@@ -354,11 +250,20 @@ local function getMagicChargeStyles()
     }
 end
 
+local function getMagicChargeStyles()
+    if not cachedMagicChargeStyles then
+        cachedMagicChargeStyles = readMagicChargeStyles()
+    end
+    return cachedMagicChargeStyles
+end
+
 local function getEnchantmentChargeColor(charge, maxCharge)
     local enableThresholdColor = magicChargeSettings:get("enableChargeThresholdColor")
-    Debug.log("EnchantCharge", "getEnchantmentChargeColor called - charge: " .. tostring(charge) ..
-        ", maxCharge: " .. tostring(maxCharge) ..
-        ", enableThresholdColor: " .. tostring(enableThresholdColor))
+    Debug.log("EnchantCharge", function()
+        return "getEnchantmentChargeColor called - charge: " .. tostring(charge) ..
+            ", maxCharge: " .. tostring(maxCharge) ..
+            ", enableThresholdColor: " .. tostring(enableThresholdColor)
+    end)
 
     if not enableThresholdColor or not charge or not maxCharge or maxCharge <= 0 then
         Debug.log("EnchantCharge", "Using default color: thresholds disabled or invalid charge values")
@@ -376,7 +281,9 @@ local function getEnchantmentChargeColor(charge, maxCharge)
     local warningColor = util.color.rgba(0.95, 0.65, 0.0, textAlpha) -- orange
 
     local percentage = charge / maxCharge
-    Debug.log("EnchantCharge", "Charge percentage: " .. tostring(percentage * 100) .. "%")
+    Debug.log("EnchantCharge", function()
+        return "Charge percentage: " .. tostring(percentage * 100) .. "%"
+    end)
 
     if percentage <= 0.1 then
         Debug.log("EnchantCharge", "Using critical color (<=10%)")
@@ -394,7 +301,6 @@ local function textContent(text, isCharge, maxCharge, item)
     if not text or text == "" then
         return {}
     end
-    refreshTextStyles()
     -- Always show charge values for enchanted items, only check showItemCounts for regular item counts
     local styles = getTextStyles()
     if not isCharge and not styles.showItemCounts then
@@ -542,15 +448,18 @@ local function getTotalItemCount(item)
     return total
 end
 
-local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotData)
-    Debug.log("QuickSelect",
-        "getItemIcon called for item: " ..
-        tostring(item) ..
-        ", type: " .. tostring(item and item.type) .. ", recordId: " .. tostring(item and item.recordId))
+local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotData, renderState)
+    Debug.log("QuickSelect", function()
+        return "getItemIcon called for item: " ..
+            tostring(item) ..
+            ", type: " .. tostring(item and item.type) .. ", recordId: " .. tostring(item and item.recordId)
+    end)
     if item and item.type and item.recordId then
         local record = item.type.records[item.recordId]
-        Debug.log("QuickSelect",
-            "Item record: " .. tostring(record and record.id) .. ", enchant: " .. tostring(record and record.enchant))
+        Debug.log("QuickSelect", function()
+            return "Item record: " .. tostring(record and record.id) ..
+                ", enchant: " .. tostring(record and record.enchant)
+        end)
     end
     local itemIcon = nil
 
@@ -571,7 +480,9 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         if not record then
             Debug.error("icon_renderer", "No record for " .. item.recordId)
         else
-            Debug.log("icon_renderer", "Icon: " .. tostring(record.icon))
+            Debug.log("icon_renderer", function()
+                return "Icon: " .. tostring(record.icon)
+            end)
         end
         -- Use total count for lockpicks, probes, repair items, potions, ammo; otherwise use stack count
         local alwaysShowCount = false
@@ -587,7 +498,8 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
             end
         end
         if alwaysShowCount then
-            text = formatNumber(getTotalItemCount(item))
+            local totalCount = renderState and renderState.totalCount
+            text = formatNumber(totalCount ~= nil and totalCount or getTotalItemCount(item))
         elseif item.count > 1 then
             text = formatNumber(item.count)
         end
@@ -595,30 +507,34 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
 
         -- Add enchanted item charge display (upper left, replaces item count if enchanted)
         if enchantmentId and enchantmentId ~= "" then
-            Debug.log("QuickSelect",
-                "Found enchantmentId: " .. tostring(enchantmentId) .. " for item: " .. tostring(item.recordId))
+            Debug.log("QuickSelect", function()
+                return "Found enchantmentId: " .. tostring(enchantmentId) ..
+                    " for item: " .. tostring(item.recordId)
+            end)
             local enchantment = core.magic.enchantments.records[enchantmentId]
 
-            -- Register this enchanted item for periodic updates
-            registerEnchantedItem(item, slotNumber)
-
-            -- Get charge directly when rendering the item
-            local charge = getItemCharge(item)
-
-            -- If direct charge retrieval failed, try to use cached or slot data value
+            -- Prefer charge captured by the hotbar snapshot so a render does
+            -- not perform another player-state query.
+            local charge = renderState and renderState.charge
             if charge == nil then
-                local itemKey = item.recordId .. "_" .. (item.id or "")
-                if enchantmentChargeCache[itemKey] then
-                    charge = enchantmentChargeCache[itemKey]
-                elseif slotData and slotData.lastKnownCharge then
+                charge = getItemCharge(item)
+            end
+
+            -- If direct charge retrieval failed, use the persisted fallback.
+            if charge == nil then
+                if slotData and slotData.lastKnownCharge then
                     charge = slotData.lastKnownCharge
                 end
             end
 
-            Debug.log("QuickSelect", "Final charge value: " .. tostring(charge))
+            Debug.log("QuickSelect", function()
+                return "Final charge value: " .. tostring(charge)
+            end)
 
             if enchantment then
-                Debug.log("QuickSelect", "Enchantment type: " .. tostring(enchantment.type))
+                Debug.log("QuickSelect", function()
+                    return "Enchantment type: " .. tostring(enchantment.type)
+                end)
 
                 -- Only show charge for enchantments that use charges
                 local usesCharge = (
@@ -627,25 +543,29 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
                     enchantment.type == core.magic.ENCHANTMENT_TYPE.CastOnce
                 )
 
-                Debug.log("QuickSelect", "usesCharge: " .. tostring(usesCharge) .. ", charge: " .. tostring(charge))
+                Debug.log("QuickSelect", function()
+                    return "usesCharge: " .. tostring(usesCharge) .. ", charge: " .. tostring(charge)
+                end)
 
                 if usesCharge and charge ~= nil then
                     charge = math.floor(charge)
                     local maxCharge = enchantment and enchantment.charge and math.floor(enchantment.charge) or "?"
-                    Debug.log("QuickSelect",
-                        "Displaying charge: " ..
-                        tostring(charge) .. "/" .. tostring(maxCharge) .. " for item: " .. tostring(item.recordId))
+                    Debug.log("QuickSelect", function()
+                        return "Displaying charge: " ..
+                            tostring(charge) .. "/" .. tostring(maxCharge) ..
+                            " for item: " .. tostring(item.recordId)
+                    end)
                     chargeText = textContent(tostring(charge), true, maxCharge, item)
-                    Debug.log("QuickSelect",
-                        "chargeText from textContent: " .. tostring(chargeText.props and chargeText.props.text))
+                    Debug.log("QuickSelect", function()
+                        return "chargeText from textContent: " ..
+                            tostring(chargeText.props and chargeText.props.text)
+                    end)
 
-                    -- Update slotData with the current charge for future reference
-                    if slotData then
-                        slotData.lastKnownCharge = charge
-                    end
                 elseif usesCharge and charge == nil then
-                    Debug.log("QuickSelect",
-                        "Enchanted item has no charge property (even after fallback): " .. tostring(item.recordId))
+                    Debug.log("QuickSelect", function()
+                        return "Enchanted item has no charge property (even after fallback): " ..
+                            tostring(item.recordId)
+                    end)
                 end
             end
         end
@@ -684,9 +604,6 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         slotText = slotPosition
     end
 
-    -- Refresh text styles to ensure we have the latest settings
-    refreshTextStyles()
-
     -- Create slot number content only if enabled
     local slotNumberContent = {}
     local styles = getTextStyles()
@@ -713,8 +630,10 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
     local uiContent = { selectedContent, imageContent(magicIcon, half, magicIconOpacity), imageContent(itemIcon, half) }
     -- Insert chargeText if present, otherwise itemCountText
     if not isEmptyTable(chargeText) then
-        Debug.log("QuickSelect",
-            "Inserting chargeText into UI content array: " .. tostring(chargeText.props and chargeText.props.text))
+        Debug.log("QuickSelect", function()
+            return "Inserting chargeText into UI content array: " ..
+                tostring(chargeText.props and chargeText.props.text)
+        end)
         table.insert(uiContent, chargeText)
     elseif not isEmptyTable(itemCountText) then
         table.insert(uiContent, itemCountText)
@@ -741,8 +660,9 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
     if slotNumberContent and not isEmptyTable(slotNumberContent) then
         table.insert(uiContent, slotNumberContent)
     end
-    Debug.log("QuickSelect",
-        "Final UI content: " .. tostring(#uiContent) .. " elements, content: " .. tostring(uiContent))
+    Debug.log("QuickSelect", function()
+        return "Final UI content: " .. tostring(#uiContent) .. ", content: " .. tostring(uiContent)
+    end)
     return ui.content(uiContent)
 end
 local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
@@ -769,9 +689,6 @@ local function getSpellIcon(iconPath, half, selected, slotNumber, slotPrefix)
         local slotPosition = ((slotNumber - 1) % 10) + 1
         slotText = slotPosition
     end
-
-    -- Refresh text styles to ensure we have the latest settings
-    refreshTextStyles()
 
     -- Create slot number content only if enabled
     local slotNumberContent = {}
@@ -834,9 +751,6 @@ local function getEmptyIcon(half, num, selected, useNumber, slotPrefix)
         textSize = textSize / 1.5
     end
 
-    -- Refresh text styles to ensure we have the latest settings
-    refreshTextStyles()
-
     -- Only show number if slot numbers are enabled
     local styles = getTextStyles()
     if not styles.showSlotNumbers then
@@ -881,29 +795,7 @@ return {
     },
     engineHandlers = {
         onInit = function()
-            -- Initialize the timer system
-            Debug.log("EnchantCharge", "Initializing enchantment charge tracking system")
-
-            -- Start with a clean state
-            activeEnchantedItems = {}
-            enchantmentChargeCache = {}
-            refreshTimerActive = false
-
-            -- Start the refresh timer after a short delay to allow other systems to initialize
-            async:newUnsavableSimulationTimer(1.0, function()
-                startRefreshTimer()
-            end)
-        end,
-        onFrame = function()
-            -- Only refresh text styles once per second at most
-            local currentTime = core.getGameTime()
-            if not lastTextStyleRefreshTime or currentTime - lastTextStyleRefreshTime >= 1.0 then
-                refreshTextStyles()
-                lastTextStyleRefreshTime = currentTime
-            end
-
-            -- We no longer refresh enchanted items every frame
-            -- Instead, we use a timer that runs every REFRESH_INTERVAL seconds
+            refreshTextStyles()
         end
     }
 }

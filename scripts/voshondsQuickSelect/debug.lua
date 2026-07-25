@@ -14,6 +14,9 @@ local Debug = {}
 -- Main logging function that checks if debug is enabled before printing
 function Debug.log(module, message)
     if settings and settings:get("enableDebugLogging") then
+        if type(message) == "function" then
+            message = message()
+        end
         print("[" .. module .. "] " .. tostring(message))
     end
 end
@@ -22,6 +25,9 @@ end
 -- This is separate from regular debug logging to avoid spamming the console
 function Debug.frameLog(module, message)
     if settings and settings:get("enableFrameLogging") then
+        if type(message) == "function" then
+            message = message()
+        end
         print("[FRAME:" .. module .. "] " .. tostring(message))
     end
 end

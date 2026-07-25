@@ -28,63 +28,44 @@ local function getFavoriteItemData(slot)
     getFavoriteItems()
     return storedItems[slot]
 end
-local function deleteStoredItemData(slot)
+local requestHotbarUpdate
+
+local function deleteStoredItemData(slot, suppressUpdate)
     getFavoriteItems()
     storedItems[slot].spell     = nil
     storedItems[slot].spellType = nil
     storedItems[slot].enchantId = nil
     storedItems[slot].itemId    = nil
     storedItems[slot].item      = nil
+    if not suppressUpdate and requestHotbarUpdate then
+        requestHotbarUpdate(slot, false)
+    end
 end
-local function triggerHotbarRedraw()
-    -- Do NOT call storage.save() as it doesn't exist in OpenMW API
-    -- Remove: storage.save()
+requestHotbarUpdate = function(slot, settleAfterEngineAction)
+    local function invalidate()
+        if not I.QuickSelect_Hotbar then
+            return
+        end
 
-    -- First immediate redraw attempt
-    if I.QuickSelect_Hotbar then
-        Debug.storage("Immediate hotbar redraw triggered")
-        local success, err = pcall(function()
+        if I.QuickSelect_Hotbar.invalidateSlot then
+            I.QuickSelect_Hotbar.invalidateSlot(slot, "favorite slot changed", true)
+        else
             I.QuickSelect_Hotbar.drawHotbar()
-        end)
-        if not success then
-            Debug.error("QuickSelect_Storage", "Error in immediate redraw: " .. tostring(err))
         end
     end
 
-    -- Second delayed redraw to ensure UI is updated
-    async:newUnsavableSimulationTimer(0.1, function()
-        if I.QuickSelect_Hotbar then
-            Debug.storage("Delayed hotbar redraw triggered")
-            local success, err = pcall(function()
-                -- Clear any existing UI before redrawing
-                I.QuickSelect_Hotbar.resetFade()
-                I.QuickSelect_Hotbar.drawHotbar()
-            end)
-            if not success then
-                Debug.error("QuickSelect_Storage", "Error in delayed redraw: " .. tostring(err))
-            end
-        else
-            Debug.error("QuickSelect_Storage", "QuickSelect_Hotbar interface not available for redraw")
-        end
-    end)
+    invalidate()
 
-    -- Final backup redraw after longer delay
-    async:newUnsavableSimulationTimer(0.3, function()
-        if I.QuickSelect_Hotbar then
-            Debug.storage("Final hotbar redraw triggered")
-            local success, err = pcall(function()
-                I.QuickSelect_Hotbar.drawHotbar()
-            end)
-            if not success then
-                Debug.error("QuickSelect_Storage", "Error in final redraw: " .. tostring(err))
-            end
-        end
-    end)
+    -- UseItem is handled by the engine after this script action. One deferred
+    -- reconciliation is enough; the HUD coalesces it with any other request.
+    if settleAfterEngineAction then
+        async:newUnsavableSimulationTimer(0.1, invalidate)
+    end
 end
 local function saveStoredItemData(id, slot)
     getFavoriteItems()
     Debug.storage("Saving item " .. tostring(id) .. " to slot " .. tostring(slot))
-    deleteStoredItemData(slot)
+    deleteStoredItemData(slot, true)
     storedItems[slot].item = id
 
     -- Check if the item is in the inventory and has an enchantment
@@ -122,25 +103,25 @@ local function saveStoredItemData(id, slot)
         end
     end
 
-    triggerHotbarRedraw()
+    requestHotbarUpdate(slot, false)
 end
 local function saveStoredSpellData(spellId, spellType, slot)
     getFavoriteItems()
-    deleteStoredItemData(slot)
+    deleteStoredItemData(slot, true)
     storedItems[slot].spellType = spellType
     storedItems[slot].spell     = spellId
 
-    triggerHotbarRedraw()
+    requestHotbarUpdate(slot, false)
 end
 local function saveStoredEnchantData(enchantId, itemId, slot)
     getFavoriteItems()
-    deleteStoredItemData(slot)
+    deleteStoredItemData(slot, true)
     storedItems[slot].spellType = "Enchant"
     storedItems[slot].enchantId = enchantId
     storedItems[slot].itemId    = itemId
     Debug.storage("Saving enchanted item " .. tostring(itemId) .. " to slot " .. tostring(slot))
 
-    triggerHotbarRedraw()
+    requestHotbarUpdate(slot, false)
 end
 local function findItem(id)
     for index, value in ipairs(types.Actor.inventory(self)) do
@@ -298,9 +279,7 @@ local function equipSlot(slot)
         end
     end
 
-    -- Force multiple redraws to ensure UI updates correctly
-    Debug.storage("Starting redraw sequence after equip action")
-    triggerHotbarRedraw()
+    requestHotbarUpdate(slot, true)
 end
 return {
 

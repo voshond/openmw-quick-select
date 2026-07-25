@@ -1,74 +1,141 @@
 local core = require("openmw.core")
-
 local self = require("openmw.self")
-local types = require('openmw.types')
-local nearby = require('openmw.nearby')
-local storage = require('openmw.storage')
-local async = require('openmw.async')
-local input = require('openmw.input')
-local util = require('openmw.util')
-local ui = require('openmw.ui')
-local I = require('openmw.interfaces')
+local types = require("openmw.types")
+local storage = require("openmw.storage")
+local async = require("openmw.async")
+local input = require("openmw.input")
+local util = require("openmw.util")
+local ui = require("openmw.ui")
+local I = require("openmw.interfaces")
 
-local settings = storage.playerSection("SettingsVoshondsQuickSelect")
-local tooltipData = require("scripts.voshondsquickselect.presentation.tooltip_data")
-local utility = require("scripts.voshondsquickselect.legacy.utility")
 local Debug = require("scripts.voshondsquickselect.debug")
-local Hotbar = require("scripts.voshondsquickselect.ui.hotbar")
+local utility = require("scripts.voshondsquickselect.legacy.utility")
+local Snapshot = require("scripts.voshondsquickselect.presentation.hotbar_snapshot")
+local tooltipData = require("scripts.voshondsquickselect.presentation.tooltip_data")
+local HotbarView = require("scripts.voshondsquickselect.ui.hotbar_view")
+local Icon = require("scripts.voshondsquickselect.ui.icon")
 local Tooltip = require("scripts.voshondsquickselect.ui.tooltip")
 
--- Debug logging function (using the Debug module)
-local function log(message)
-    Debug.hotbar(message)
-end
+local settings = storage.playerSection("SettingsVoshondsQuickSelect")
+local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
+local chargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
+local thresholdSettings = storage.playerSection("SettingsVoshondsQuickSelectItemCountThresholds")
 
-local hotBarElement
-local num = 1
-local enableHotbar = true        -- Always enabled
-local pickSlotMode = false       --True if we are picking a slot for saving
-local controllerPickMode = false --True if we are picking a slot for equipping OR saving
+local ITEMS_PER_ROW = 10
+local ICON_PADDING = 2
+local DYNAMIC_POLL_INTERVAL = 0.5
+local FADE_DELAY = 2.0
+local FADE_HIDE_DELAY = 0.3
+
+local view
+local activeLayoutConfig
+local snapshots = {}
+local visibleSlots = {}
+local dirtySlots = {}
+local pendingAll = true
+local layoutDirty = true
+local pendingResetFade = true
+local styleVersion = 0
 local selectedNum = 1
-local HOTBAR_ITEMS_PER_ROW = 10
+local pickSlotMode = false
+local controllerPickMode = false
+local pendingSlotData
+local pollElapsed = 0
+local fadeElapsed = 0
+local fadedHidden = false
+local wasHudVisible = true
 
--- Fade-related variables
-local fadeTimer = 0
-local isFading = false
-local fadeDuration = 2.0 -- 2 seconds fade duration before hiding
+local metrics = {
+    fullBuilds = 0,
+    slotUpdates = 0,
+    skippedSlotUpdates = 0,
+    invalidationBatches = 0,
+    dynamicPolls = 0,
+}
 
--- Add these variables at the top of the file with the other state variables
-local lastUpdateTime = 0
-local UPDATE_THROTTLE = 2.0 -- Only update the hotbar every 2 seconds at most
-local needsRedraw = false
-local wasHudVisible = true  -- Track the previous state of HUD visibility
+local STRUCTURAL_SETTINGS = {
+    visibleHotbars = true,
+    hotBarOnTop = true,
+    hotbarGutterSize = true,
+    hotbarVerticalSpacing = true,
+    iconSize = true,
+}
 
--- Forward declare the drawHotbar function to use it in resetFade
-local drawHotbar
-
--- Remove the early initialization code
--- Let's initialize in onLoad instead
-
-local function startPickingMode()
-    controllerPickMode = true
-    I.QuickSelect_Hotbar.drawHotbar()
+local function hudIsVisible()
+    if I.UI and I.UI.isHudVisible then
+        return I.UI.isHudVisible() ~= false
+    end
+    return true
 end
-local function endPickingMode()
-    pickSlotMode = false
-    controllerPickMode = false
-    I.UI.setMode()
-    I.QuickSelect_Hotbar.drawHotbar()
+
+local function shouldShowView()
+    return hudIsVisible() and not fadedHidden
+end
+
+local function slotPrefix(slot)
+    if slot >= 21 then
+        return "c"
+    elseif slot >= 11 then
+        return "s"
+    end
+    return ""
+end
+
+local function selectedSlot()
+    return selectedNum + (I.QuickSelect.getSelectedPage() * ITEMS_PER_ROW)
+end
+
+local function markSlotDirty(slot)
+    if type(slot) == "number" and slot >= 1 and slot <= 30 then
+        dirtySlots[slot] = true
+    end
+end
+
+local function requestAll(resetFadeTimer)
+    pendingAll = true
+    if resetFadeTimer ~= false then
+        pendingResetFade = true
+    end
+end
+
+local function requestSlot(slot, resetFadeTimer)
+    markSlotDirty(slot)
+    if resetFadeTimer then
+        pendingResetFade = true
+    end
+end
+
+local function requestLayout(resetFadeTimer)
+    layoutDirty = true
+    requestAll(resetFadeTimer)
+end
+
+local function resetFadeState()
+    fadeElapsed = 0
+    fadedHidden = false
+    if view then
+        HotbarView.setVisible(view, hudIsVisible())
+    end
+end
+
+local function resetFade()
+    resetFadeState()
+    requestAll(false)
 end
 
 local function getToolTipPos()
-    local setting = settings:get("hotBarOnTop")
-    if setting then
+    if settings:get("hotBarOnTop") then
         return utility.itemWindowLocs.BottomCenter
-    else
-        return utility.itemWindowLocs.TopCenter
     end
+    return utility.itemWindowLocs.TopCenter
 end
+
 local function drawToolTip()
-    local offset = I.QuickSelect.getSelectedPage() * 10
-    local data = I.QuickSelect_Storage.getFavoriteItemData(selectedNum + offset)
+    local data = I.QuickSelect_Storage.getFavoriteItemData(selectedSlot())
+    if not data then
+        Tooltip.hide()
+        return
+    end
 
     local item
     local magicRecord
@@ -94,285 +161,99 @@ local function drawToolTip()
         lines = tooltipData.genToolTips({ spell = magicRecord })
     end
 
-    if lines then
-        local position = getToolTipPos()
-        Tooltip.show(lines, {
-            anchor = position.anchor,
-            relativePosition = util.vector2(position.wx, position.wy),
-        })
-    else
+    if not lines then
         Tooltip.hide()
+        return
     end
+
+    local position = getToolTipPos()
+    Tooltip.show(lines, {
+        anchor = position.anchor,
+        relativePosition = util.vector2(position.wx, position.wy),
+    })
 end
-local function createHotbarItem(item, xicon, num, data, half)
-    -- Add debug logging to track item creation
-    log("Creating hotbar item for slot " .. num)
 
-    local icon
-    -- Forcefully check if the slot is equipped every time we create the hotbar item
-    -- This ensures the equipped status is always up-to-date
-    local isEquipped = false
+local function createSlotLayout(snapshot)
+    local slotSize = activeLayoutConfig and activeLayoutConfig.slotSize
+        or utility.getIconSize() + ICON_PADDING * 2
+    local size = util.vector2(slotSize, slotSize)
+    local prefix = slotPrefix(snapshot.slot)
+    local selected = snapshot.selected
 
-    -- Use pcall to safely check equipped status
-    local success, result = pcall(function()
-        return I.QuickSelect_Storage.isSlotEquipped(num)
-    end)
+    if settings:get("disableIconShrinking") ~= false and selected then
+        selected = false
+    end
 
-    if success then
-        isEquipped = result
-        log("Slot " .. num .. " equipped status: " .. tostring(isEquipped))
+    local content
+    if snapshot.kind == "item" and snapshot.item then
+        content = I.Controller_Icon_QS.getItemIcon(
+            snapshot.item,
+            false,
+            selected,
+            snapshot.slot,
+            prefix,
+            snapshot.data,
+            snapshot.renderState
+        )
+    elseif (snapshot.kind == "spell" or snapshot.kind == "enchant") and snapshot.iconPath then
+        content = I.Controller_Icon_QS.getSpellIcon(
+            snapshot.iconPath,
+            false,
+            selected,
+            snapshot.slot,
+            prefix
+        )
     else
-        log("Error checking if slot " .. num .. " is equipped: " .. tostring(result))
+        content = I.Controller_Icon_QS.getEmptyIcon(
+            false,
+            snapshot.slot,
+            selected,
+            true,
+            prefix
+        )
     end
 
-    local sizeX = utility.getIconSize()
-    local sizeY = utility.getIconSize()
-    local drawNumber = true -- Always draw the number regardless of settings
-    local offset = I.QuickSelect.getSelectedPage() * 10
-    local selected = (num) == (selectedNum + offset)
-
-    -- When disableIconShrinking is true, don't pass the selected state to the icon functions
-    local useSelectedState = selected
-    -- Add a nil check to avoid errors if the setting isn't initialized yet
-    local disableShrinking = settings:get("disableIconShrinking")
-    if disableShrinking ~= false and selected then
-        -- Default to true (disable shrinking) unless explicitly set to false
-        useSelectedState = false -- Don't use selected state for icon generation
-    end
-
-    if half then
-        sizeY = sizeY / 2
-    end
-
-    -- Calculate the slot's bar for determining the prefix
-    -- This is based on the actual slot number range:
-    -- Bar 1 (slots 1-10): no prefix
-    -- Bar 2 (slots 11-20): "s" prefix
-    -- Bar 3 (slots 21-30): "c" prefix
-    local slotPrefix = ""
-
-    if num >= 21 and num <= 30 then
-        slotPrefix = "c"
-    elseif num >= 11 and num <= 20 then
-        slotPrefix = "s"
-    end
-
-    -- Instead of using metatables, we'll pass the slot number directly with appropriate prefix
-    if item and not xicon then
-        icon = I.Controller_Icon_QS.getItemIcon(item, half, useSelectedState, num, slotPrefix, data)
-    elseif xicon then
-        icon = I.Controller_Icon_QS.getSpellIcon(xicon, half, useSelectedState, num, slotPrefix)
-    elseif num then
-        icon = I.Controller_Icon_QS.getEmptyIcon(half, num, useSelectedState, drawNumber, slotPrefix)
-    end
-
-    -- Add a small margin around the icon to prevent clipping
-    local iconPadding = 2 -- 2px padding on each side
-
-    -- Create a box size that's slightly larger than the icon
-    local boxSize = util.vector2(sizeX + iconPadding * 2, sizeY + iconPadding * 2)
-
-    -- Create the icon with proper padding to prevent clipping
-    local boxedIcon = utility.renderItemBoxed(icon, boxSize, nil,
+    local boxedIcon = utility.renderItemBoxed(
+        content,
+        size,
+        nil,
         util.vector2(0.5, 0.5),
-        { item = item, num = num, data = data })
+        { item = snapshot.item, num = snapshot.slot, data = snapshot.data }
+    )
 
-    -- Create an equipped indicator if needed
-    local iconContent
-    if isEquipped then
-        -- Use the equipped indicator icon from the textures folder
-        local equippedIconTexture = ui.texture({ path = "textures/voshondsQuickSelect/equipped_indicator.dds" })
-
-        -- Overlay the equipped icon in the bottom-left corner of the hotbar icon
-        iconContent = ui.content {
-            boxedIcon,
-            {
-                type = ui.TYPE.Image,
-                props = {
-                    resource = equippedIconTexture,
-                    size = util.vector2(16, 16),                              -- Adjust size as needed
-                    position = util.vector2(0, sizeY + iconPadding * 2 - 16), -- Bottom-left corner
-                    arrange = ui.ALIGNMENT.Start,
-                    align = ui.ALIGNMENT.Start,
-                    alpha = 1,
-                }
-            }
+    local layers = { boxedIcon }
+    if snapshot.equipped then
+        layers[#layers + 1] = {
+            type = ui.TYPE.Image,
+            props = {
+                resource = Icon.texture("textures/voshondsQuickSelect/equipped_indicator.dds"),
+                size = util.vector2(16, 16),
+                position = util.vector2(0, size.y - 16),
+                arrange = ui.ALIGNMENT.Start,
+                align = ui.ALIGNMENT.Start,
+                alpha = 1,
+            },
         }
-
-        -- Add extra log for equipped items
-        log("Created equipped item marker for slot " .. num)
-    else
-        iconContent = ui.content { boxedIcon }
     end
 
-    -- The bordered icon above is already the visual slot frame.  Do not add
-    -- the legacy padding-template wrapper here: it expands the drawn slot
-    -- beyond its declared size, making both width measurement and a zero
-    -- gutter inaccurate.
-    local outerSize = util.vector2(sizeX + iconPadding * 2, sizeY + iconPadding * 2)
     return {
         type = ui.TYPE.Widget,
         props = {
             autoSize = false,
-            size = outerSize,
+            size = size,
         },
-        content = iconContent,
+        content = ui.content(layers),
     }
 end
 
-local function getHotbarItems(half)
-    log("---- BEGIN getHotbarItems ----")
-    log("half=" .. tostring(half) .. ", num=" .. num)
-
-    local items = {}
-    local count = num + 10
-
-    log("count=" .. count)
-
-    local startNum = num
-    while num < count do
-        local data = I.QuickSelect_Storage.getFavoriteItemData(num)
-        log("Processing item " .. num)
-
-        local item
-        local effect
-        local icon
-        if data.item then
-            item = types.Actor.inventory(self):find(data.item)
-            log("Item found: " .. tostring(data.item))
-        elseif data.spell or data.enchantId then
-            log("Spell or enchant item")
-            if data.spellType and data.spellType:lower() == "spell" then
-                local spell = types.Actor.spells(self)[data.spell]
-                if spell then
-                    Debug.log("Spell: " .. tostring(spell))
-                    effect = spell.effects[1]
-                    -- Use big effect icon for better quality (adds "b_" prefix)
-                    local smallIconPath = effect.effect.icon
-                    icon = utility.getSpellEffectBigIconPath(smallIconPath)
-                    -- Alternative: Use school icon (shows Destruction, Restoration, etc.)
-                    -- local schoolId = effect.effect.school
-                    -- local schoolSkill = core.stats.Skill.records[schoolId]
-                    -- icon = schoolSkill.icon
-                    Debug.log("Spell icon found: " .. tostring(icon))
-                end
-            elseif data.spellType and data.spellType:lower() == "enchant" then
-                local enchant = utility.getEnchantment(data.enchantId)
-                if enchant then
-                    effect = enchant.effects[1]
-                    local smallIconPath = effect.effect.icon
-                    icon = utility.getSpellEffectBigIconPath(smallIconPath)
-                    Debug.log("Enchant icon found")
-                end
-            end
-        else
-            log("Empty slot")
-        end
-
-        -- Add the hotbar item
-        log("Adding hotbar item " .. num)
-        table.insert(items, createHotbarItem(item, icon, num, data, half))
-
-        num = num + 1
-    end
-
-    log("Created " .. #items .. " slot elements")
-    log("Initial num=" .. startNum .. ", final num=" .. num)
-    log("---- END getHotbarItems ----")
-
-    return items
-end
-
--- Now define the real drawHotbar function
-drawHotbar = function(resetFadeTimer)
-    if resetFadeTimer == nil then resetFadeTimer = true end
-    -- Modified condition: Only skip if no redraw is explicitly needed AND UI already exists
-    if hotBarElement and not needsRedraw and not pickSlotMode and not controllerPickMode then
-        log("Skipping redraw - UI exists and no changes detected")
-        return
-    end
-
-    log("==== BEGIN drawHotbar ====")
-
-    -- If an existing hotbar exists, destroy it before creating a new one
-    if hotBarElement then
-        log("Destroying existing hotbar")
-        local success, err = pcall(function()
-            hotBarElement:destroy()
-        end)
-        if not success then
-            log("Error destroying hotbar: " .. tostring(err))
-        end
-        hotBarElement = nil
-    end
-
-    Tooltip.hide()
-
-    -- Only reset fade state if requested (user interaction)
-    if resetFadeTimer then
-        fadeTimer = 0
-        isFading = false
-    end
-
-    -- Force retrieve the latest item data from storage to ensure we have the most recent changes
-    -- This is especially important when items are just saved to slots
-    log("Retrieving latest hotbar data")
-
-    -- Configuration for the hotbar
+local function readLayoutConfig()
     local iconSize = utility.getIconSize()
-    local iconPadding = 2                                               -- Same padding as in createHotbarItem
-    local paddedIconSize = iconSize + (iconPadding * 2)                 -- Account for padding
-    local boxSize = paddedIconSize                                      -- Use padded icon size
-    local gutterSize = settings:get("hotbarGutterSize") or 5            -- Get the gutter size from settings
-    local verticalSpacing = settings:get("hotbarVerticalSpacing") or 12 -- Direct UI-pixel gap
-    local itemsPerRow = HOTBAR_ITEMS_PER_ROW
-
-    log("Config - iconSize: " ..
-        iconSize ..
-        ", paddedIconSize: " .. paddedIconSize .. ", gutterSize: " .. gutterSize ..
-        ", verticalSpacing: " .. verticalSpacing ..
-        ", itemsPerRow: " .. itemsPerRow)
-
-    -- A row owns exactly the size it draws.  The old renderer added arbitrary
-    -- width/height padding and then scaled child rows into that box, which is
-    -- what caused clipped slots at different icon and gutter settings.
-    local rowSize = Hotbar.measure(itemsPerRow, boxSize, boxSize, gutterSize)
-    local visibleHotbars = math.max(1, math.min(3, settings:get("visibleHotbars") or 1))
-    -- Settings are logical UI pixels.  Do not apply the old /10 conversion:
-    -- zero must mean zero, and 40 should look materially larger than 4.
-    local verticalGap = visibleHotbars > 1 and math.max(0, verticalSpacing) or 0
-    local rows = {}
-
-    log("Row size: " .. tostring(rowSize.x) .. "x" .. tostring(rowSize.y) .. ", visible: " .. tostring(visibleHotbars))
-
-    local function addBar(page)
-        num = 1 + (itemsPerRow * page)
-        local items = getHotbarItems()
-        table.insert(rows, Hotbar.create({
-            slots = items,
-            slotSize = boxSize,
-            gap = gutterSize,
-            size = rowSize,
-            -- The row itself is centred by the HUD root.  Its slots must
-            -- start at x=0 so an exact zero gap stays exact.
-            align = ui.ALIGNMENT.Start,
-            arrange = ui.ALIGNMENT.Start,
-        }))
-    end
-
-    -- Page three is visually above page two, which is above the default page.
-    for page = visibleHotbars - 1, 0, -1 do
-        addBar(page)
-        if page > 0 then
-            table.insert(rows, {
-                type = ui.TYPE.Widget,
-                props = { autoSize = false, size = util.vector2(rowSize.x, verticalGap) },
-            })
-        end
-    end
-
-    local totalHeight = boxSize * visibleHotbars + verticalGap * (visibleHotbars - 1)
-    local content = ui.content(rows)
+    local slotSize = iconSize + ICON_PADDING * 2
+    local visibleBars = math.max(1, math.min(3, settings:get("visibleHotbars") or 1))
+    local gap = math.max(0, settings:get("hotbarGutterSize") or 5)
+    local verticalGap = visibleBars > 1
+        and math.max(0, settings:get("hotbarVerticalSpacing") or 12)
+        or 0
 
     local anchor = util.vector2(0.5, 1)
     local relativePosition = util.vector2(0.5, 1)
@@ -380,203 +261,287 @@ drawHotbar = function(resetFadeTimer)
         anchor = util.vector2(0.5, 0)
         relativePosition = util.vector2(0.5, 0)
     end
-    if controllerPickMode then
-        log("Drawing tooltip")
-        drawToolTip()
-    end
 
-    log("Creating hotbar UI")
-
-    hotBarElement = ui.create {
-        layer = "HUD",
-        template = I.MWUI.templates.padding,
-        props = {
-            anchor = anchor,
-            relativePosition = relativePosition,
-            arrange = ui.ALIGNMENT.Center,
-            align = ui.ALIGNMENT.Center
-        },
-        content = ui.content {
-            {
-                type = ui.TYPE.Flex,
-                content = content,
-                props = {
-                    horizontal = false,
-                    align = ui.ALIGNMENT.Center,
-                    arrange = ui.ALIGNMENT.Center,
-                    autoSize = false,
-                    size = util.vector2(rowSize.x, totalHeight),
-                }
-            }
-        }
+    return {
+        slotSize = slotSize,
+        visibleBars = visibleBars,
+        gap = gap,
+        verticalGap = verticalGap,
+        anchor = anchor,
+        relativePosition = relativePosition,
     }
-
-    -- At the end of drawHotbar, mark that we've just redrawn
-    needsRedraw = false
-    lastUpdateTime = os.time()
-
-    -- Log the end of drawing
-    log("==== END drawHotbar ====")
 end
 
--- Simplify the updateFade function to avoid setAlpha calls
-local function updateFade(dt)
-    -- Skip if fading is disabled
-    if not settings:get("enableFadingBars") then
-        return
+local function buildRows(visibleBars)
+    local rows = {}
+    local slotSet = {}
+
+    for page = visibleBars - 1, 0, -1 do
+        local row = {}
+        for index = 1, ITEMS_PER_ROW do
+            local slot = page * ITEMS_PER_ROW + index
+            row[#row + 1] = slot
+            slotSet[slot] = true
+        end
+        rows[#rows + 1] = row
     end
 
-    -- Skip if hotbar is disabled or doesn't exist
-    if not enableHotbar or not hotBarElement then
-        return
+    return rows, slotSet
+end
+
+local function captureContext()
+    return Snapshot.begin({
+        selectedSlot = selectedSlot(),
+        styleVersion = styleVersion,
+    })
+end
+
+local function captureSlot(slot, context)
+    return Snapshot.capture(
+        slot,
+        I.QuickSelect_Storage.getFavoriteItemData(slot),
+        context
+    )
+end
+
+local function rebuildView()
+    if view then
+        HotbarView.destroy(view)
+        view = nil
     end
 
-    -- If we're not fading yet, increment the timer
-    if not isFading then
-        fadeTimer = fadeTimer + dt
-        if fadeTimer >= fadeDuration then
-            -- Once timer exceeds duration, set fading state
-            isFading = true
-            fadeTimer = 0
-            log("Starting hotbar hide process")
+    local config = readLayoutConfig()
+    activeLayoutConfig = config
+    local rows
+    rows, visibleSlots = buildRows(config.visibleBars)
+    snapshots = {}
+
+    local context = captureContext()
+    for slot in pairs(visibleSlots) do
+        snapshots[slot] = captureSlot(slot, context)
+    end
+
+    view = HotbarView.create({
+        rows = rows,
+        itemsPerRow = ITEMS_PER_ROW,
+        slotSize = config.slotSize,
+        gap = config.gap,
+        verticalGap = config.verticalGap,
+        anchor = config.anchor,
+        relativePosition = config.relativePosition,
+        visible = shouldShowView(),
+        renderSlot = function(slot)
+            return createSlotLayout(snapshots[slot])
+        end,
+    })
+
+    metrics.fullBuilds = metrics.fullBuilds + 1
+    layoutDirty = false
+    pendingAll = false
+    dirtySlots = {}
+end
+
+local function updateDirtySlots()
+    local work = {}
+    if pendingAll then
+        for slot in pairs(visibleSlots) do
+            work[slot] = true
         end
     else
-        -- When we're in fading state, just wait a short time and then hide
-        fadeTimer = fadeTimer + dt
-
-        -- Once the short delay passes, hide the hotbar
-        if fadeTimer >= 0.3 then -- Short delay before hiding
-            log("Hiding hotbar")
-            -- Simply destroy the element instead of trying to fade it
-            if hotBarElement then
-                local success, err = pcall(function()
-                    hotBarElement:destroy()
-                    hotBarElement = nil
-                end)
-                if not success then
-                    log("Error destroying hotbar: " .. tostring(err))
-                end
+        for slot in pairs(dirtySlots) do
+            if visibleSlots[slot] then
+                work[slot] = true
             end
-            isFading = false
         end
     end
-end
 
--- Update the resetFade function to avoid setAlpha calls
-local function resetFade()
-    log("Fade state reset")
-    isFading = false
-    fadeTimer = 0
-    needsRedraw = true
-
-    -- Force immediate redraw only if necessary
-    if not hotBarElement then
-        -- Check if drawHotbar is available first
-        if type(drawHotbar) == "function" then
-            drawHotbar()
+    local context = captureContext()
+    for slot in pairs(work) do
+        local nextSnapshot = captureSlot(slot, context)
+        if Snapshot.equals(snapshots[slot], nextSnapshot) then
+            metrics.skippedSlotUpdates = metrics.skippedSlotUpdates + 1
         else
-            log("Error: drawHotbar not available yet")
-            needsRedraw = true
+            snapshots[slot] = nextSnapshot
+            if HotbarView.updateSlot(view, slot, createSlotLayout(nextSnapshot)) then
+                metrics.slotUpdates = metrics.slotUpdates + 1
+            end
+        end
+    end
+
+    pendingAll = false
+    dirtySlots = {}
+end
+
+local function flushInvalidations()
+    if pendingResetFade then
+        pendingResetFade = false
+        resetFadeState()
+    end
+
+    if not hudIsVisible() then
+        if view then
+            HotbarView.setVisible(view, false)
+        end
+        return
+    end
+
+    if layoutDirty or not view then
+        rebuildView()
+        metrics.invalidationBatches = metrics.invalidationBatches + 1
+    elseif pendingAll or next(dirtySlots) ~= nil then
+        updateDirtySlots()
+        metrics.invalidationBatches = metrics.invalidationBatches + 1
+    end
+
+    if view then
+        HotbarView.setVisible(view, shouldShowView())
+    end
+
+    if controllerPickMode then
+        drawToolTip()
+    end
+end
+
+local function invalidateDynamic()
+    if not view then
+        pendingAll = true
+        return
+    end
+
+    for slot, snapshot in pairs(snapshots) do
+        if snapshot.dynamic then
+            dirtySlots[slot] = true
         end
     end
 end
 
-local data
+local function updateFade(dt)
+    if not settings:get("enableFadingBars") then
+        if fadedHidden then
+            fadedHidden = false
+            if view then
+                HotbarView.setVisible(view, hudIsVisible())
+            end
+        end
+        return
+    end
+
+    if controllerPickMode or fadedHidden or not hudIsVisible() or not view then
+        return
+    end
+
+    fadeElapsed = fadeElapsed + dt
+    if fadeElapsed >= FADE_DELAY + FADE_HIDE_DELAY then
+        fadedHidden = true
+        HotbarView.setVisible(view, false)
+    end
+end
+
+local function onUpdate(dt)
+    local hudVisible = hudIsVisible()
+    if hudVisible ~= wasHudVisible then
+        wasHudVisible = hudVisible
+        if view then
+            HotbarView.setVisible(view, hudVisible and not fadedHidden)
+        end
+        if hudVisible then
+            invalidateDynamic()
+        end
+    end
+
+    if not hudVisible or fadedHidden then
+        return
+    end
+
+    pollElapsed = pollElapsed + dt
+    if pollElapsed >= DYNAMIC_POLL_INTERVAL then
+        pollElapsed = pollElapsed % DYNAMIC_POLL_INTERVAL
+        metrics.dynamicPolls = metrics.dynamicPolls + 1
+        invalidateDynamic()
+    end
+end
+
+local function startPickingMode()
+    controllerPickMode = true
+    resetFade()
+end
+
+local function endPickingMode()
+    pickSlotMode = false
+    controllerPickMode = false
+    pendingSlotData = nil
+    Tooltip.hide()
+    I.UI.setMode()
+    requestAll(true)
+end
+
 local function selectSlot(item, spell, enchant)
     pickSlotMode = true
     controllerPickMode = true
-    data = { item = item, spell = spell, enchant = enchant }
-    drawHotbar()
+    pendingSlotData = { item = item, spell = spell, enchant = enchant }
+    requestAll(true)
 end
+
 local function saveSlot()
-    if pickSlotMode then
-        local selectedSlot = selectedNum + (I.QuickSelect.getSelectedPage() * 10)
-        if data.item and not data.enchant then
-            I.QuickSelect_Storage.saveStoredItemData(data.item, selectedSlot)
-        elseif data.spell then
-            I.QuickSelect_Storage.saveStoredSpellData(data.spell, "Spell", selectedSlot)
-        elseif data.enchant then
-            I.QuickSelect_Storage.saveStoredEnchantData(data.enchant, data.item, selectedSlot)
-        end
+    if not pickSlotMode or not pendingSlotData then
+        return
+    end
 
-        log("Saved item data to slot " .. selectedSlot)
+    local slot = selectedSlot()
+    if pendingSlotData.item and not pendingSlotData.enchant then
+        I.QuickSelect_Storage.saveStoredItemData(pendingSlotData.item, slot)
+    elseif pendingSlotData.spell then
+        I.QuickSelect_Storage.saveStoredSpellData(pendingSlotData.spell, "Spell", slot)
+    elseif pendingSlotData.enchant then
+        I.QuickSelect_Storage.saveStoredEnchantData(pendingSlotData.enchant, pendingSlotData.item, slot)
+    end
+
+    pickSlotMode = false
+    pendingSlotData = nil
+    requestSlot(slot, true)
+end
+
+local function uiModeChanged(data)
+    if data.newMode and controllerPickMode then
+        controllerPickMode = false
         pickSlotMode = false
-        data = nil
-
-        -- Force redraw to show the newly saved slot
-        needsRedraw = true
-
-        -- Use direct call with error handling to redraw immediately
-        local success, err = pcall(function()
-            drawHotbar()
-        end)
-        if not success then
-            log("Error redrawing hotbar after save: " .. tostring(err))
-        end
+        pendingSlotData = nil
+        Tooltip.hide()
+        requestAll(false)
+    elseif not data.newMode and not pickSlotMode then
+        Tooltip.hide()
     end
-end
-local function UiModeChanged(data)
-    if data.newMode then
-        if controllerPickMode then
-            controllerPickMode = false
-            pickSlotMode = false
-            drawHotbar()
-        end
-    else -- no mode (mode ended)
-        -- Clean up UI if we're not in our menu mode
-        if pickSlotMode then
-            -- Keep the hotbar open
-        else
-            Tooltip.hide()
-        end
-    end
-end
-local function selectNextOrPrevHotBar(dir)
-    if dir == "next" then
-        local num = I.QuickSelect.getSelectedPage() + 1
-        if num > 2 then
-            num = 0
-        end
-        I.QuickSelect.setSelectedPage(num)
-        I.QuickSelect_Hotbar.drawHotbar()
-    elseif dir == "prev" then
-        local num = I.QuickSelect.getSelectedPage() - 1
-        if num < 0 then
-            num = 2
-        end
-        I.QuickSelect.setSelectedPage(num)
-        I.QuickSelect_Hotbar.drawHotbar()
-    end
-end
-local function selectNextOrPrevHotKey(dir)
-    if dir == "next" then
-        if not controllerPickMode then
-            startPickingMode()
-            return
-        end
-        selectedNum = selectedNum + 1
-        if selectedNum > 10 then
-            selectedNum = 1
-        end
-        I.QuickSelect_Hotbar.drawHotbar()
-    elseif dir == "prev" then
-        if not controllerPickMode then
-            startPickingMode()
-            return
-        end
-        selectedNum = selectedNum - 1
-        if selectedNum < 1 then
-            selectedNum = 10
-        end
-        I.QuickSelect_Hotbar.drawHotbar()
-    end
-end
-local function getNextKey()
-    return "="
 end
 
-local function getPrevKey()
-    return "-"
+local function selectNextOrPrevHotBar(direction)
+    local page = I.QuickSelect.getSelectedPage()
+    if direction == "next" then
+        page = page + 1
+        if page > 2 then page = 0 end
+    else
+        page = page - 1
+        if page < 0 then page = 2 end
+    end
+
+    I.QuickSelect.setSelectedPage(page)
+    requestAll(true)
+end
+
+local function selectNextOrPrevHotKey(direction)
+    if not controllerPickMode then
+        startPickingMode()
+        return
+    end
+
+    local oldSlot = selectedSlot()
+    if direction == "next" then
+        selectedNum = selectedNum == ITEMS_PER_ROW and 1 or selectedNum + 1
+    else
+        selectedNum = selectedNum == 1 and ITEMS_PER_ROW or selectedNum - 1
+    end
+
+    requestSlot(oldSlot, true)
+    requestSlot(selectedSlot(), false)
 end
 
 local function isQuickKeysMenuOpen()
@@ -585,147 +550,91 @@ local function isQuickKeysMenuOpen()
         and I.QuickSelect_Win1.isMenuOpen()
 end
 
--- Create a settings update callback function
-local function onSettingsChanged()
-    I.QuickSelect_Hotbar.drawHotbar()
-end
-
--- Subscribe to settings changes
-settings:subscribe(async:callback(onSettingsChanged))
-
--- Add variable to track current UI mode
-local currentUiMode = nil
-
--- Update or add onUpdate function
-local function onUpdate(dt)
-    -- Handle fade effect if enabled (but don't use alpha)
-    if isFading and fadeTimer < fadeDuration then
-        fadeTimer = fadeTimer + dt
-        -- No alpha changes here
-    elseif isFading and fadeTimer >= fadeDuration then
-        -- When fade timer is complete, destroy the hotbar
-        if hotBarElement then
-            local success, err = pcall(function()
-                hotBarElement:destroy()
-                hotBarElement = nil
-            end)
-            if not success then
-                log("Error destroying hotbar: " .. tostring(err))
-            end
-        end
-        isFading = false
-    end
-
-    -- Check HUD visibility and update hotbar accordingly
-    local hudVisible = I.UI and I.UI.isHudVisible and I.UI.isHudVisible()
-
-    -- Handle HUD visibility changes
-    if hudVisible ~= wasHudVisible then
-        -- State changed
-        if hudVisible == false then
-            -- HUD was just hidden
-            if hotBarElement then
-                local success, err = pcall(function()
-                    hotBarElement:destroy()
-                    hotBarElement = nil
-                end)
-                if not success then
-                    log("Error destroying hotbar when HUD is hidden: " .. tostring(err))
-                end
-            end
-        else
-            -- HUD was just shown - trigger a redraw
-            log("HUD became visible - triggering hotbar redraw")
-            needsRedraw = true
-        end
-
-        -- Update tracking variable
-        wasHudVisible = hudVisible
-    elseif hudVisible == false and hotBarElement then
-        -- Safety check - if somehow HUD is hidden but hotbar still exists, destroy it
-        local success, err = pcall(function()
-            hotBarElement:destroy()
-            hotBarElement = nil
-        end)
-        if not success then
-            log("Error destroying hotbar when HUD is hidden: " .. tostring(err))
-        end
-    end
-
-    -- Only update the hotbar when absolutely necessary
-    local currentTime = os.time()
-    if needsRedraw and hudVisible and (currentTime - lastUpdateTime) > UPDATE_THROTTLE then
-        lastUpdateTime = currentTime
-        needsRedraw = false
-        drawHotbar()
+local function onMainSettingsChanged(_, key)
+    if key == nil or STRUCTURAL_SETTINGS[key] then
+        requestLayout(false)
+    else
+        requestAll(false)
     end
 end
+
+local function onVisualSettingsChanged()
+    styleVersion = styleVersion + 1
+    if I.Controller_Icon_QS and I.Controller_Icon_QS.refreshTextStyles then
+        I.Controller_Icon_QS.refreshTextStyles()
+    end
+    requestAll(false)
+end
+
+settings:subscribe(async:callback(onMainSettingsChanged))
+textSettings:subscribe(async:callback(onVisualSettingsChanged))
+chargeSettings:subscribe(async:callback(onVisualSettingsChanged))
+thresholdSettings:subscribe(async:callback(onVisualSettingsChanged))
 
 return {
     interfaceName = "QuickSelect_Hotbar",
     interface = {
         drawHotbar = function(resetFadeTimer)
-            needsRedraw = true
-            local success, err = pcall(function()
-                drawHotbar(resetFadeTimer)
-            end)
-            if not success then
-                log("Error calling drawHotbar: " .. tostring(err))
-            end
+            requestAll(resetFadeTimer)
+        end,
+        invalidateSlot = function(slot, _, resetFadeTimer)
+            requestSlot(slot, resetFadeTimer)
+        end,
+        invalidateState = function(_, resetFadeTimer)
+            requestAll(resetFadeTimer)
+        end,
+        invalidateDynamic = function()
+            invalidateDynamic()
+        end,
+        invalidateLayout = function(_, resetFadeTimer)
+            requestLayout(resetFadeTimer)
         end,
         startPickingMode = startPickingMode,
         endPickingMode = endPickingMode,
         selectSlot = selectSlot,
         saveSlot = saveSlot,
-        resetFade = function()
-            -- Add a safety wrapper for resetFade too
-            local success, err = pcall(function()
-                resetFade()
-            end)
-            if not success then
-                log("Error calling resetFade: " .. tostring(err))
-            end
-        end,
+        resetFade = resetFade,
         isHotbarVisible = function()
-            return hotBarElement ~= nil
+            return view ~= nil and view.visible
+        end,
+        getPerformanceMetrics = function()
+            return {
+                fullBuilds = metrics.fullBuilds,
+                slotUpdates = metrics.slotUpdates,
+                skippedSlotUpdates = metrics.skippedSlotUpdates,
+                invalidationBatches = metrics.invalidationBatches,
+                dynamicPolls = metrics.dynamicPolls,
+            }
         end,
     },
     eventHandlers = {
-        UiModeChanged = UiModeChanged,
+        UiModeChanged = uiModeChanged,
     },
     engineHandlers = {
         onLoad = function()
-            log("==== Initializing QuickSelect_Hotbar ====")
             Tooltip.ensureLayer()
 
-            -- Initialize settings if they don't exist
             if settings:get("disableIconShrinking") == nil then
                 settings:set("disableIconShrinking", true)
             end
 
-            -- Set initial state
             pickSlotMode = false
             controllerPickMode = false
             selectedNum = 1
-            currentUiMode = I.UI and I.UI.getMode and I.UI.getMode()
-
-            -- Initial draw with a small delay to ensure all interfaces are registered
-            async:newUnsavableSimulationTimer(0.05, function()
-                local success, err = pcall(function()
-                    drawHotbar()
-                end)
-                if not success then
-                    log("Error in initial draw: " .. tostring(err))
-                end
-            end)
+            pollElapsed = 0
+            fadeElapsed = 0
+            fadedHidden = false
+            wasHudVisible = hudIsVisible()
+            requestLayout(true)
         end,
         onUpdate = onUpdate,
         onFrame = function(dt)
             local success, err = pcall(function()
                 updateFade(dt)
+                flushInvalidations()
             end)
             if not success then
-                log("Error in updateFade: " .. tostring(err))
+                Debug.error("QuickSelect_Hotbar", "HUD update failed: " .. tostring(err))
             end
         end,
         onKeyPress = function(key)
@@ -735,52 +644,42 @@ return {
             if core.isWorldPaused() and not controllerPickMode then
                 return
             end
+
             local char = key.symbol
-            if not char then
-                return
-            end
-            local nextKey = getNextKey()
-            local prevKey = getPrevKey()
-            if nextKey and char == nextKey then
+            if char == "=" then
                 selectNextOrPrevHotBar("next")
-            elseif prevKey and char == prevKey then
+            elseif char == "-" then
                 selectNextOrPrevHotBar("prev")
             end
         end,
-        onControllerButtonPress = function(btn)
+        onControllerButtonPress = function(button)
             if isQuickKeysMenuOpen() then
                 return
             end
             if core.isWorldPaused() and not controllerPickMode then
                 return
             end
-            if btn == input.CONTROLLER_BUTTON.LeftShoulder or btn == input.CONTROLLER_BUTTON.DPadLeft then
+
+            if button == input.CONTROLLER_BUTTON.LeftShoulder
+                or button == input.CONTROLLER_BUTTON.DPadLeft then
                 selectNextOrPrevHotKey("prev")
-            elseif btn == input.CONTROLLER_BUTTON.RightShoulder or btn == input.CONTROLLER_BUTTON.DPadRight then
+            elseif button == input.CONTROLLER_BUTTON.RightShoulder
+                or button == input.CONTROLLER_BUTTON.DPadRight then
                 selectNextOrPrevHotKey("next")
-            elseif btn == input.CONTROLLER_BUTTON.DPadDown and controllerPickMode then
+            elseif button == input.CONTROLLER_BUTTON.DPadDown and controllerPickMode then
                 selectNextOrPrevHotBar("next")
-            elseif btn == input.CONTROLLER_BUTTON.DPadUp and controllerPickMode then
-                if not enableHotbar then
-                    return
-                end
+            elseif button == input.CONTROLLER_BUTTON.DPadUp and controllerPickMode then
                 selectNextOrPrevHotBar("prev")
-            elseif btn == input.CONTROLLER_BUTTON.A and controllerPickMode then
-                if not enableHotbar then
-                    return
-                end
+            elseif button == input.CONTROLLER_BUTTON.A and controllerPickMode then
                 if pickSlotMode then
                     saveSlot()
-                    -- Don't redraw here, saveSlot() already does it
                     return
                 end
-                I.QuickSelect_Storage.equipSlot(selectedNum + (I.QuickSelect.getSelectedPage() * 10))
+                I.QuickSelect_Storage.equipSlot(selectedSlot())
                 endPickingMode()
-            elseif btn == input.CONTROLLER_BUTTON.B then
-                if enableHotbar then
-                    endPickingMode()
-                end
+            elseif button == input.CONTROLLER_BUTTON.B and controllerPickMode then
+                endPickingMode()
             end
-        end
-    }
+        end,
+    },
 }

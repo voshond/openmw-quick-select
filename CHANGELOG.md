@@ -1,5 +1,11 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.23 (2026-07-25)
+
+Performance Improvements and Search Debouncing
+
+
+
 ## Version 1.0.22 (2026-07-25)
 
 UI Refactoring & QoL Improvements

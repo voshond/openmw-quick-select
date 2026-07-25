@@ -30,7 +30,7 @@ def extract(version: str, body_only: bool) -> str:
     if not body:
         raise ValueError(f"CHANGELOG.md entry for {version} has no release notes")
 
-    return body if body_only else f"{latest.group(0)}\n\n{body}\n"
+    return f"{body}\n" if body_only else f"{latest.group(0)}\n\n{body}\n"
 
 
 def main() -> int:

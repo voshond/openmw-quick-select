@@ -14,6 +14,7 @@ local tooltipData = require("scripts.voshondsquickselect.presentation.tooltip_da
 local Button = require("scripts.voshondsquickselect.ui.button")
 local Hotbar = require("scripts.voshondsquickselect.ui.hotbar")
 local Icon = require("scripts.voshondsquickselect.ui.icon")
+local InventoryGrid = require("scripts.voshondsquickselect.ui.inventory_grid")
 local Modal = require("scripts.voshondsquickselect.ui.modal")
 local ScrollView = require("scripts.voshondsquickselect.ui.scroll_view")
 local SearchBar = require("scripts.voshondsquickselect.ui.search_bar")
@@ -631,16 +632,23 @@ drawSelector = function()
     destroyWindow()
 
     local iconSize = settings:get("iconSize") or 40
-    local columns = selectionSettings:get("selectionColumns") or 10
+    local requestedColumns = selectionSettings:get("selectionColumns") or 10
     local visibleRows = selectionSettings:get("selectionVisibleRows") or 6
     local magicRows = selectionSettings:get("selectionMagicVisibleRows") or 12
     local gap = selectionSettings:get("selectionItemSpacing") or 4
     local scrollbarWidth = 14
     local screen = ui.screenSize()
-    local maximumContentWidth = math.max(360, screen.x - 120 - scrollbarWidth)
-    local maximumColumns = math.max(1, math.floor((maximumContentWidth + gap) / (iconSize + gap)))
-    columns = math.min(columns, maximumColumns)
-    local contentWidth = math.max(360, columns * iconSize + math.max(0, columns - 1) * gap)
+    local minimumContentWidth = 360
+    local maximumContentWidth = math.max(minimumContentWidth, screen.x - 120 - scrollbarWidth)
+    local inventoryGrid = InventoryGrid.fit({
+        iconSize = iconSize,
+        gap = gap,
+        columns = requestedColumns,
+        minimumWidth = minimumContentWidth,
+        maximumWidth = maximumContentWidth,
+    })
+    local columns = inventoryGrid.columns
+    local contentWidth = inventoryGrid.width
     local panelWidth = contentWidth + scrollbarWidth
     local rowHeight = currentView == VIEW.Inventory
         and iconSize + gap

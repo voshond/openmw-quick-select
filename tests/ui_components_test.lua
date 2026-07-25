@@ -196,6 +196,7 @@ end)
 
 local Hotbar = require("scripts.voshondsquickselect.ui.hotbar")
 local Icon = require("scripts.voshondsquickselect.ui.icon")
+local InventoryGrid = require("scripts.voshondsquickselect.ui.inventory_grid")
 local Modal = require("scripts.voshondsquickselect.ui.modal")
 local ScrollView = require("scripts.voshondsquickselect.ui.scroll_view")
 local SearchBar = require("scripts.voshondsquickselect.ui.search_bar")
@@ -246,6 +247,26 @@ assert(changedValue == "amulet", "search field forwards text changes")
 assert(inputLayout.props.text == "amulet", "search field keeps native TextEdit changes after UI refreshes")
 SearchBar.setText(inputLayout, "ring")
 assert(inputLayout.props.text == "ring", "search field text can update without rebuilding its layout")
+
+local compactGrid = InventoryGrid.fit({
+    iconSize = 24,
+    gap = 4,
+    columns = 10,
+    minimumWidth = 360,
+    maximumWidth = 360,
+})
+assert(compactGrid.columns == 13, "compact icons add columns to fill the selector width")
+assert(compactGrid.width == 360, "compact inventory grid uses the full selector width")
+
+local regularGrid = InventoryGrid.fit({
+    iconSize = 40,
+    gap = 4,
+    columns = 10,
+    minimumWidth = 360,
+    maximumWidth = 800,
+})
+assert(regularGrid.columns == 10 and regularGrid.width == 436,
+    "regular icons retain the configured minimum column count")
 
 local scrolledContent = {
     type = "Flex",

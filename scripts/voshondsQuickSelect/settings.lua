@@ -134,8 +134,8 @@ I.Settings.registerGroup {
         {
             key = "selectionColumns",
             renderer = "number",
-            name = "Inventory Columns",
-            description = "Number of item icons shown in each row of the inventory selector.",
+            name = "Minimum Inventory Columns",
+            description = "Minimum number of item icons shown in each row. Compact icons add columns automatically to fill the selector width.",
             default = 10,
             argument = {
                 min = 4,

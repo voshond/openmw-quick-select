@@ -120,6 +120,13 @@ I.Settings.registerGroup {
             description = "If enabled, the hotbar will automatically hide after 2 seconds of inactivity. It will reappear when you interact with items.",
             default = false
         },
+        {
+            key = "importPre1023Settings",
+            renderer = "VoshondsQuickSelect/importPre1023Settings",
+            name = "Import pre-1.0.23 settings",
+            description = "Imports compatible settings from the old QuickSelect section and overwrites the current main hotbar settings. This cannot be undone from this page.",
+            default = 0,
+        },
     },
 }
 

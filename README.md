@@ -98,11 +98,19 @@ The UI component smoke tests can be run without launching OpenMW:
 ```bash
 luajit tests/ui_components_test.lua
 luajit tests/hotbar_performance_test.lua
+luajit tests/settings_migration_test.lua
 ```
 
 The rendering boundaries and performance lifecycle are documented in
 [`docs/UI_RENDERING_ARCHITECTURE.md`](docs/UI_RENDERING_ARCHITECTURE.md) and
 [`docs/PERFORMANCE_REFACTOR_PLAN.md`](docs/PERFORMANCE_REFACTOR_PLAN.md).
+
+### Legacy settings
+
+The QuickSelect settings page includes an **Import pre-1.0.23 settings**
+button. It deliberately overwrites compatible current main-hotbar settings
+with values from the original `SettingsQuickSelect` storage section; later
+settings that did not exist in that release remain unchanged.
 
 #### Examples
 

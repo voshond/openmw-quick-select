@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.25 (2026-07-26)
+
+Fix Pipeline
+
+
 ## Version 1.0.24 (2026-07-26)
 
 Code Cleanup & Automated Release Pipeline to Nexusmods

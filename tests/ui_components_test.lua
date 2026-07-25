@@ -1,6 +1,7 @@
 local textureCalls = 0
 local testInventoryItems = {}
 local testSpells = {}
+local testRealTime = 0
 
 package.preload["openmw.async"] = function()
     return {
@@ -126,6 +127,9 @@ package.preload["openmw.core"] = function()
     return {
         getGMST = function(key)
             return key
+        end,
+        getRealTime = function()
+            return testRealTime
         end,
         magic = {
             SPELL_TYPE = { Power = 1, Spell = 2 },
@@ -326,9 +330,17 @@ assert(selector.interface.getQuickSelectWindow() ~= nil, "inventory selector ren
 local selectorWindow = selector.interface.getQuickSelectWindow()
 local selectorSearch = selectorWindow.layout.content[1].content[3]
 local selectorInput = SearchBar.getInput(selectorSearch)
+local selectorUpdates = selectorWindow.updates
 selectorInput.events.textChanged("amulet", selectorInput)
 assert(selector.interface.getQuickSelectWindow() == selectorWindow, "search refresh keeps the selector modal alive")
 assert(SearchBar.getInput(selectorSearch) == selectorInput, "search refresh preserves the focused TextEdit layout")
+assert(selectorWindow.updates == selectorUpdates, "search result refresh is debounced while typing")
+testRealTime = testRealTime + 0.11
+selector.engineHandlers.onUpdate()
+assert(selectorWindow.updates == selectorUpdates, "search debounce waits for the full interval")
+testRealTime = testRealTime + 0.01
+selector.engineHandlers.onUpdate()
+assert(selectorWindow.updates == selectorUpdates + 1, "search refreshes once after the debounce interval")
 local testInput = require("openmw.input")
 testInput.KEY.Backspace = "Backspace"
 selectorInput.events.focusGain(nil, selectorInput)

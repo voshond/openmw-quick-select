@@ -45,6 +45,9 @@ local selectorListHost
 local selectorSummary
 local selectorSearchInput
 local selectorMetrics
+local searchRefreshAt
+
+local SEARCH_DEBOUNCE_SECONDS = 0.12
 
 local drawQuickSelect
 local drawSlotActions
@@ -86,6 +89,7 @@ local function destroyWindow()
     selectorSummary = nil
     selectorSearchInput = nil
     selectorMetrics = nil
+    searchRefreshAt = nil
 end
 
 local function resetState()
@@ -608,24 +612,47 @@ local function refreshSelectorResults()
     window:update()
 end
 
+local function scheduleSelectorRefresh()
+    if not window or not selectorMetrics then
+        drawSelector()
+        return
+    end
+
+    searchRefreshAt = core.getRealTime() + SEARCH_DEBOUNCE_SECONDS
+end
+
+local function flushSelectorRefresh()
+    if not searchRefreshAt then
+        return
+    end
+
+    searchRefreshAt = nil
+    refreshSelectorResults()
+end
+
 local function updateSearch(value)
     value = value or ""
     if value == query then
         return
     end
     query = value
-    -- Keep the TextEdit instance alive while results change.  Recreating it
-    -- here used to drop keyboard focus after every character.
-    refreshSelectorResults()
+    -- Keep the TextEdit responsive and rebuild the expensive scroll content
+    -- only after the player pauses briefly between keystrokes.
+    scheduleSelectorRefresh()
 end
 
 local function clearSearch()
-    if query == "" then
+    if query == "" and not searchRefreshAt then
         return
     end
     query = ""
     SearchBar.setText(selectorSearchInput, query)
-    refreshSelectorResults()
+    -- Clear is an explicit action, so do not make the player wait for the
+    -- debounce interval before seeing the full list again.
+    flushSelectorRefresh()
+    if not window then
+        drawSelector()
+    end
 end
 
 drawSelector = function()
@@ -816,6 +843,14 @@ local function onMouseWheel(vertical)
     ScrollView.scroll(scrollView, -direction * 3)
 end
 
+local function onUpdate()
+    -- Simulation and game timers stop while the Quick Keys menu is open.
+    -- Real time keeps this small search debounce responsive in paused UI.
+    if searchRefreshAt and core.getRealTime() >= searchRefreshAt then
+        flushSelectorRefresh()
+    end
+end
+
 local function uiModeChanged(data)
     if data.newMode then
         return
@@ -891,6 +926,7 @@ return {
             Debug.items("QuickSelect UI components initialized")
         end,
         onKeyPress = onKeyPress,
+        onUpdate = onUpdate,
         onControllerButtonPress = onControllerButtonPress,
         onMouseWheel = onMouseWheel,
     },

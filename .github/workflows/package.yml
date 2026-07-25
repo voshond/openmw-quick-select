@@ -1,4 +1,4 @@
-name: Package Mod
+name: Release Mod
 
 on:
     push:
@@ -9,64 +9,126 @@ on:
         branches: [main, master]
     workflow_dispatch:
 
-# Add permissions needed for release creation
 permissions:
-    contents: write
-    packages: write
+    contents: read
 
 jobs:
-    build:
-        runs-on: windows-latest
+    package:
+        runs-on: ubuntu-latest
+        outputs:
+            archive_name: ${{ steps.package.outputs.archive_name }}
+            version: ${{ steps.version.outputs.version }}
+            is_release: ${{ steps.version.outputs.is_release }}
+            nexus_description: ${{ steps.notes.outputs.nexus_description }}
 
         steps:
             - uses: actions/checkout@v4
 
-            - name: Get Version
-              id: get_version
-              shell: pwsh
+            - name: Resolve release version
+              id: version
               run: |
-                  $version = "1.0.0"
-                  # If this is a tag with v prefix (like v1.2.3), use that version
-                  if ("${{ github.ref }}".StartsWith('refs/tags/v')) {
-                    $version = "${{ github.ref }}".Substring(11)
+                  if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+                    [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+                      echo "Release tags must use vX.Y.Z format." >&2
+                      exit 1
+                    }
+                    version="${GITHUB_REF_NAME#v}"
+                    is_release=true
+                  else
+                    version="dev-${GITHUB_SHA::7}"
+                    is_release=false
+                  fi
+                  {
+                    echo "version=$version"
+                    echo "is_release=$is_release"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Verify release metadata
+              if: steps.version.outputs.is_release == 'true'
+              run: |
+                  config_version="$(jq -er '.project.version' config.json)"
+                  test "$config_version" = "${{ steps.version.outputs.version }}" || {
+                    echo "config.json version ($config_version) does not match tag version (${{ steps.version.outputs.version }})." >&2
+                    exit 1
                   }
-                  echo "version=$version" >> $env:GITHUB_OUTPUT
 
-            - name: Create Distribution Directory
-              shell: pwsh
+            - name: Install Lua 5.4
               run: |
-                  # Create staging directory
-                  $stagingDir = "staging"
-                  New-Item -ItemType Directory -Force -Path $stagingDir
+                  sudo apt-get update
+                  sudo apt-get install --yes lua5.4
 
-                  # Copy files we want to distribute
-                  Copy-Item -Path "scripts\voshondsQuickSelect" -Destination "$stagingDir\scripts\voshondsQuickSelect\" -Recurse
-                  Copy-Item -Path "textures" -Destination "$stagingDir\" -Recurse
-                  Copy-Item -Path "voshondsQuickSelect.omwscripts" -Destination "$stagingDir\"
+            - name: Run Lua syntax checks
+              run: |
+                  find scripts tests -type f -name '*.lua' -print0 | xargs -0 -r -n1 luac5.4 -p
 
-            - name: Upload as Artifact
+            - name: Run Lua tests
+              run: |
+                  for test_file in tests/*_test.lua; do
+                    lua5.4 "$test_file"
+                  done
+
+            - name: Build manifest-driven archive
+              run: python3 tools/package_release.py --version "${{ steps.version.outputs.version }}" --output-dir release
+
+            - name: Inspect and verify archive contents
+              id: package
+              run: |
+                  archive="$(find release -maxdepth 1 -type f -name '*.zip' -print -quit)"
+                  test -n "$archive"
+                  python3 tools/verify_release_package.py --archive "$archive" --version "${{ steps.version.outputs.version }}"
+                  echo "archive_name=${archive##*/}" >> "$GITHUB_OUTPUT"
+
+            - name: Extract release notes
+              id: notes
+              if: steps.version.outputs.is_release == 'true'
+              run: |
+                  python3 tools/extract_release_notes.py --version "${{ steps.version.outputs.version }}" --output release/release-notes.md
+                  {
+                    echo 'nexus_description<<EOF'
+                    python3 tools/extract_release_notes.py --version "${{ steps.version.outputs.version }}" --body-only
+                    echo EOF
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Upload verified package
               uses: actions/upload-artifact@v4
               with:
-                  name: voshondsQuickSelect-v${{ steps.get_version.outputs.version }}
-                  path: staging/**/*
+                  name: voshondsQuickSelect-v${{ steps.version.outputs.version }}
+                  path: release/
+                  if-no-files-found: error
 
-            - name: Install 7-Zip
-              shell: pwsh
-              run: choco install 7zip -y
+    publish:
+        needs: package
+        if: needs.package.outputs.is_release == 'true'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
 
-            - name: Create Release ZIP with 7-Zip
-              if: startsWith(github.ref, 'refs/tags/v')
-              shell: pwsh
-              run: |
-                  & "C:\Program Files\7-Zip\7z.exe" a -tzip voshondsQuickSelect-v${{ steps.get_version.outputs.version }}.zip .\staging\*
-
-            - name: Create Release
-              id: create_release
-              if: startsWith(github.ref, 'refs/tags/v')
-              uses: ncipollo/release-action@v1
+        steps:
+            - name: Download verified package
+              uses: actions/download-artifact@v4
               with:
-                  artifacts: voshondsQuickSelect-v${{ steps.get_version.outputs.version }}.zip
-                  token: ${{ secrets.GITHUB_TOKEN }}
-                  allowUpdates: true
-                  draft: false
-                  prerelease: false
+                  name: voshondsQuickSelect-v${{ needs.package.outputs.version }}
+                  path: release
+
+            - name: Upload release to Nexus Mods
+              uses: Nexus-Mods/upload-action@19da5c91527877cd0bfedc6e6239c911035846a0
+              with:
+                  api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+                  file_id: ${{ vars.NEXUSMODS_FILE_ID }}
+                  filename: release/${{ needs.package.outputs.archive_name }}
+                  version: ${{ needs.package.outputs.version }}
+                  display_name: voshond's Quick Select (OpenMW) v${{ needs.package.outputs.version }}
+                  description: ${{ needs.package.outputs.nexus_description }}
+                  category: main
+                  archive_existing_version: true
+                  primary_mod_manager_download: true
+                  update_mod_version: true
+
+            - name: Publish GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  gh release create "${GITHUB_REF_NAME}" "release/${{ needs.package.outputs.archive_name }}" \
+                    --verify-tag \
+                    --title "${GITHUB_REF_NAME}" \
+                    --notes-file release/release-notes.md

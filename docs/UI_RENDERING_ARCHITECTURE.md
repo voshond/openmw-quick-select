@@ -21,9 +21,16 @@ Components accept declarative tables and return layouts or elements. They do not
 
 `presentation/icon_renderer.lua` remains the compatibility presenter for hotbar slot state. It resolves counts, charge text, threshold colors, and the configured text styles, then delegates texture composition and caching to `ui/icon.lua`. Its existing `Controller_Icon_QS` interface is preserved.
 
+`presentation/hotbar_snapshot.lua` captures the player-dependent values that
+can change a HUD slot: assignment identity, availability, icon, count, charge,
+condition, equipped state, selection, and visual-style generation. Snapshots
+are comparable without touching the UI.
+
 ## Controllers
 
-- `controllers/hud_hotbar.lua` owns HUD visibility, fade/picking state, and refresh policy. It uses the shared hotbar component for layout.
+- `controllers/hud_hotbar.lua` owns HUD visibility, fade/picking state,
+  invalidation batching, snapshot reconciliation, and the narrow fallback poll
+  for external player-state changes.
 - `controllers/quick_keys.lua` owns only selection-window state: current view, target slot, catalog, query, search focus, and scroll element. It uses the same hotbar and icon components as the HUD, and exposes menu-open state so hotbar bindings stay inactive while typing.
 - `controllers/player.lua` owns key-to-slot activation and equipment/spell actions.
 - `services/favorite_slots.lua` owns the persisted 30-slot data model.
@@ -43,16 +50,21 @@ OpenMW 0.51 exposes focus events but no public API that assigns focus to a speci
 ## Lifecycle rules
 
 - A controller owns and destroys every root element it creates.
+- The HUD root remains alive across ordinary slot, visibility, and fade
+  changes. `ui/hotbar_view.lua` gives each slot an independent element so a
+  dirty slot can update without updating or replacing the root.
 - Nested scroll elements are deep-destroyed after their parent window is detached.
 - Only `ui/tooltip.lua` creates or destroys tooltip elements.
 - Settings changes rebuild the currently visible view; storage and equipment behavior are not coupled to those rebuilds.
 - Components cache texture resources, not player-dependent render state.
+- Known storage actions invalidate their affected slot. Repeated requests are
+  coalesced and snapshot equality suppresses redundant UI work.
 - Hotbar slot wrappers declare the same fixed footprint used for row measurement; configured horizontal and vertical gaps are direct UI-pixel values, including zero.
 
-## Next migration slices
+## Remaining migration slices
 
-1. Move charge/count/equipped-state resolution out of `presentation/icon_renderer.lua` into a slot presentation model.
-2. Replace full HUD rebuild requests with keyed slot snapshots and dirty-slot updates.
-3. Collapse the repeated redraw timers in `services/favorite_slots.lua` into one coalesced invalidation API.
-4. Move tooltip data generation behind a small presentation-model interface.
-5. Add Lua tests for catalog filtering, slot labels, hotbar measurement, and snapshot diffing with OpenMW modules stubbed.
+1. Move tooltip data generation behind a small presentation-model interface.
+2. Gradually reduce the legacy responsibilities left in
+   `presentation/icon_renderer.lua`.
+3. Add gameplay profiling captures for large inventories and three visible
+   hotbars.

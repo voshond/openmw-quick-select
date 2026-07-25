@@ -1,287 +1,94 @@
-# Hotbar Performance Refactoring Plan 🚀
+# Hotbar rendering performance
 
-## Current Performance Issues (The Disaster Assessment)
+The HUD hotbar uses a persistent UI tree. Ordinary state changes update only
+the slots whose render snapshots changed; the root is rebuilt only when its
+layout changes.
 
-### 🔥 Critical Problems Identified:
+## Rendering pipeline
 
-#### 1. **Constant Full UI Rebuilds**
+1. `presentation/hotbar_snapshot.lua` captures the render-relevant state of
+   each visible slot. A capture cycle reads equipment, selected magic, spells,
+   and inventory counts once and shares those results between slots.
+2. `controllers/hud_hotbar.lua` coalesces invalidation requests until the next
+   frame. It compares newly captured snapshots with the last rendered state.
+3. `ui/hotbar_view.lua` owns the persistent HUD root and an independent
+   `openmw.ui.Element` for every visible slot.
+4. Changed slots receive a replacement layout and call `Element:update()`.
+   Unchanged slots perform no UI work.
 
-- `drawHotbar()` called everywhere - 20+ locations in codebase
-- Every update destroys and recreates entire UI from scratch
-- No differentiation between full redraw and incremental updates
-- Like rebuilding your house to change a light bulb
+The existing `QuickSelect_Hotbar.drawHotbar()` interface remains available as
+a compatibility invalidation request. It no longer destroys and immediately
+recreates the HUD.
 
-#### 2. **Aggressive Timer-Based Updates**
+## Invalidation types
 
-- Enchantment charge timer runs every 0.5 seconds (`REFRESH_INTERVAL = 0.5`)
-- Always triggers full `drawHotbar(false)` when enchanted items present
-- Results in 2+ full UI rebuilds per second
-- No user control over update frequency
+- `invalidateSlot(slot)` marks one assignment or item state as dirty.
+- `invalidateState()` reconciles all visible slots without rebuilding the
+  root.
+- `invalidateDynamic()` reconciles only bound slots that can change while
+  playing.
+- `invalidateLayout()` rebuilds the root for icon size, spacing, placement, or
+  visible-bar changes.
 
-#### 3. **Zero Smart Caching**
+Multiple requests before the next frame form one invalidation batch.
 
-- No state caching or dirty flag system
-- Every update recalculates everything from scratch
-- No tracking of what actually changed
-- Expensive operations repeated unnecessarily
+## Polling
 
-#### 4. **Brute Force State Management**
+OpenMW 0.51 does not expose a general player-inventory-changed engine handler,
+so external inventory, charge, and equipment changes still need reconciliation.
+The controller polls every 0.5 seconds only while the HUD is visible.
 
-- All state changes trigger full redraws
-- No delta tracking for charges, counts, equipped status
-- No batching of multiple changes
-- Update spam protection non-existent
+Polling does not imply redrawing:
 
-#### 5. **Missing Optimization Patterns**
+- empty slots are skipped;
+- inventory counts are cached per record for the capture cycle;
+- equipment and selected magic are read once per cycle;
+- charge, count, condition, availability, and equipped state are compared;
+- only snapshots that changed update their slot elements.
 
-- No visibility-based update gating
-- No configurable update intervals
-- No element reuse or modification
-- No smart throttling mechanisms
+The previous self-rescheduling enchantment timer was removed. It rebuilt the
+whole HUD twice per second whenever any charge-using item had been rendered,
+including stale items that were no longer visible.
 
----
+## Visibility and fading
 
-## Competitor Analysis (Learning from ZerkishHotkeysImproved)
+Hiding the HUD or fading the bar changes the persistent root's `visible`
+property. It does not destroy slot elements. Polling pauses while hidden and a
+single reconciliation runs when the bar is shown again.
 
-### ✅ Smart Patterns They Use:
+## Presentation caches
 
-1. **Delta Updates**: Only update when `hb != lastHotbar` or interval passes
-2. **Configurable Intervals**: User-controllable update frequency via `sUpdateInterval`
-3. **Visibility Management**: Only update when `isHudVisible` is true
-4. **Incremental Updates**: `updateHUD()` modifies existing elements instead of recreating
-5. **Smart State Tracking**: Track previous state to detect actual changes
+- `ui/icon.lua` caches OpenMW texture resources by path.
+- Text and magic-charge styles are cached in
+  `presentation/icon_renderer.lua` and refreshed by settings notifications.
+- Player-dependent slot snapshots are not retained outside the currently
+  rendered visible slots.
 
----
+## Diagnostics
 
-## Refactoring Strategy (4-Phase Master Plan)
+`QuickSelect_Hotbar.getPerformanceMetrics()` returns:
 
-### 🚀 **Phase 1: Smart Update System Foundation**
+- `fullBuilds`
+- `slotUpdates`
+- `skippedSlotUpdates`
+- `invalidationBatches`
+- `dynamicPolls`
 
-**Goal**: Replace brute force updates with intelligent change detection
+These counters are intentionally passive and do not print every frame.
 
-#### Tasks:
+## Verification
 
-1. **Implement State Tracking**
+`tests/hotbar_performance_test.lua` verifies that:
 
-   - Add delta tracking for all hotbar state (charges, counts, equipped status)
-   - Create state comparison functions to detect actual changes
-   - Track previous vs current state for each slot
+- repeated redraw requests do not rebuild the root;
+- unchanged snapshots do not update UI elements;
+- count and charge changes update exactly one slot;
+- dynamic polling can result in zero UI work;
+- explicit layout invalidation performs a full rebuild.
 
-2. **Separate Update Types**
+Run:
 
-   - `fullRedraw()` - Complete UI rebuild (rare, user-triggered)
-   - `incrementalUpdate()` - Update only changed elements (frequent)
-   - `refreshSlot(slotNum)` - Update single slot only
-
-3. **Add Configurable Update Intervals**
-
-   - User setting for update frequency (0.1s to 5.0s range)
-   - Separate intervals for different update types
-   - Smart scheduling based on activity level
-
-4. **Implement Update Gating**
-   - Only update when hotbar is actually visible
-   - Skip updates during UI transitions
-   - Throttle rapid successive update requests
-
-#### Files to Modify:
-
-- `controllers/hud_hotbar.lua` - Main update logic refactor
-- `presentation/icon_renderer.lua` - Timer and refresh system overhaul
-- `settings.lua` - Add new performance settings
-
----
-
-### 🎯 **Phase 2: Element Caching & Reuse**
-
-**Goal**: Cache UI elements and modify properties instead of recreating
-
-#### Tasks:
-
-1. **Implement UI Element Cache**
-
-   - Cache hotbar slot containers and reuse them
-   - Track which elements need updates vs recreation
-   - Implement proper element lifecycle management
-
-2. **Smart Property Updates**
-
-   - Update icon textures without recreating image elements
-   - Modify text content without recreating text elements
-   - Change colors/alpha without full element replacement
-
-3. **Dirty Flag System**
-
-   - Flag system to track which slots need updates
-   - Batch multiple changes into single update cycles
-   - Clear flags after successful updates
-
-4. **Memory Management**
-   - Proper cleanup of unused cached elements
-   - Prevent memory leaks from stale references
-   - Monitor cache size and implement limits
-
-#### Files to Modify:
-
-- `controllers/hud_hotbar.lua` - Add caching layer
-- `presentation/icon_renderer.lua` - Element reuse logic
-- New file: `qs_cache_manager.lua` - Cache management
-
----
-
-### ⚡ **Phase 3: Optimize Update Triggers**
-
-**Goal**: Minimize unnecessary updates and improve responsiveness
-
-#### Tasks:
-
-1. **Smart Timer Management**
-
-   - Replace fixed 0.5s timer with configurable intervals
-   - Implement adaptive timing based on activity
-   - Add timer pause/resume based on visibility
-
-2. **Event-Driven Updates**
-
-   - React to actual game events instead of polling
-   - Update only affected slots when items change
-   - Batch related changes together
-
-3. **Update Throttling**
-
-   - Prevent update spam from rapid state changes
-   - Implement debouncing for frequent triggers
-   - Queue updates and process in batches
-
-4. **Priority-Based Updates**
-   - High priority: User interactions, equipped items
-   - Medium priority: Charge changes, count updates
-   - Low priority: Background state refreshes
-
-#### Files to Modify:
-
-- `presentation/icon_renderer.lua` - Timer optimization
-- `controllers/hud_hotbar.lua` - Event handling improvement
-- `services/favorite_slots.lua` - Reduce unnecessary update calls
-
----
-
-### 🏆 **Phase 4: Advanced Optimizations**
-
-**Goal**: Fine-tune performance and add advanced features
-
-#### Tasks:
-
-1. **State Diffing Engine**
-
-   - Implement proper state comparison algorithms
-   - Track granular changes (charge deltas, count changes)
-   - Predict which updates are needed before processing
-
-2. **Calculation Caching**
-
-   - Cache expensive item data lookups
-   - Store enchantment information between updates
-   - Implement intelligent cache invalidation
-
-3. **Rendering Optimizations**
-
-   - Minimize texture loading operations
-   - Optimize UI layout calculations
-   - Reduce string concatenations and table operations
-
-4. **Performance Monitoring**
-   - Add performance metrics and logging
-   - Track update frequencies and durations
-   - Provide user feedback on performance impact
-
-#### Files to Modify:
-
-- All hotbar-related files for final optimization
-- New file: `qs_performance_monitor.lua` - Performance tracking
-- `settings.lua` - Advanced performance settings
-
----
-
-## Implementation Timeline
-
-### Week 1: Phase 1 (Foundation)
-
-- [ ] Implement state tracking system
-- [ ] Add configurable update intervals
-- [ ] Separate update types (full vs incremental)
-- [ ] Add visibility-based update gating
-
-### Week 2: Phase 2 (Caching)
-
-- [ ] Implement UI element caching
-- [ ] Add dirty flag system
-- [ ] Create cache manager
-- [ ] Test memory usage improvements
-
-### Week 3: Phase 3 (Optimization)
-
-- [ ] Optimize timer management
-- [ ] Implement update throttling
-- [ ] Add event-driven updates
-- [ ] Test responsiveness improvements
-
-### Week 4: Phase 4 (Polish)
-
-- [ ] Add advanced state diffing
-- [ ] Implement calculation caching
-- [ ] Add performance monitoring
-- [ ] Final testing and optimization
-
----
-
-## Expected Performance Improvements
-
-### 🎯 Target Metrics:
-
-- **Update Frequency**: Reduce from 2Hz to 0.2-1Hz configurable
-- **UI Rebuild Rate**: 90% reduction in full redraws
-- **Memory Usage**: 50% reduction in UI element churn
-- **Responsiveness**: Faster updates for user interactions
-- **CPU Usage**: 70% reduction in hotbar-related processing
-
-### 🔧 User Benefits:
-
-- Configurable performance vs accuracy trade-offs
-- Smoother gameplay with reduced stuttering
-- Better battery life on handheld devices
-- Customizable update frequencies per user preference
-- Improved compatibility with other UI mods
-
----
-
-## Testing Strategy
-
-### Performance Testing:
-
-1. **Before/After Benchmarks**: Measure current vs optimized performance
-2. **Stress Testing**: Multiple enchanted items with rapid state changes
-3. **Memory Profiling**: Track memory usage patterns
-4. **User Experience Testing**: Real gameplay scenarios
-
-### Compatibility Testing:
-
-1. **Other Mods**: Test with popular UI and gameplay mods
-2. **Different Scenarios**: Various game states and item configurations
-3. **Settings Combinations**: Test all new performance settings
-4. **Edge Cases**: Handle unusual conditions gracefully
-
----
-
-## Rollback Plan
-
-If performance improvements cause stability issues:
-
-1. **Feature Flags**: Allow users to disable optimizations
-2. **Legacy Mode**: Fall back to original update mechanism
-3. **Selective Rollback**: Disable specific optimizations only
-4. **User Settings**: Let users choose their performance level
-
----
-
-_"From brute force disaster to optimized masterpiece - let's make this hotbar purr like a fucking Ferrari!"_ 🏎️
+```sh
+luajit tests/ui_components_test.lua
+luajit tests/hotbar_performance_test.lua
+```

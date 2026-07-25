@@ -96,11 +96,13 @@ Available commands:
 The UI component smoke tests can be run without launching OpenMW:
 
 ```bash
-lua tests/ui_components_test.lua
+luajit tests/ui_components_test.lua
+luajit tests/hotbar_performance_test.lua
 ```
 
-The rendering boundaries and follow-up migration slices are documented in
-[`docs/UI_RENDERING_ARCHITECTURE.md`](docs/UI_RENDERING_ARCHITECTURE.md).
+The rendering boundaries and performance lifecycle are documented in
+[`docs/UI_RENDERING_ARCHITECTURE.md`](docs/UI_RENDERING_ARCHITECTURE.md) and
+[`docs/PERFORMANCE_REFACTOR_PLAN.md`](docs/PERFORMANCE_REFACTOR_PLAN.md).
 
 #### Examples
 

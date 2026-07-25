@@ -4,7 +4,7 @@ local async = require("openmw.async")
 local I = require("openmw.interfaces")
 local storage = require("openmw.storage")
 local self = require("openmw.self")
---usage: smenu = require("scripts.zackutils.MessageBox")
+-- Usage: local menu = require("scripts.voshondsquickselect.ui.message_box")
 local playerSettings = storage.playerSection("MessageBoxData")
 local winCreated
 

@@ -2,7 +2,7 @@ local core = require("openmw.core")
 local self = require("openmw.self")
 local types = require("openmw.types")
 
-local utility = require("scripts.voshondsquickselect.qs_utility")
+local utility = require("scripts.voshondsquickselect.legacy.utility")
 
 local Catalog = {}
 

@@ -288,7 +288,7 @@ local modal = Modal.create({
 assert(modal.layer == "Windows", "modal uses the window layer by default")
 assert(#modal.content[1].content == 2, "modal prepends its title to body content")
 
-local selector = require("scripts.voshondsquickselect.select_items_win1")
+local selector = require("scripts.voshondsquickselect.controllers.quick_keys")
 assert(selector.interfaceName == "QuickSelect_Win1", "selector controller loads with its component dependencies")
 selector.interface.drawQuickSelect()
 assert(selector.interface.getQuickSelectWindow() ~= nil, "selector renders the shared three-hotbar view")
@@ -317,7 +317,7 @@ assert(selector.engineHandlers.onKeyPress({ code = testInput.KEY.Backspace }) ==
     "unfocused search retains the Backspace fallback")
 assert(selectorInput.props.text == "amule", "unfocused Backspace updates the visible search text")
 
-local Catalog = require("scripts.voshondsquickselect.qs_item_catalog")
+local Catalog = require("scripts.voshondsquickselect.services.item_catalog")
 testSpells = {
     {
         id = "example_non_fire_name",

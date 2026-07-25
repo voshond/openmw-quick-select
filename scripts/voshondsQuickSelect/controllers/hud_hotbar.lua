@@ -11,9 +11,9 @@ local ui = require('openmw.ui')
 local I = require('openmw.interfaces')
 
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
-local tooltipData = require("scripts.voshondsquickselect.ci_tooltipgen")
-local utility = require("scripts.voshondsquickselect.qs_utility")
-local Debug = require("scripts.voshondsquickselect.qs_debug")
+local tooltipData = require("scripts.voshondsquickselect.presentation.tooltip_data")
+local utility = require("scripts.voshondsquickselect.legacy.utility")
+local Debug = require("scripts.voshondsquickselect.debug")
 local Hotbar = require("scripts.voshondsquickselect.ui.hotbar")
 local Tooltip = require("scripts.voshondsquickselect.ui.tooltip")
 

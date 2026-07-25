@@ -17,16 +17,16 @@ Components accept declarative tables and return layouts or elements. They do not
 
 ## Presentation models
 
-`qs_item_catalog.lua` converts OpenMW inventory and magic records into stable selector entries. It owns sorting and literal, case-insensitive filtering; magic entries include their effect names and IDs in the searchable text.
+`services/item_catalog.lua` converts OpenMW inventory and magic records into stable selector entries. It owns sorting and literal, case-insensitive filtering; magic entries include their effect names and IDs in the searchable text.
 
-`ci_icon_render.lua` remains the compatibility presenter for hotbar slot state. It resolves counts, charge text, threshold colors, and the configured text styles, then delegates texture composition and caching to `ui/icon.lua`. Its existing `Controller_Icon_QS` interface is preserved.
+`presentation/icon_renderer.lua` remains the compatibility presenter for hotbar slot state. It resolves counts, charge text, threshold colors, and the configured text styles, then delegates texture composition and caching to `ui/icon.lua`. Its existing `Controller_Icon_QS` interface is preserved.
 
 ## Controllers
 
-- `qs_hotbar.lua` owns HUD visibility, fade/picking state, and refresh policy. It uses the shared hotbar component for layout.
-- `select_items_win1.lua` owns only selection-window state: current view, target slot, catalog, query, search focus, and scroll element. It uses the same hotbar and icon components as the HUD, and exposes menu-open state so hotbar bindings stay inactive while typing.
-- `QuickSelect_P.lua` owns key-to-slot activation and equipment/spell actions.
-- `ci_favorite_storage.lua` owns the persisted 30-slot data model.
+- `controllers/hud_hotbar.lua` owns HUD visibility, fade/picking state, and refresh policy. It uses the shared hotbar component for layout.
+- `controllers/quick_keys.lua` owns only selection-window state: current view, target slot, catalog, query, search focus, and scroll element. It uses the same hotbar and icon components as the HUD, and exposes menu-open state so hotbar bindings stay inactive while typing.
+- `controllers/player.lua` owns key-to-slot activation and equipment/spell actions.
+- `services/favorite_slots.lua` owns the persisted 30-slot data model.
 
 The selection flow is:
 
@@ -51,8 +51,8 @@ OpenMW 0.51 exposes focus events but no public API that assigns focus to a speci
 
 ## Next migration slices
 
-1. Move charge/count/equipped-state resolution out of `ci_icon_render.lua` into a slot presentation model.
+1. Move charge/count/equipped-state resolution out of `presentation/icon_renderer.lua` into a slot presentation model.
 2. Replace full HUD rebuild requests with keyed slot snapshots and dirty-slot updates.
-3. Collapse the repeated redraw timers in `ci_favorite_storage.lua` into one coalesced invalidation API.
+3. Collapse the repeated redraw timers in `services/favorite_slots.lua` into one coalesced invalidation API.
 4. Move tooltip data generation behind a small presentation-model interface.
 5. Add Lua tests for catalog filtering, slot labels, hotbar measurement, and snapshot diffing with OpenMW modules stubbed.

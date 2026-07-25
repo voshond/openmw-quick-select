@@ -9,8 +9,8 @@ local input = require('openmw.input')
 local I = require('openmw.interfaces')
 local storage = require('openmw.storage')
 local async = require('openmw.async')
-local settings = require("scripts.voshondsquickselect.qs_settings")
-local Debug = require("scripts.voshondsquickselect.qs_debug")
+local settings = require("scripts.voshondsquickselect.settings")
+local Debug = require("scripts.voshondsquickselect.debug")
 
 -- Constants
 local MODNAME = "VoshondsQuickSelect"
@@ -29,9 +29,9 @@ local function log(message, level)
     local prefix = string.format("[%s] [QuickSelect] ", timestamp)
 
     if level == "error" then
-        Debug.error("QuickSelect_p", prefix .. message)
+        Debug.error("player_controller", prefix .. message)
     elseif level == "warning" then
-        Debug.warning("QuickSelect_p", prefix .. message)
+        Debug.warning("player_controller", prefix .. message)
     else
         -- Regular debug messages go through the Debug.quickSelect function
         -- which already checks the enableDebugLogging setting
@@ -39,9 +39,9 @@ local function log(message, level)
     end
 end
 
--- Simple function to draw the hotbar (will be replaced by the actual implementation in qs_hotbar.lua)
+-- Simple bridge to the HUD hotbar controller.
 local function drawHotbar()
-    log("Drawing hotbar from QuickSelect_P", "info")
+    log("Drawing hotbar from player controller", "info")
 
     -- This is just a placeholder. The actual drawHotbar will be handled by QuickSelect_Hotbar
     if I.QuickSelect_Hotbar and I.QuickSelect_Hotbar.drawHotbar then

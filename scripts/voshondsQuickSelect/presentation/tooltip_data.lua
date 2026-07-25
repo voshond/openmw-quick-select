@@ -2,7 +2,7 @@ local types = require("openmw.types")
 local self = require("openmw.self")
 local core = require("openmw.core")
 local I = require("openmw.interfaces")
-local Debug = require("scripts.voshondsquickselect.qs_debug")
+local Debug = require("scripts.voshondsquickselect.debug")
 
 local function getWeaponTooltipType(record)
     local type = record.type

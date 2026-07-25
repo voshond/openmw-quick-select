@@ -15,7 +15,7 @@ local async = require("openmw.async")
 local storage = require("openmw.storage")
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 local textSettings = storage.playerSection("SettingsVoshondsQuickSelectText")
-local Debug = require("scripts.voshondsquickselect.qs_debug")
+local Debug = require("scripts.voshondsquickselect.debug")
 local magicChargeSettings = storage.playerSection("SettingsVoshondsQuickSelectMagicCharges")
 local itemCountThresholdSettings = storage.playerSection("SettingsVoshondsQuickSelectItemCountThresholds")
 local Icon = require("scripts.voshondsquickselect.ui.icon")
@@ -569,9 +569,9 @@ local function getItemIcon(item, half, selected, slotNumber, slotPrefix, slotDat
         local record = item.type.records[item.recordId]
         local enchantmentId = record and record.enchant
         if not record then
-            Debug.error("ci_icon_render", "No record for " .. item.recordId)
+            Debug.error("icon_renderer", "No record for " .. item.recordId)
         else
-            Debug.log("ci_icon_render", "Icon: " .. tostring(record.icon))
+            Debug.log("icon_renderer", "Icon: " .. tostring(record.icon))
         end
         -- Use total count for lockpicks, probes, repair items, potions, ammo; otherwise use stack count
         local alwaysShowCount = false

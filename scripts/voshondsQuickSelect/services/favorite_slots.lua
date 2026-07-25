@@ -11,8 +11,8 @@ local I = require('openmw.interfaces')
 
 local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 
-local utility = require("scripts.voshondsquickselect.qs_utility")
-local Debug = require("scripts.voshondsquickselect.qs_debug")
+local utility = require("scripts.voshondsquickselect.legacy.utility")
+local Debug = require("scripts.voshondsquickselect.debug")
 local storedItems
 
 local function getFavoriteItems()
@@ -235,7 +235,7 @@ local function equipSlot(slot)
             types.Actor.setStance(self, types.Actor.STANCE.Spell)
             Debug.storage("Set selected spell to " .. tostring(item.spell))
         elseif item.enchantId then
-            -- This is now handled in QuickSelect_P.lua's onInputAction function
+            -- This is now handled in controllers/player.lua's onInputAction function.
             -- This code is kept for compatibility with other parts of the code that may call equipSlot directly
             local realItem = types.Actor.inventory(self):find(item.itemId)
             if not realItem then return end

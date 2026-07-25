@@ -86,9 +86,9 @@
 
 #### Files to Modify:
 
-- `qs_hotbar.lua` - Main update logic refactor
-- `ci_icon_render.lua` - Timer and refresh system overhaul
-- `qs_settings.lua` - Add new performance settings
+- `controllers/hud_hotbar.lua` - Main update logic refactor
+- `presentation/icon_renderer.lua` - Timer and refresh system overhaul
+- `settings.lua` - Add new performance settings
 
 ---
 
@@ -123,8 +123,8 @@
 
 #### Files to Modify:
 
-- `qs_hotbar.lua` - Add caching layer
-- `ci_icon_render.lua` - Element reuse logic
+- `controllers/hud_hotbar.lua` - Add caching layer
+- `presentation/icon_renderer.lua` - Element reuse logic
 - New file: `qs_cache_manager.lua` - Cache management
 
 ---
@@ -160,9 +160,9 @@
 
 #### Files to Modify:
 
-- `ci_icon_render.lua` - Timer optimization
-- `qs_hotbar.lua` - Event handling improvement
-- `ci_favorite_storage.lua` - Reduce unnecessary update calls
+- `presentation/icon_renderer.lua` - Timer optimization
+- `controllers/hud_hotbar.lua` - Event handling improvement
+- `services/favorite_slots.lua` - Reduce unnecessary update calls
 
 ---
 
@@ -199,7 +199,7 @@
 
 - All hotbar-related files for final optimization
 - New file: `qs_performance_monitor.lua` - Performance tracking
-- `qs_settings.lua` - Advanced performance settings
+- `settings.lua` - Advanced performance settings
 
 ---
 

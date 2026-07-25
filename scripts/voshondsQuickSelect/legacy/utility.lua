@@ -422,7 +422,7 @@ local utility = {
         elseif item.type == types.Light then
             return types.Actor.EQUIPMENT_SLOT.CarriedLeft
         end
-        -- Debug.warning("qs_utility", "Couldn't find slot for " .. item.recordId)
+        -- Debug.warning("legacy.utility", "Couldn't find slot for " .. item.recordId)
         return nil
     end,
     getIconSize = getIconSize,
@@ -432,7 +432,7 @@ local utility = {
      * @return {table} - A table with log, warning, and error functions
      ]]
     createLogger = function(moduleName)
-        local Debug = require("scripts.voshondsquickselect.qs_debug")
+        local Debug = require("scripts.voshondsquickselect.debug")
 
         return {
             log = function(message)

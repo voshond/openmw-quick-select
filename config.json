@@ -33,21 +33,9 @@
       "LICENSE",
       "voshondsQuickSelect.omwscripts"
     ],
-    "excludes": [
-      "config.json",
-      "docs",
-      "tests",
-      ".cursorrules",
-      "debug.*",
-      "deploy.*",
-      "package.*",
-      ".git",
-      ".gitattributes",
-      "dist",
-      "TODO.md",
-      "*.ps1",
-      "*.sh"
-    ]
+    "generated": {
+      "buildInfo": "scripts/voshondsQuickSelect/build_info.lua"
+    }
   },
   "colors": {
     "red": "\u001b[31m",

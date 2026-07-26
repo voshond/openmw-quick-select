@@ -46,3 +46,8 @@ checkout instead displays `Development build (source checkout)`.
 
 Nexus's upload action does not expose an API operation for editing or pinning a
 mod-page post, so the sticky changelog post remains a manual update.
+
+The mod-page **Description** is also a manual update. Its canonical BBCode is
+maintained in [`NEXUS_DESCRIPTION.bbcode`](NEXUS_DESCRIPTION.bbcode); copy it
+into Nexus when the feature description changes. The workflow's `description`
+field applies only to the newly uploaded file version.

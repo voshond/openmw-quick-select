@@ -2,6 +2,8 @@ local textureCalls = 0
 local testInventoryItems = {}
 local testSpells = {}
 local testRealTime = 0
+local savedPickerReference
+local savedPickerSlot
 
 package.preload["openmw.async"] = function()
     return {
@@ -110,6 +112,11 @@ package.preload["openmw.interfaces"] = function()
             end,
             isSlotEquipped = function()
                 return false
+            end,
+            saveStoredItemData = function(reference, slot)
+                savedPickerReference = reference
+                savedPickerSlot = slot
+                return true
             end,
         },
     }
@@ -325,6 +332,20 @@ firstSlot.events.mouseClick(nil, firstSlot)
 
 local actionWindow = selector.interface.getQuickSelectWindow()
 local inventoryButton = actionWindow.layout.content[1].content[3]
+local pickerItem = {
+    id = "picker_instance",
+    recordId = "test_amulet",
+    count = 1,
+    type = {
+        records = {
+            test_amulet = {
+                name = "Test Amulet",
+                icon = "icons/test_amulet.dds",
+            },
+        },
+    },
+}
+testInventoryItems = { pickerItem }
 inventoryButton.events.mouseClick(nil, inventoryButton)
 assert(selector.interface.getQuickSelectWindow() ~= nil, "inventory selector renders from the slot action view")
 local selectorWindow = selector.interface.getQuickSelectWindow()
@@ -355,6 +376,17 @@ assert(selectorWindow.updates == fallbackUpdates, "unfocused Backspace also uses
 testRealTime = testRealTime + 0.12
 selector.engineHandlers.onUpdate()
 assert(selectorWindow.updates == fallbackUpdates + 1, "unfocused search refreshes after the debounce interval")
+
+local selectorList = selectorWindow.layout.content[1].content[4]
+local selectorScroll = selectorList.content[1]
+local selectorContent = selectorScroll.layout.userData.content
+local firstInventoryRow = selectorContent.layout.content[1]
+local firstInventoryIcon = firstInventoryRow.content[1]
+firstInventoryIcon.events.mouseClick(nil, firstInventoryIcon)
+assert(savedPickerReference == pickerItem and savedPickerSlot == 1,
+    "clicking an inventory result sends the selected object to the chosen hotbar slot")
+assert(selector.interface.getQuickSelectWindow() == nil,
+    "a successful inventory selection closes the picker")
 
 local Catalog = require("scripts.voshondsquickselect.services.item_catalog")
 testSpells = {

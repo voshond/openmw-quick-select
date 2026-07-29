@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.26 (2026-07-30)
+
+Fix Item Selection & Potion Counts
+
+
 ## Version 1.0.25 (2026-07-26)
 
 Fix Pipeline

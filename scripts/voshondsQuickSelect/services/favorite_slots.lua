@@ -72,8 +72,14 @@ local function getFavoriteItemData(slot)
     return storedItems[slot]
 end
 
+local function isInterchangeablePotion(item)
+    return item ~= nil and item.type == types.Potion
+end
+
 local function getFavoriteItem(slot)
-    return FavoriteItem.resolve(types.Actor.inventory(self), getFavoriteItemData(slot))
+    local data = getFavoriteItemData(slot)
+    local canUseRecordFallback = data and data.item and isInterchangeablePotion or nil
+    return FavoriteItem.resolve(types.Actor.inventory(self), data, canUseRecordFallback)
 end
 
 local function importLegacyFavorites(legacySlots)
@@ -132,11 +138,12 @@ requestHotbarUpdate = function(slot, settleAfterEngineAction)
 end
 
 local function resolveItemReference(reference)
-    if type(reference) == "table" and reference.recordId then
+    local referenceType = type(reference)
+    if (referenceType == "table" or referenceType == "userdata") and reference.recordId then
         return reference
     end
 
-    if type(reference) == "string" then
+    if referenceType == "string" then
         return types.Actor.inventory(self):find(reference)
     end
 
@@ -158,7 +165,12 @@ local function saveStoredItemData(reference, slot)
     Debug.storage("Saving item " .. tostring(realItem.recordId) .. " to slot " .. tostring(slot))
     deleteStoredItemData(slot, true)
     storedItems[slot].item = realItem.recordId
-    storedItems[slot].itemInstanceId = tostring(realItem.id)
+    -- Potion stacks are interchangeable and OpenMW may replace their object
+    -- identity as they are consumed. Keep them record-based so the hotbar can
+    -- continue resolving the stack and refreshing its low-stock count.
+    if realItem.type ~= types.Potion then
+        storedItems[slot].itemInstanceId = tostring(realItem.id)
+    end
 
     requestHotbarUpdate(slot, false)
     return true

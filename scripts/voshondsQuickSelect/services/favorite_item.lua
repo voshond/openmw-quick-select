@@ -1,9 +1,11 @@
 -- Resolves a saved Quick Select assignment to an inventory object.
 --
--- Older saves contain only a record ID.  New assignments also contain the
+-- Older saves contain only a record ID.  New assignments can also contain the
 -- unique GameObject ID so two items with the same record but different charge
 -- or condition do not silently resolve to whichever matching item happens to
--- be first in the inventory.
+-- be first in the inventory. Callers may explicitly allow a record-level
+-- fallback for interchangeable stackable items whose GameObject can be
+-- replaced by the engine as the stack is consumed.
 local FavoriteItem = {}
 
 function FavoriteItem.recordId(data)
@@ -26,7 +28,7 @@ function FavoriteItem.isSameInstance(left, right)
     return left == right
 end
 
-function FavoriteItem.resolve(inventory, data)
+function FavoriteItem.resolve(inventory, data, canUseRecordFallback)
     local recordId = FavoriteItem.recordId(data)
     if not inventory or not recordId then
         return nil
@@ -47,9 +49,17 @@ function FavoriteItem.resolve(inventory, data)
             end
         end
 
-        -- A new assignment is intentionally unavailable when its exact item
-        -- is gone. Falling back to a different instance would reintroduce the
-        -- wrong-charge/wrong-condition behaviour this field prevents.
+        local replacement = inventory.find and inventory:find(recordId)
+        if replacement
+            and canUseRecordFallback
+            and canUseRecordFallback(replacement, data)
+        then
+            return replacement
+        end
+
+        -- Mutable items are intentionally unavailable when their exact
+        -- instance is gone. Falling back for those would reintroduce the
+        -- wrong-charge/wrong-condition behaviour instance IDs prevent.
         return nil
     end
 

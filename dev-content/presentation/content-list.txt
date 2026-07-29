@@ -1,0 +1,201 @@
+# Exact OpenMW content profile used by the local presentation save.
+# Keep this ordered list in sync when replacing the presentation fixture save.
+Morrowind.esm
+Tribunal.esm
+distant_seafloor_2.00.esm
+Bloodmoon.esm
+Patch for Purists.esm
+Patch for Purists - Book Typos.ESP
+Patch for Purists - Semi-Purist Fixes.ESP
+Tamriel_Data.esm
+OAAB_Data.esm
+bcsounds.esp
+AreaEffectArrows.esp
+RapportCompanions.esp
+RapportCompanions.omwscripts
+Area Effect Arrows Naturalized.esp
+Helm of Tohan Naturalized.esp
+Master Index Naturalized.esp
+Adamantium Armor Naturalized.esp
+Siege at Firemoth Naturalized.esp
+Solstheim Tomb of The Snow Prince.esm
+TR_Mainland.esm
+Beautiful cities of Morrowind.esp
+voshondsQuickSelect.omwscripts
+Limitless_Storage_for_all_Containers.esp
+Cutting Room Floor - Tamriel Rebuilt.esp
+Logs on Fire Tamriel Rebuilt.esp
+LGNPC_SecretMasters.esp
+LGNPC_IndarysManor.esp
+LGNPC_PaxRedoran.omwaddon
+NearVanillaRoadSigns.esp
+Better Sounds_Fixed.esp
+aru_signs_en.esp
+NearVanillaRoadSigns-AldRuhnPatch.esp
+Indoranyon_Map_Marker.omwaddon
+Tamriel_Data.omwscripts
+tamrielrebuilt.omwscripts
+Sufficient_Adamantium_1.0.omwaddon
+Dr_Data.esm
+NoWitnessNoBounty.omwaddon
+NoWitnessNoBounty.omwscripts
+shield-unequipper.omwscripts
+AttendMe.omwscripts
+BetterBars.omwscripts
+SSQN.omwscripts
+Visible Rings.omwscripts
+questmenu.omwscripts
+takeall.omwscripts
+go-home.omwaddon
+go-home.omwscripts
+mapkey.omwscripts
+ShieldsUp.omwaddon
+ShieldsUp.omwscripts
+Player_Combat_Voice.omwscripts
+openmw_books_enhanced.omwscripts
+simplelevelcarryover.omwscripts
+HitReactionsAnimated.omwscripts
+LGNPC_NoLore.esp
+Djangos Dialogue.ESP
+RepopulatedCreatures.ESP
+Correspondances_of_Morrowind.esp
+LGNPC_VivecFQ.esp
+AlterationMovement.omwscripts
+Corporeal-Carryable-Containers.omwscripts
+LGNPC_Ebonheart.esp
+distant seafloor TOTSP 2.2.2 patch.esp
+LGNPC_Aldruhn_suppl.esp
+logs on Fire.esp
+OAAB - Foyada Mamaea.ESP
+LGNPC_VivecRedoran.esp
+LGNPC_TelUvirith.esp
+LGNPC_TelMora.esp
+LGNPC_Pelagiad.esp
+LGNPC_Suran.esp
+LGNPC_SeydaNeen.esp
+LGNPC_Aldruhn.esp
+Functional Slave Markets.ESP
+Ashlander Greetings.ESP
+LGNPC_MaarGan.esp
+GITD_Telvanni_Dormers.ESP
+15 Skill Level up.omwaddon
+FortifyFix.omwscripts
+Mannequins for Sale.esp
+Great Service.ESP
+Idle Talk.ESP
+Quest Voice Greetings.ESP
+book-jackets.esp
+TR_Factions.esp
+Main Quest Improvements.ESP
+Mannequins Resource.esp
+RP_Bal Isra_Indarys_Manor.ESP
+Sheathe your weapon.ESP
+TOTSP TD Content Integration - Spiders.esp
+PFMR Exponential Willpower stunted fix fast.esp
+Containers Animated.esp
+TOTSP_Patch_for_Purists_4.0.2.esp
+BCOM_pathgrid_reset.ESP
+BCoM_AldRuhn_Outdoor_Merchants.ESP
+BCOM_Suran Expansion.ESP
+BCOM_Canal_02.ESP
+BCOM - Taller Lighthouse.ESP
+TR_BCOM_Patch.ESP
+LGNPC_Khuul.esp
+BCOM_Decorated_Cantons.ESP
+Friends Reunited.ESP
+BCOM_Sadrith_Mora_dock_expanded.ESP
+Dagon_Fel_Lighthouse.ESP
+BCOM_Vivec_Planters.ESP
+BCoM_Imperial_Gatehouse_Pelagiad.ESP
+BCOM_Vivec_Bustling_Arena.ESP
+BCOM_Stavs_MGO.ESP
+BCoM_Imperial_Gaehouse_MoonMoth.ESP
+BCOM_Vivec_Street_Vendors.ESP
+BCoM_Imperial_Gaehouse_Buckmoth.ESP
+BCOM_PfP_patch.ESP
+LGNPC_HlaOad.esp
+LGNPC_GnaarMok_v1_20.esp
+Djangos Dialogue - Tamriel Rebuilt.esp
+LGNPC_AldVelothi_v1_20.esp
+BCoM_Marketplace_addon_ver_2.esp
+Djangos Dialogue - Patch for Purists.esp
+BCoM_South_Gates_Sadrith_Mora.ESP
+BCoM_Maar_Gan.ESP
+BCOM_Ashlandish Maar Gan.ESP
+BCoM - Atmospheric_Arena.ESP
+BCoM_Khuul Lighthouse_01.ESP
+BCoM_Atmospheric_Plazas.ESP
+BCOM_OpenMW_plazas.ESP
+BCoM_Concept_Art_Vivec_Statues.ESP
+BCoM_Eight_Plates_Quest_Addon.ESP
+BCoM_More_Logical_Census_Office.ESP
+BCOM_Tribal_Erabenimsun.ESP
+BCoM_FQ_Bridges.esp
+BCOM_Vivec_Arena_planters.ESP
+td_heads.esp
+Royal_Barenziah.ESP
+k_weather.esp
+k_weather (louder sounds).esp
+lack_AlterationMovement.ESP
+LGNPC_SoulSicknessPatch_v1_00.esp
+Gares Last Gasp.ESP
+Master Index Upgrade.esp
+Greetings for No Lore.esp
+Immersive Morrowind.ESP
+Nordic Banter.ESP
+GfNL-LGNPC Patch.esp
+BS_BM_WeatherChange_Fixed.esp
+BCoM_logs_on_fire.ESP
+Stav_MaGAO.ESP
+CrimsonBonemold.ESP
+Aldruhn_PfP patch.ESP
+bonemold_watchmans_helm.esp
+UngenderedAppearanceSelectionTR_25_05.ESP
+UngenderedAppearanceSelectionVanilla.ESP
+interesting urns.ESP
+Hair Expander - Complete.esp
+MoreHeads.esp
+Mournhold_Temple_Matching_Interiors_1-0-2.esp
+bufftimers.omwscripts
+Perfect Placement.omwscripts
+SmoothMasterIndex.omwaddon
+SmoothMasterIndex.omwscripts
+Somewhat_Passive_Healthy_Wildlife.esp
+Expansion Delay.ESP
+Interior exterior flag reset_Atmospheric Arena.ESP
+Interior exterior flag reset_Atmospheric Plazas.ESP
+BCOM_Brevur.ESP
+BCoM_Caldera_MG_Basement.ESP
+BCoM_Concept_Art_Husk_Urshilaku.ESP
+ZerkishAutoSave.omwscripts
+ReAnimation_API.omwscripts
+ReAnimation_v2_Rogue.omwscripts
+third-person-alt-attacks.omwscripts
+StatsWindow.ESP
+StatsWindow.omwscripts
+HitKillFeedback.omwscripts
+LeaveTheLightsOff.omwscripts
+CanonicalGear.omwscripts
+Dynamic Animations.omwscripts
+JASPR-TR.ESP
+Better Morrowind Armor.esp
+Complete Armor Joints.esp
+Better Bodies.esp
+BetterTRBodies.ESP
+BetterPropylonIndexTR.esp
+HUDweaponCharge.omwscripts
+the_scriptorium.omwscripts
+Advanced World Map - Gridmap.omwscripts
+Advanced World Map.omwscripts
+quest_guider_lite.omwscripts
+proximityTool.omwscripts
+HUDMarkers.omwscripts
+Better Elemental Shields.omwaddon
+Better Elemental Shields.omwscripts
+DetectAllKeys.omwaddon
+DetectAllKeys.omwscripts
+TPA_Alchemy_Redone.omwscripts
+questman.omwscripts
+Unofficial TR Spells.omwscripts
+InventoryExtender.omwscripts
+MagicWindowExtender.omwscripts

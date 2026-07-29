@@ -47,21 +47,7 @@ init_config "$SCRIPT_DIR"
 # Print header
 print_header "========================== VOSHOND'S QUICK SELECT DEBUG (Linux) =========================="
 
-# Create target directories if they don't exist
-ensure_directory "$MOD_DIR"
-ensure_directory "$SCRIPTS_DIR"
-ensure_directory "$TEXTURES_DIR"
-
-# Clean directories before copying to ensure a clean state
-clean_directory "$SCRIPTS_DIR"
-clean_directory "$TEXTURES_DIR"
-
-# Copy all relevant files
-print_info "Copying mod files..."
-cp -r "$SCRIPT_DIR/scripts/$PROJECT_NAME/"* "$SCRIPTS_DIR/"
-cp -r "$SCRIPT_DIR/textures/"* "$TEXTURES_DIR/"
-cp "$SCRIPT_DIR/$PROJECT_NAME.omwscripts" "$MOD_DIR/"
-print_success "Copied all mod files to $MOD_DIR"
+deploy_mod_files "$SCRIPT_DIR"
 
 # Handle OpenMW process management
 if [ "$DRY_RUN" = true ]; then

@@ -24,6 +24,16 @@
       "arguments": "--script-verbose --skip-menu --load \"C:\\Users\\Martin\\Documents\\My Games\\OpenMW\\saves\\Volel_Indarys\\Testing.omwsave\""
     }
   },
+  "presentation": {
+    "linux": {
+      "baseConfig": "/home/voshond/.var/app/org.openmw.OpenMW/config/openmw/openmw.cfg",
+      "save": "/home/voshond/.var/app/org.openmw.OpenMW/data/openmw/saves/Volel_Indarys/Testing.omwsave",
+      "contentList": "dev-content/presentation/content-list.txt",
+      "outputDir": "media",
+      "captureWidth": 2560,
+      "captureHeight": 1440
+    }
+  },
   "packaging": {
     "includes": [
       "scripts/voshondsQuickSelect",

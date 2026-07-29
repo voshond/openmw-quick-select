@@ -18,7 +18,7 @@ local settings = storage.playerSection("SettingsVoshondsQuickSelect")
 I.Settings.registerPage {
     key = "SettingsVoshondsQuickSelect",
     l10n = "SettingsVoshondsQuickSelect",
-    name = "voshond's QuickSelect",
+    name = "voshond's Quick Select",
     description = "Build: " .. buildLabel .. "\n\nThese settings allow you to modify the behavior of the Quickselect bar."
 }
 I.Settings.registerGroup {

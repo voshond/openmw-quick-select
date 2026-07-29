@@ -305,6 +305,27 @@ local function beginSelector(view)
     drawSelector()
 end
 
+local function normalizeSlot(slot)
+    slot = tonumber(slot)
+    if not slot or slot % 1 ~= 0 or slot < 1 or slot > 30 then
+        error("Quick Select slot must be an integer from 1 to 30")
+    end
+    return slot
+end
+
+local function openSlotActions(slot)
+    slotToSave = normalizeSlot(slot)
+    currentView = VIEW.SlotActions
+    menuIsOpen = true
+    drawSlotActions()
+end
+
+local function openSelector(slot, view)
+    slotToSave = normalizeSlot(slot)
+    menuIsOpen = true
+    beginSelector(view)
+end
+
 local function deleteSlot()
     I.QuickSelect_Storage.deleteStoredItemData(slotToSave)
     closeMenu()
@@ -906,8 +927,16 @@ textSettings:subscribe(async:callback(onSettingsChanged))
 return {
     interfaceName = "QuickSelect_Win1",
     interface = {
+        version = 2,
         drawQuickSelect = drawQuickSelect,
         openQuickSelect = drawQuickSelect,
+        openSlotActions = openSlotActions,
+        openInventorySelector = function(slot)
+            openSelector(slot, VIEW.Inventory)
+        end,
+        openMagicSelector = function(slot)
+            openSelector(slot, VIEW.Magic)
+        end,
         getQuickSelectWindow = function()
             return window
         end,

@@ -15,6 +15,12 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 ARTIFACT_VERSION_PATTERN = re.compile(r"^dev-[0-9a-f]{7,40}$")
+DEV_ONLY_RELEASE_MARKERS = (
+    "dev-content/",
+    "voshondsquickselectpresentation",
+    ".presentation-runtime",
+    ".presentation-profile",
+)
 
 
 def load_config() -> dict:
@@ -61,6 +67,25 @@ def render_build_info(version: str) -> str:
     )
 
 
+def forbidden_release_names(archive_names: Iterable[str]) -> list[str]:
+    """Return paths that identify the development-only presentation tooling."""
+    forbidden = []
+    for archive_name in archive_names:
+        normalized = archive_name.replace("\\", "/").lower()
+        if any(marker in normalized for marker in DEV_ONLY_RELEASE_MARKERS):
+            forbidden.append(archive_name)
+    return sorted(forbidden)
+
+
+def assert_release_names_allowed(archive_names: Iterable[str]) -> None:
+    forbidden = forbidden_release_names(archive_names)
+    if forbidden:
+        raise ValueError(
+            "Development-only presentation files cannot be packaged: "
+            + ", ".join(forbidden)
+        )
+
+
 def collect_release_files(config: dict) -> list[tuple[Path, str]]:
     includes = config.get("packaging", {}).get("includes")
     if not isinstance(includes, list) or not includes:
@@ -93,6 +118,7 @@ def collect_release_files(config: dict) -> list[tuple[Path, str]]:
 
     if not files:
         raise ValueError("Packaging manifest did not select any files")
+    assert_release_names_allowed(archive_name for _, archive_name in files)
     return sorted(files, key=lambda entry: entry[1])
 
 
@@ -103,7 +129,9 @@ def expected_archive_names(config: dict) -> list[str]:
         raise ValueError(
             f"Generated build info conflicts with a source file: {generated_build_info}"
         )
-    return sorted([*archive_names, generated_build_info])
+    expected = sorted([*archive_names, generated_build_info])
+    assert_release_names_allowed(expected)
+    return expected
 
 
 def resolve_output_directory(value: str) -> Path:

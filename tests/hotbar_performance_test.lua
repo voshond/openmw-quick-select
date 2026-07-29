@@ -115,11 +115,14 @@ local item = {
 
 local inventory = {
     find = function(_, id)
-        if id == "instance_1" then
+        if id == "instance_1" or id == "test_item" then
             item.count = testCount
             return item
         end
         return nil
+    end,
+    findAll = function(_, recordId)
+        return recordId == "test_item" and { item } or {}
     end,
     countOf = function(_, recordId)
         if recordId == "test_item" then
@@ -164,6 +167,7 @@ local typesModule = {
     Lockpick = {},
     Probe = {},
     Light = {},
+    Potion = itemType,
 }
 
 package.preload["openmw.types"] = function()
@@ -350,6 +354,14 @@ local unchanged = Snapshot.capture(1, favoriteData[1], Snapshot.begin({ actor = 
 assert(Snapshot.equals(first, unchanged), "identical captured state is not dirty")
 assert(first.totalCount == 3, "snapshot captures the inventory count")
 assert(first.charge == 80, "snapshot captures enchantment charge")
+
+local replacementPotion = Snapshot.capture(
+    2,
+    { item = "test_item", itemInstanceId = "consumed_stack" },
+    Snapshot.begin({ actor = actor, selectedSlot = 1 })
+)
+assert(replacementPotion.item == item and replacementPotion.totalCount == 3,
+    "snapshot keeps tracking a potion count after OpenMW replaces its stack object")
 
 testCharge = 79
 local changedCharge = Snapshot.capture(1, favoriteData[1], Snapshot.begin({ actor = actor, selectedSlot = 1 }))

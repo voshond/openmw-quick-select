@@ -24,6 +24,8 @@ Instead of running scripts directly from this directory, use the proxy scripts i
 Available commands:
 
 - `debug` - Debug the mod (copy files and restart OpenMW)
+- `capture` - On Linux, render the dev-only presentation deck and export
+  screenshots
 - `deploy` - Deploy a new version (create tag and release)
 - `package` - Package the mod for distribution
 
@@ -38,6 +40,9 @@ Available commands:
 - **git**: Required for deployment
 - **wmctrl**: Optional, for window focusing
   - Ubuntu/Debian: `sudo apt install wmctrl`
+- **OpenMW Flatpak, Gamescope, ImageMagick, and ydotool**: Required only by
+  `capture`. Gamescope provides the fixed capture framebuffer. The `ydotool`
+  daemon must be running so the script can trigger OpenMW's screenshot key.
 
 ## Configuration
 
@@ -85,6 +90,30 @@ Creates a distributable package of the mod.
 ./dev.sh package --version 1.2.3
 ```
 
+### capture
+
+Loads the configured save with an exact, checked-in content list in an isolated
+OpenMW profile. It renders a development-only in-game overlay, captures each
+slide, and publishes `media/hero.png` at exactly 1300×372 plus full-resolution
+feature images under `media/presentation/`.
+
+```bash
+# Validate paths, dependencies, save, and content profile
+./dev.sh capture --dry-run
+
+# Render and publish the full deck
+./dev.sh capture
+
+# Tune threshold colours, text styles, and other capture settings in-game
+./dev.sh capture --setup
+
+# Preserve the isolated profile and logs after success
+./dev.sh capture --keep-runtime
+```
+
+See [the presentation capture guide](../docs/PRESENTATION_CAPTURE.md) for
+configuration, overrides, and release-isolation details.
+
 ### deploy
 
 Updates release metadata, commits it, and pushes a release tag. GitHub Actions
@@ -124,6 +153,7 @@ dev-scripts/
 ├── README.md       # This file
 ├── utils.sh        # Shared utility functions
 ├── debug.sh        # Development/testing script
+├── capture.sh      # Automated OpenMW presentation capture
 ├── debug.ps1       # Windows PowerShell version
 ├── package.sh      # Packaging script
 ├── package.ps1     # Windows PowerShell version
@@ -158,6 +188,7 @@ Bash scripts directly from this directory if needed:
 ```bash
 cd dev-scripts
 ./debug.sh --help
+./capture.sh --dry-run
 ./package.sh -v 1.2.3
 ./deploy.sh -v 1.2.3 -m "Release notes"
 ```

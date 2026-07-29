@@ -149,6 +149,10 @@ local function effectIcon(record)
     return utility.getSpellEffectBigIconPath(path)
 end
 
+local function isInterchangeablePotion(item)
+    return item ~= nil and item.type == types.Potion
+end
+
 function Snapshot.begin(options)
     options = options or {}
     local actor = options.actor or self
@@ -183,7 +187,7 @@ function Snapshot.capture(slot, data, context)
     }
 
     if data.item then
-        local item = FavoriteItem.resolve(context.inventory, data)
+        local item = FavoriteItem.resolve(context.inventory, data, isInterchangeablePotion)
         snapshot.kind = "item"
         snapshot.assignmentId = tostring(valueId(data.item) or "") .. ":" .. tostring(valueId(data.itemInstanceId) or "")
         snapshot.item = item

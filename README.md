@@ -99,6 +99,8 @@ root-level proxy scripts:
 Available commands:
 
 - `debug` — copy files and restart OpenMW.
+- `capture` — on Linux, render the dev-only presentation deck and export
+  screenshots.
 - `deploy` — create a versioned release.
 - `package` — build a distribution archive.
 
@@ -116,6 +118,8 @@ luajit tests/favorite_slots_test.lua
 The rendering boundaries and performance lifecycle are documented in
 [`docs/UI_RENDERING_ARCHITECTURE.md`](docs/UI_RENDERING_ARCHITECTURE.md) and
 [`docs/PERFORMANCE_REFACTOR_PLAN.md`](docs/PERFORMANCE_REFACTOR_PLAN.md).
+The automated OpenMW screenshot workflow is documented in
+[`docs/PRESENTATION_CAPTURE.md`](docs/PRESENTATION_CAPTURE.md).
 
 ### Legacy quick-key assignments
 
@@ -128,6 +132,12 @@ not in player settings.
 ```bash
 # Debug the mod with focus on the existing OpenMW window
 ./dev.sh debug -focus
+
+# Render media/hero.png and the full-size feature slides
+./dev.sh capture
+
+# Open the persistent capture profile to tune mod settings
+./dev.sh capture --setup
 
 # Deploy a new version
 ./dev.sh deploy -v 1.2.3 -m "Bug fixes and improvements"

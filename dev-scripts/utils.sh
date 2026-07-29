@@ -116,6 +116,26 @@ copy_files() {
     return 0
 }
 
+# Deploy the production mod files into the configured local OpenMW mod
+# directory. Presentation-only files are deliberately handled by capture.sh
+# and live outside the production source tree.
+deploy_mod_files() {
+    local repo_root="$1"
+
+    ensure_directory "$MOD_DIR"
+    ensure_directory "$SCRIPTS_DIR"
+    ensure_directory "$TEXTURES_DIR"
+
+    clean_directory "$SCRIPTS_DIR"
+    clean_directory "$TEXTURES_DIR"
+
+    print_info "Copying mod files..."
+    cp -r "$repo_root/scripts/$PROJECT_NAME/"* "$SCRIPTS_DIR/"
+    cp -r "$repo_root/textures/"* "$TEXTURES_DIR/"
+    cp "$repo_root/$PROJECT_NAME.omwscripts" "$MOD_DIR/"
+    print_success "Copied all mod files to $MOD_DIR"
+}
+
 # Find OpenMW processes (more specific to avoid killing editors)
 find_openmw_processes() {
     # Use exact process name matching instead of fuzzy matching
@@ -192,7 +212,7 @@ kill_openmw() {
 start_openmw() {
     if command_exists flatpak; then
         print_info "Starting OpenMW via Flatpak..."
-        flatpak run "$OPENMW_FLATPAK" &
+        flatpak run "$OPENMW_FLATPAK" "$@" &
         print_success "OpenMW Flatpak started. Please load your save and enable the mod."
     else
         print_error "Flatpak not available. Please start OpenMW manually."

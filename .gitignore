@@ -2,6 +2,9 @@
 dist/
 scripts/Example/
 examples/
+.presentation-runtime.*
+.presentation-profile/
+__pycache__/
 
 # IDE and editor files
 .idea/

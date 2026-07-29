@@ -10,6 +10,7 @@ from pathlib import Path
 
 from package_release import (
     ROOT,
+    assert_release_names_allowed,
     build_info_archive_name,
     expected_archive_names,
     load_config,
@@ -40,6 +41,7 @@ def main() -> int:
                 raise ValueError(f"Archive data is corrupt: {corrupt_file}")
 
             actual = [entry.filename for entry in archive.infolist()]
+            assert_release_names_allowed(actual)
             build_info = archive.read(build_info_archive_name(config)).decode("utf-8")
 
         duplicates = sorted({name for name in actual if actual.count(name) > 1})

@@ -7,7 +7,7 @@ SCRIPT_DIR="$(pwd)"
 DEV_SCRIPTS_DIR="$SCRIPT_DIR/dev-scripts"
 
 # Available commands
-AVAILABLE_COMMANDS=("debug" "deploy" "package")
+AVAILABLE_COMMANDS=("debug" "capture" "deploy" "package")
 
 # Function to show usage
 show_usage() {
@@ -15,6 +15,7 @@ show_usage() {
     echo ""
     echo "Available commands:"
     echo "  debug     - Debug the mod (copy files and restart OpenMW)"
+    echo "  capture   - Render and export presentation screenshots"
     echo "  deploy    - Deploy a new version (create tag and release)"
     echo "  package   - Package the mod for distribution"
     echo ""
@@ -23,6 +24,7 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 debug -focus"
+    echo "  $0 capture"
     echo "  $0 deploy -v 1.2.3 -m 'Bug fixes'"
     echo "  $0 package -v 1.2.3"
 }
@@ -61,4 +63,4 @@ chmod +x "$SCRIPT_PATH"
 # Execute the script with remaining arguments
 echo "Executing: $COMMAND $@"
 echo "----------------------------------------"
-exec "$SCRIPT_PATH" "$@" 
+exec "$SCRIPT_PATH" "$@"

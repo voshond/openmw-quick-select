@@ -19,6 +19,7 @@ local BLACK = util.color.rgb(0, 0, 0)
 local HERO_WIDTH = 1300
 local HERO_HEIGHT = 372
 local GUI_SCALE = 2
+local PRESENTATION_TEXT_SCALE = 1.5
 local HERO_ICON_SIZE = 32
 local FEATURE_ICON_SIZE = 32
 local SLOT_PADDING = 4
@@ -85,7 +86,7 @@ local function textLayout(text, position, size, options)
             position = logicalVector(position),
             size = logicalVector(size),
             text = text,
-            textSize = (options.textSize or 22) / GUI_SCALE,
+            textSize = (options.textSize or 22) * PRESENTATION_TEXT_SCALE / GUI_SCALE,
             textColor = options.color or WHITE,
             textShadow = options.shadow ~= false,
             textShadowColor = BLACK,
@@ -278,26 +279,10 @@ local function addFeatureHeader(content, slide)
     ))
 end
 
-local function addProgress(content)
-    append(content, textLayout(
-        string.format("%02d  /  %02d", slideIndex - 1, #slides - 1),
-        util.vector2(1040, 101),
-        util.vector2(160, 24),
-        {
-            textSize = 16,
-            color = MUTED_GOLD,
-            multiline = false,
-            wordWrap = false,
-            alignH = ui.ALIGNMENT.End,
-        }
-    ))
-end
-
 local function keyLayouts(slide, screen)
     local content = {}
     addFeatureBackdrop(content, screen)
     addFeatureHeader(content, slide)
-    addProgress(content)
 
     local rowY = 420
     for _, row in ipairs(slide.keyRows) do
@@ -327,7 +312,7 @@ local function keyLayouts(slide, screen)
         append(content, textLayout(
             row.label .. "  —  " .. row.description,
             util.vector2(190, rowY + 43),
-            util.vector2(790, 62),
+            util.vector2(790, 100),
             {
                 textSize = 22,
                 color = WHITE,
@@ -344,7 +329,6 @@ local function exampleLayouts(slide, screen)
     local content = {}
     addFeatureBackdrop(content, screen)
     addFeatureHeader(content, slide)
-    addProgress(content)
 
     local rowY = 418
     for _, example in ipairs(slide.examples) do
@@ -374,7 +358,7 @@ local function exampleLayouts(slide, screen)
         append(content, textLayout(
             example.description,
             util.vector2(88, rowY + 127),
-            util.vector2(880, 58),
+            util.vector2(880, 100),
             {
                 textSize = 22,
                 color = WHITE,
@@ -391,7 +375,6 @@ local function optionLayouts(slide, screen)
     local content = {}
     addFeatureBackdrop(content, screen)
     addFeatureHeader(content, slide)
-    addProgress(content)
 
     local columns = { 88, 510 }
     for index, group in ipairs(slide.optionGroups) do
@@ -413,7 +396,7 @@ local function optionLayouts(slide, screen)
         append(content, textLayout(
             group.description,
             util.vector2(column, y + 50),
-            util.vector2(400, 112),
+            util.vector2(400, 150),
             {
                 textSize = 22,
                 color = WHITE,
@@ -422,9 +405,9 @@ local function optionLayouts(slide, screen)
     end
 
     append(content, textLayout(
-        "Live preview",
+        "See it as I change it",
         util.vector2(88, 910),
-        util.vector2(400, 38),
+        util.vector2(700, 38),
         {
             template = I.MWUI.templates.textHeader,
             textSize = 29,
@@ -444,7 +427,7 @@ local function optionLayouts(slide, screen)
         iconX = iconX + (FEATURE_ICON_SIZE + SLOT_PADDING) * GUI_SCALE + 12
     end
     append(content, textLayout(
-        "Every change is visible immediately in the game.",
+        "I can see each change straight away.",
         util.vector2(88, 1060),
         util.vector2(820, 40),
         {
@@ -474,7 +457,7 @@ local function heroLayouts(slide, screen)
         util.vector2(500, 150),
         {
             template = I.MWUI.templates.textHeader,
-            textSize = 52,
+            textSize = 42,
             color = GOLD,
             multiline = true,
             wordWrap = false,

@@ -47,6 +47,7 @@ local wasHudVisible = true
 local frameTime = 0
 local retryAfter = 0
 local lastHudError
+local activeHotbarPage = 0
 
 local HUD_ERROR_RETRY_SECONDS = 1.0
 
@@ -60,6 +61,7 @@ local metrics = {
 
 local STRUCTURAL_SETTINGS = {
     visibleHotbars = true,
+    showActiveHotbarOnly = true,
     hotBarOnTop = true,
     hotbarGutterSize = true,
     hotbarVerticalSpacing = true,
@@ -253,10 +255,35 @@ local function createSlotLayout(snapshot)
     }
 end
 
+local function getActiveHotbarPage()
+    if input.isShiftPressed() or input.isMouseButtonPressed(4) then
+        return 1
+    elseif input.isCtrlPressed() or input.isMouseButtonPressed(5) then
+        return 2
+    end
+    return 0
+end
+
+local function updateActiveHotbarPage()
+    if not settings:get("showActiveHotbarOnly") then
+        activeHotbarPage = 0
+        return
+    end
+
+    local nextPage = getActiveHotbarPage()
+    if nextPage ~= activeHotbarPage then
+        activeHotbarPage = nextPage
+        requestLayout(true)
+    end
+end
+
 local function readLayoutConfig()
     local iconSize = utility.getIconSize()
     local slotSize = iconSize + ICON_PADDING * 2
-    local visibleBars = math.max(0, math.min(3, settings:get("visibleHotbars") or 1))
+    local showActiveHotbarOnly = settings:get("showActiveHotbarOnly") == true
+    local visibleBars = showActiveHotbarOnly
+        and 1
+        or math.max(0, math.min(3, settings:get("visibleHotbars") or 1))
     local gap = math.max(0, settings:get("hotbarGutterSize") or 5)
     local verticalGap = visibleBars > 1
         and math.max(0, settings:get("hotbarVerticalSpacing") or 12)
@@ -272,6 +299,7 @@ local function readLayoutConfig()
     return {
         slotSize = slotSize,
         visibleBars = visibleBars,
+        activePage = showActiveHotbarOnly and activeHotbarPage or nil,
         gap = gap,
         verticalGap = verticalGap,
         anchor = anchor,
@@ -279,11 +307,13 @@ local function readLayoutConfig()
     }
 end
 
-local function buildRows(visibleBars)
+local function buildRows(visibleBars, activePage)
     local rows = {}
     local slotSet = {}
+    local firstPage = activePage ~= nil and activePage or visibleBars - 1
+    local lastPage = activePage ~= nil and activePage or 0
 
-    for page = visibleBars - 1, 0, -1 do
+    for page = firstPage, lastPage, -1 do
         local row = {}
         for index = 1, ITEMS_PER_ROW do
             local slot = page * ITEMS_PER_ROW + index
@@ -330,7 +360,7 @@ local function rebuildView()
     end
 
     local rows
-    rows, visibleSlots = buildRows(config.visibleBars)
+    rows, visibleSlots = buildRows(config.visibleBars, config.activePage)
 
     local context = captureContext()
     for slot in pairs(visibleSlots) do
@@ -644,6 +674,7 @@ return {
             frameTime = 0
             retryAfter = 0
             lastHudError = nil
+            activeHotbarPage = 0
             requestLayout(true)
         end,
         onUpdate = onUpdate,
@@ -654,6 +685,7 @@ return {
             end
 
             local success, err = pcall(function()
+                updateActiveHotbarPage()
                 updateFade(dt)
                 flushInvalidations()
             end)

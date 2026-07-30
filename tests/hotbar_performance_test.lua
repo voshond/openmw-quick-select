@@ -2,6 +2,12 @@ local createCount = 0
 local testCharge = 80
 local testCount = 3
 local favoriteData = {}
+local requestedSlots = {}
+local hudLayouts = {}
+local shiftPressed = false
+local ctrlPressed = false
+local mouse4Pressed = false
+local mouse5Pressed = false
 
 local function content(values)
     values = values or {}
@@ -54,6 +60,9 @@ package.preload["openmw.ui"] = function()
 
     function module.create(layout)
         createCount = createCount + 1
+        if layout.layer == "HUD" then
+            hudLayouts[#hudLayouts + 1] = layout
+        end
         local element = {
             layout = layout,
             updates = 0,
@@ -192,6 +201,15 @@ end
 package.preload["openmw.input"] = function()
     return {
         CONTROLLER_BUTTON = {},
+        isShiftPressed = function()
+            return shiftPressed
+        end,
+        isCtrlPressed = function()
+            return ctrlPressed
+        end,
+        isMouseButtonPressed = function(button)
+            return (button == 4 and mouse4Pressed) or (button == 5 and mouse5Pressed)
+        end,
     }
 end
 
@@ -248,6 +266,7 @@ local interfaces = {
     },
     QuickSelect_Storage = {
         getFavoriteItemData = function(slot)
+            requestedSlots[slot] = true
             return favoriteData[slot] or {}
         end,
         saveStoredItemData = function() end,
@@ -447,5 +466,57 @@ sectionValues.SettingsVoshondsQuickSelect.visibleHotbars = 1
 subscriptions.SettingsVoshondsQuickSelect(nil, "visibleHotbars")
 controller.engineHandlers.onFrame(0)
 assert(controller.interface.isHotbarVisible(), "raising visible hotbars recreates the HUD view")
+
+local function assertOnlyPageWasRendered(page, message)
+    local firstSlot = page * 10 + 1
+    local lastSlot = firstSlot + 9
+    for slot = 1, 30 do
+        assert((requestedSlots[slot] == true) == (slot >= firstSlot and slot <= lastSlot), message)
+    end
+end
+
+sectionValues.SettingsVoshondsQuickSelect.visibleHotbars = 3
+sectionValues.SettingsVoshondsQuickSelect.showActiveHotbarOnly = true
+requestedSlots = {}
+subscriptions.SettingsVoshondsQuickSelect(nil, "showActiveHotbarOnly")
+controller.engineHandlers.onFrame(0)
+local firstBarLayout = hudLayouts[#hudLayouts]
+assert(#firstBarLayout.content[1].content == 1,
+    "active-hotbar-only mode overrides the configured number of visible bars")
+assertOnlyPageWasRendered(0, "active-hotbar-only mode initially renders Hotbar 1")
+
+shiftPressed = true
+requestedSlots = {}
+controller.engineHandlers.onFrame(0)
+local secondBarLayout = hudLayouts[#hudLayouts]
+assertOnlyPageWasRendered(1, "holding Shift replaces the row with Hotbar 2")
+assert(secondBarLayout.props.anchor.x == firstBarLayout.props.anchor.x
+        and secondBarLayout.props.anchor.y == firstBarLayout.props.anchor.y
+        and secondBarLayout.props.relativePosition.x == firstBarLayout.props.relativePosition.x
+        and secondBarLayout.props.relativePosition.y == firstBarLayout.props.relativePosition.y
+        and secondBarLayout.content[1].props.size.y == firstBarLayout.content[1].props.size.y,
+    "modifier hotbars replace the same HUD row instead of stacking")
+
+shiftPressed = false
+ctrlPressed = true
+requestedSlots = {}
+controller.engineHandlers.onFrame(0)
+assertOnlyPageWasRendered(2, "holding Ctrl replaces the row with Hotbar 3")
+
+ctrlPressed = false
+requestedSlots = {}
+controller.engineHandlers.onFrame(0)
+assertOnlyPageWasRendered(0, "releasing modifiers restores Hotbar 1")
+
+mouse4Pressed = true
+requestedSlots = {}
+controller.engineHandlers.onFrame(0)
+assertOnlyPageWasRendered(1, "holding Mouse 4 replaces the row with Hotbar 2")
+
+mouse4Pressed = false
+mouse5Pressed = true
+requestedSlots = {}
+controller.engineHandlers.onFrame(0)
+assertOnlyPageWasRendered(2, "holding Mouse 5 replaces the row with Hotbar 3")
 
 print("hotbar_performance_test: ok")

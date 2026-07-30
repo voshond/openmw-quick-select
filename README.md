@@ -36,7 +36,9 @@ The copy-ready Nexus Mods description is maintained in
 - **Configurable presentation:** choose zero to three visible bars (zero hides
   the HUD while hotkeys still work), top or bottom placement, icon size,
   horizontal and vertical spacing, text styling, and optional auto-fading
-  after inactivity.
+  after inactivity. An optional active-hotbar-only mode keeps the HUD to one
+  fixed row and temporarily replaces it with Hotbar 2 or 3 while its modifier
+  is held.
 
 ### PC-first behaviour
 

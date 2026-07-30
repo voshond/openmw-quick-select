@@ -47,6 +47,13 @@ I.Settings.registerGroup {
             },
         },
         {
+            key = "showActiveHotbarOnly",
+            renderer = "checkbox",
+            name = "Show Active Hotbar Only",
+            description = "Display one hotbar at a time. While enabled, hold Shift or Mouse 4 to show Hotbar 2, and Ctrl or Mouse 5 to show Hotbar 3. Releasing the modifier returns to Hotbar 1. This overrides Number of Visible Hotbars.",
+            default = false,
+        },
+        {
             key = "toggleEquipment",
             renderer = "checkbox",
             name = "Toggle Equipment (Armor/Clothing/Rings)",

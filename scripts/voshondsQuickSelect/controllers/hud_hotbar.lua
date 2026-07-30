@@ -256,7 +256,7 @@ end
 local function readLayoutConfig()
     local iconSize = utility.getIconSize()
     local slotSize = iconSize + ICON_PADDING * 2
-    local visibleBars = math.max(1, math.min(3, settings:get("visibleHotbars") or 1))
+    local visibleBars = math.max(0, math.min(3, settings:get("visibleHotbars") or 1))
     local gap = math.max(0, settings:get("hotbarGutterSize") or 5)
     local verticalGap = visibleBars > 1
         and math.max(0, settings:get("hotbarVerticalSpacing") or 12)
@@ -319,9 +319,18 @@ local function rebuildView()
 
     local config = readLayoutConfig()
     activeLayoutConfig = config
+    snapshots = {}
+
+    if config.visibleBars == 0 then
+        visibleSlots = {}
+        layoutDirty = false
+        pendingAll = false
+        dirtySlots = {}
+        return
+    end
+
     local rows
     rows, visibleSlots = buildRows(config.visibleBars)
-    snapshots = {}
 
     local context = captureContext()
     for slot in pairs(visibleSlots) do
@@ -392,10 +401,10 @@ local function flushInvalidations()
         return
     end
 
-    if layoutDirty or not view then
+    if layoutDirty or (not view and activeLayoutConfig and activeLayoutConfig.visibleBars > 0) then
         rebuildView()
         metrics.invalidationBatches = metrics.invalidationBatches + 1
-    elseif pendingAll or next(dirtySlots) ~= nil then
+    elseif view and (pendingAll or next(dirtySlots) ~= nil) then
         updateDirtySlots()
         metrics.invalidationBatches = metrics.invalidationBatches + 1
     end
@@ -456,7 +465,7 @@ local function onUpdate(dt)
         end
     end
 
-    if not hudVisible or fadedHidden then
+    if not hudVisible or fadedHidden or (activeLayoutConfig and activeLayoutConfig.visibleBars == 0) then
         return
     end
 

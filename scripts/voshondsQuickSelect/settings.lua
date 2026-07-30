@@ -39,10 +39,10 @@ I.Settings.registerGroup {
             key = "visibleHotbars",
             renderer = "number",
             name = "Number of Visible Hotbars",
-            description = "Set how many hotbars should be visible at once (1-3). Value of 1 shows only the current hotbar, 2 shows current and one additional, 3 shows all hotbars.",
+            description = "Set how many hotbars should be visible at once (0-3). Value of 0 hides the hotbar UI while QuickSelect hotkeys and functionality remain available. Value of 1 shows only the current hotbar, 2 shows current and one additional, 3 shows all hotbars.",
             default = 1,
             argument = {
-                min = 1,
+                min = 0,
                 max = 3,
             },
         },

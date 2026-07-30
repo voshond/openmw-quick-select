@@ -432,4 +432,20 @@ controller.engineHandlers.onFrame(0)
 local layoutMetrics = controller.interface.getPerformanceMetrics()
 assert(layoutMetrics.fullBuilds == 2, "layout invalidation performs an explicit full rebuild")
 
+sectionValues.SettingsVoshondsQuickSelect.visibleHotbars = 0
+subscriptions.SettingsVoshondsQuickSelect(nil, "visibleHotbars")
+controller.engineHandlers.onFrame(0)
+assert(not controller.interface.isHotbarVisible(), "zero visible hotbars hides the HUD view")
+
+local hiddenMetrics = controller.interface.getPerformanceMetrics()
+controller.interface.drawHotbar(false)
+controller.engineHandlers.onFrame(0)
+assert(controller.interface.getPerformanceMetrics().fullBuilds == hiddenMetrics.fullBuilds,
+    "zero visible hotbars does not rebuild an empty HUD view")
+
+sectionValues.SettingsVoshondsQuickSelect.visibleHotbars = 1
+subscriptions.SettingsVoshondsQuickSelect(nil, "visibleHotbars")
+controller.engineHandlers.onFrame(0)
+assert(controller.interface.isHotbarVisible(), "raising visible hotbars recreates the HUD view")
+
 print("hotbar_performance_test: ok")

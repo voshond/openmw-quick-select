@@ -33,9 +33,10 @@ The copy-ready Nexus Mods description is maintained in
   tools.
 - **Per-type low-stock warnings:** optional threshold colours for potions,
   repair tools, probes, lockpicks, and ammunition.
-- **Configurable presentation:** choose one to three visible bars, top or
-  bottom placement, icon size, horizontal and vertical spacing, text styling,
-  and optional auto-fading after inactivity.
+- **Configurable presentation:** choose zero to three visible bars (zero hides
+  the HUD while hotkeys still work), top or bottom placement, icon size,
+  horizontal and vertical spacing, text styling, and optional auto-fading
+  after inactivity.
 
 ### PC-first behaviour
 

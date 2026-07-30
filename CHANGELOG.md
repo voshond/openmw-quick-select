@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.27 (2026-07-30)
+
+Add 'Switch to modifier' mode & ability to show 0 hotbars
+
+
 ## Version 1.0.26 (2026-07-30)
 
 Fix Item Selection & Potion Counts

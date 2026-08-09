@@ -7,12 +7,12 @@
 init_config() {
     local script_dir="$1"
     CONFIG_FILE="$script_dir/config.json"
-    
+
     if [ ! -f "$CONFIG_FILE" ]; then
         echo "Error: config.json not found at $CONFIG_FILE!"
         exit 1
     fi
-    
+
     # Check for jq
     if ! command -v jq &> /dev/null; then
         echo "Error: jq is required to parse config.json. Install it with:"
@@ -21,12 +21,12 @@ init_config() {
         echo "  Arch: sudo pacman -S jq"
         exit 1
     fi
-    
+
     # Load configuration variables
     PROJECT_NAME=$(jq -r '.project.name' "$CONFIG_FILE")
     DISPLAY_NAME=$(jq -r '.project.displayName' "$CONFIG_FILE")
     PROJECT_VERSION=$(jq -r '.project.version' "$CONFIG_FILE")
-    
+
     # Platform-specific paths
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         MOD_DIR=$(jq -r '.paths.linux.modDir' "$CONFIG_FILE")
@@ -37,12 +37,12 @@ init_config() {
         echo "Unsupported OS type: $OSTYPE"
         exit 1
     fi
-    
+
     # Derived paths
     SCRIPTS_DIR="$MOD_DIR/scripts/$PROJECT_NAME"
     TEXTURES_DIR="$MOD_DIR/textures"
     DIST_DIR="$script_dir/dist"
-    
+
     # Load color codes
     COLOR_RED=$(jq -r '.colors.red' "$CONFIG_FILE")
     COLOR_GREEN=$(jq -r '.colors.green' "$CONFIG_FILE")
@@ -104,7 +104,7 @@ clean_directory() {
 copy_files() {
     local source="$1"
     local destination="$2"
-    
+
     if [ -d "$source" ]; then
         cp -r "$source"/* "$destination/"
     elif [ -f "$source" ]; then
@@ -140,27 +140,27 @@ deploy_mod_files() {
 find_openmw_processes() {
     # Use exact process name matching instead of fuzzy matching
     local native_pid=$(pgrep -x "$OPENMW_NATIVE" 2>/dev/null)
-    
+
     # For Flatpak, be more specific about the full command
     local flatpak_pid=$(pgrep -f "flatpak run $OPENMW_FLATPAK" 2>/dev/null)
-    
+
     # Alternative: also check for the actual OpenMW binary in flatpak
     if [ -z "$flatpak_pid" ]; then
         flatpak_pid=$(pgrep -f "/app/bin/openmw" 2>/dev/null)
     fi
-    
+
     echo "$native_pid $flatpak_pid"
 }
 
 # Show what OpenMW processes would be affected (dry run)
 show_openmw_processes() {
     local pids=($(find_openmw_processes))
-    
+
     if [ ${#pids[@]} -eq 0 ] || ([ ${#pids[@]} -eq 1 ] && [ -z "${pids[0]}" ]); then
         print_info "No OpenMW processes found"
         return 0
     fi
-    
+
     print_info "OpenMW processes that would be affected:"
     for pid in "${pids[@]}"; do
         if [ -n "$pid" ]; then
@@ -175,7 +175,7 @@ show_openmw_processes() {
 # Kill OpenMW processes (with safety checks)
 kill_openmw() {
     local pids=($(find_openmw_processes))
-    
+
     # Show what processes we found before killing anything
     for pid in "${pids[@]}"; do
         if [ -n "$pid" ]; then
@@ -185,7 +185,7 @@ kill_openmw() {
             fi
         fi
     done
-    
+
     # Kill the processes
     for pid in "${pids[@]}"; do
         if [ -n "$pid" ]; then
@@ -195,7 +195,7 @@ kill_openmw() {
                 print_info "Terminating OpenMW process (PID: $pid, Name: $process_name)..."
                 kill "$pid" 2>/dev/null
                 sleep 1
-                
+
                 # Force kill if still running
                 if kill -0 "$pid" 2>/dev/null; then
                     print_warning "Force killing OpenMW process (PID: $pid)..."
@@ -212,7 +212,7 @@ kill_openmw() {
 start_openmw() {
     if command_exists flatpak; then
         print_info "Starting OpenMW via Flatpak..."
-        flatpak run "$OPENMW_FLATPAK" "$@" &
+        openmw &
         print_success "OpenMW Flatpak started. Please load your save and enable the mod."
     else
         print_error "Flatpak not available. Please start OpenMW manually."
@@ -223,10 +223,10 @@ start_openmw() {
 # Focus OpenMW window
 focus_openmw() {
     local pids=($(find_openmw_processes))
-    
+
     if [ ${#pids[@]} -gt 0 ] && [ -n "${pids[0]}" ]; then
         print_info "OpenMW is running, attempting to focus window..."
-        
+
         if command_exists wmctrl; then
             wmctrl -a "OpenMW" 2>/dev/null || wmctrl -a "openmw" 2>/dev/null
             print_success "Attempted to focus OpenMW window using wmctrl"
@@ -246,10 +246,10 @@ check_git_status() {
         print_error "Git is not installed or not in the PATH."
         exit 1
     fi
-    
+
     local git_version=$(git --version)
     print_info "Found Git: $git_version"
-    
+
     local status=$(git status --porcelain)
     if [ -n "$status" ]; then
         print_error "You have uncommitted changes. Commit or stash them before creating a release."
@@ -271,11 +271,11 @@ update_changelog() {
     local message="$2"
     local script_dir="$3"
     local changelog_path="$script_dir/CHANGELOG.md"
-    
+
     if [ -f "$changelog_path" ]; then
         local changelog_content=$(cat "$changelog_path")
         local release_header="## Version $version"
-        
+
         # Check if version already exists in changelog
         if echo "$changelog_content" | grep -q "## Version $version"; then
             print_error "Version $version already exists in CHANGELOG.md"
@@ -286,7 +286,7 @@ update_changelog() {
             # Insert after first line
             local first_line=$(head -n 1 "$changelog_path")
             local rest_of_file=$(tail -n +2 "$changelog_path")
-            
+
             # Create updated changelog
             {
                 printf '%s\n\n' "$first_line"
@@ -296,7 +296,7 @@ update_changelog() {
                 fi
                 printf '%s\n' "$rest_of_file"
             } > "$changelog_path.tmp"
-            
+
             mv "$changelog_path.tmp" "$changelog_path"
             print_success "Updated CHANGELOG.md with new version information"
         fi

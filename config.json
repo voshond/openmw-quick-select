@@ -17,7 +17,7 @@
   "openmw": {
     "linux": {
       "native": "openmw",
-      "flatpak": "org.openmw.OpenMW"
+      "flatpak": "openmw"
     },
     "windows": {
       "executable": "D:\\Games\\Morrowind\\OpenMW current\\openmw.exe",

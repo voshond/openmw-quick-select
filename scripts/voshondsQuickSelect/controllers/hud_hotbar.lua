@@ -34,7 +34,6 @@ local visibleSlots = {}
 local dirtySlots = {}
 local pendingAll = true
 local layoutDirty = true
-local pendingResetFade = true
 local styleVersion = 0
 local selectedNum = 1
 local pickSlotMode = false
@@ -98,23 +97,17 @@ local function markSlotDirty(slot)
     end
 end
 
-local function requestAll(resetFadeTimer)
+local function requestAll()
     pendingAll = true
-    if resetFadeTimer ~= false then
-        pendingResetFade = true
-    end
 end
 
-local function requestSlot(slot, resetFadeTimer)
+local function requestSlot(slot)
     markSlotDirty(slot)
-    if resetFadeTimer then
-        pendingResetFade = true
-    end
 end
 
-local function requestLayout(resetFadeTimer)
+local function requestLayout()
     layoutDirty = true
-    requestAll(resetFadeTimer)
+    requestAll()
 end
 
 local function resetFadeState()
@@ -125,9 +118,9 @@ local function resetFadeState()
     end
 end
 
-local function resetFade()
+local function revealForHotkey()
     resetFadeState()
-    requestAll(false)
+    requestAll()
 end
 
 local function getToolTipPos()
@@ -273,7 +266,7 @@ local function updateActiveHotbarPage()
     local nextPage = getActiveHotbarPage()
     if nextPage ~= activeHotbarPage then
         activeHotbarPage = nextPage
-        requestLayout(true)
+        requestLayout()
     end
 end
 
@@ -419,11 +412,6 @@ local function updateDirtySlots()
 end
 
 local function flushInvalidations()
-    if pendingResetFade then
-        pendingResetFade = false
-        resetFadeState()
-    end
-
     if not hudIsVisible() then
         if view then
             HotbarView.setVisible(view, false)
@@ -509,7 +497,7 @@ end
 
 local function startPickingMode()
     controllerPickMode = true
-    resetFade()
+    requestAll()
 end
 
 local function endPickingMode()
@@ -518,14 +506,14 @@ local function endPickingMode()
     pendingSlotData = nil
     Tooltip.hide()
     I.UI.setMode()
-    requestAll(true)
+    requestAll()
 end
 
 local function selectSlot(item, spell, enchant)
     pickSlotMode = true
     controllerPickMode = true
     pendingSlotData = { item = item, spell = spell, enchant = enchant }
-    requestAll(true)
+    requestAll()
 end
 
 local function saveSlot()
@@ -544,7 +532,7 @@ local function saveSlot()
 
     pickSlotMode = false
     pendingSlotData = nil
-    requestSlot(slot, true)
+    requestSlot(slot)
 end
 
 local function uiModeChanged(data)
@@ -553,7 +541,7 @@ local function uiModeChanged(data)
         pickSlotMode = false
         pendingSlotData = nil
         Tooltip.hide()
-        requestAll(false)
+        requestAll()
     elseif not data.newMode and not pickSlotMode then
         Tooltip.hide()
     end
@@ -570,7 +558,7 @@ local function selectNextOrPrevHotBar(direction)
     end
 
     I.QuickSelect.setSelectedPage(page)
-    requestAll(true)
+    requestAll()
 end
 
 local function selectNextOrPrevHotKey(direction)
@@ -586,8 +574,8 @@ local function selectNextOrPrevHotKey(direction)
         selectedNum = selectedNum == 1 and ITEMS_PER_ROW or selectedNum - 1
     end
 
-    requestSlot(oldSlot, true)
-    requestSlot(selectedSlot(), false)
+    requestSlot(oldSlot)
+    requestSlot(selectedSlot())
 end
 
 local function isQuickKeysMenuOpen()
@@ -598,9 +586,9 @@ end
 
 local function onMainSettingsChanged(_, key)
     if key == nil or STRUCTURAL_SETTINGS[key] then
-        requestLayout(false)
+        requestLayout()
     else
-        requestAll(false)
+        requestAll()
     end
 end
 
@@ -609,7 +597,7 @@ local function onVisualSettingsChanged()
     if I.Controller_Icon_QS and I.Controller_Icon_QS.refreshTextStyles then
         I.Controller_Icon_QS.refreshTextStyles()
     end
-    requestAll(false)
+    requestAll()
 end
 
 settings:subscribe(async:callback(onMainSettingsChanged))
@@ -620,26 +608,26 @@ thresholdSettings:subscribe(async:callback(onVisualSettingsChanged))
 return {
     interfaceName = "QuickSelect_Hotbar",
     interface = {
-        drawHotbar = function(resetFadeTimer)
-            requestAll(resetFadeTimer)
+        drawHotbar = function()
+            requestAll()
         end,
-        invalidateSlot = function(slot, _, resetFadeTimer)
-            requestSlot(slot, resetFadeTimer)
+        invalidateSlot = function(slot)
+            requestSlot(slot)
         end,
-        invalidateState = function(_, resetFadeTimer)
-            requestAll(resetFadeTimer)
+        invalidateState = function()
+            requestAll()
         end,
         invalidateDynamic = function()
             invalidateDynamic()
         end,
-        invalidateLayout = function(_, resetFadeTimer)
-            requestLayout(resetFadeTimer)
+        invalidateLayout = function()
+            requestLayout()
         end,
         startPickingMode = startPickingMode,
         endPickingMode = endPickingMode,
         selectSlot = selectSlot,
         saveSlot = saveSlot,
-        resetFade = resetFade,
+        revealForHotkey = revealForHotkey,
         isHotbarVisible = function()
             return view ~= nil and view.visible
         end,
@@ -675,7 +663,7 @@ return {
             retryAfter = 0
             lastHudError = nil
             activeHotbarPage = 0
-            requestLayout(true)
+            requestLayout()
         end,
         onUpdate = onUpdate,
         onFrame = function(dt)

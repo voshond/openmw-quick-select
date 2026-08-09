@@ -128,7 +128,7 @@ I.Settings.registerGroup {
             key = "enableFadingBars",
             renderer = "checkbox",
             name = "Enable Fading Bars",
-            description = "If enabled, the hotbar will automatically hide after 2 seconds of inactivity. It will reappear when you interact with items.",
+            description = "If enabled, the hotbar will automatically hide after 2 seconds of inactivity. It reappears only when a QuickSelect hotkey is used.",
             default = false
         },
     },

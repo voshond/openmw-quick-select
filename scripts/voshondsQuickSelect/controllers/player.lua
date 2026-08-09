@@ -92,8 +92,8 @@ local function onInputAction(action)
             local itemData = I.QuickSelect_Storage.getFavoriteItemData(actualSlot)
 
             if I.QuickSelect_Hotbar then
-                log("QuickSelect_Hotbar interface is available, resetting fade", "info")
-                I.QuickSelect_Hotbar.resetFade()
+                log("QuickSelect_Hotbar interface is available, revealing after hotkey", "info")
+                I.QuickSelect_Hotbar.revealForHotkey()
             end
 
             -- Process item data if available

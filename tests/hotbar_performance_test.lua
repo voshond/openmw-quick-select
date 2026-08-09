@@ -8,6 +8,7 @@ local shiftPressed = false
 local ctrlPressed = false
 local mouse4Pressed = false
 local mouse5Pressed = false
+local hudVisible = true
 
 local function content(values)
     values = values or {}
@@ -255,7 +256,7 @@ local interfaces = {
     UI = {
         setMode = function() end,
         isHudVisible = function()
-            return true
+            return hudVisible
         end,
     },
     QuickSelect = {
@@ -518,5 +519,40 @@ mouse5Pressed = true
 requestedSlots = {}
 controller.engineHandlers.onFrame(0)
 assertOnlyPageWasRendered(2, "holding Mouse 5 replaces the row with Hotbar 3")
+
+mouse5Pressed = false
+controller.engineHandlers.onFrame(0)
+sectionValues.SettingsVoshondsQuickSelect.enableFadingBars = true
+controller.engineHandlers.onFrame(2.3)
+assert(not controller.interface.isHotbarVisible(), "fading hides an inactive hotbar")
+
+controller.interface.drawHotbar()
+controller.engineHandlers.onFrame(0)
+assert(not controller.interface.isHotbarVisible(),
+    "a generic redraw does not reveal a faded hotbar")
+
+controller.interface.invalidateSlot(1, "unrelated state change", true)
+controller.engineHandlers.onFrame(0)
+assert(not controller.interface.isHotbarVisible(),
+    "a slot invalidation does not reveal a faded hotbar")
+
+hudVisible = false
+controller.engineHandlers.onUpdate(0)
+controller.engineHandlers.onFrame(0)
+hudVisible = true
+controller.engineHandlers.onUpdate(0)
+controller.engineHandlers.onFrame(0)
+assert(not controller.interface.isHotbarVisible(),
+    "restoring the HUD after a conversation does not reveal a faded hotbar")
+
+shiftPressed = true
+controller.engineHandlers.onFrame(0)
+assert(not controller.interface.isHotbarVisible(),
+    "holding a modifier without a number key does not reveal the hotbar")
+
+controller.interface.revealForHotkey()
+controller.engineHandlers.onFrame(0)
+assert(controller.interface.isHotbarVisible(),
+    "an explicit QuickSelect hotkey reveals the faded hotbar")
 
 print("hotbar_performance_test: ok")

@@ -1,5 +1,10 @@
 ## OpenMW Quick Select Changelog
 
+## Version 1.0.28 (2026-08-09)
+
+Fix hotbar revealing after interactions while fade-option is turned on
+
+
 ## Version 1.0.27 (2026-07-30)
 
 Add 'Switch to modifier' mode & ability to show 0 hotbars
